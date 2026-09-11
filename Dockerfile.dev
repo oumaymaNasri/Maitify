@@ -1,0 +1,23 @@
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+# Prisma (OpenSSL)
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+COPY scripts/postinstall-prisma.cjs ./scripts/postinstall-prisma.cjs
+RUN npm ci
+
+COPY prisma ./prisma
+RUN npx prisma generate
+
+COPY scripts/docker-dev-entrypoint.sh /usr/local/bin/docker-dev-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-dev-entrypoint.sh
+
+EXPOSE 3000
+
+ENTRYPOINT ["docker-dev-entrypoint.sh"]
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]

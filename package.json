@@ -1,0 +1,71 @@
+{
+  "name": "nutrifish-gmao",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "prisma": {
+    "seed": "node ./node_modules/tsx/dist/cli.mjs prisma/seed.ts"
+  },
+  "scripts": {
+    "access:export": "powershell -ExecutionPolicy Bypass -File ./scripts/export-access-csv.ps1",
+    "db:seed": "node ./node_modules/tsx/dist/cli.mjs prisma/seed.ts",
+    "db:seed:users": "node ./node_modules/tsx/dist/cli.mjs prisma/seed-auth-users.ts",
+    "import:access": "powershell -ExecutionPolicy Bypass -File ./scripts/export-access-csv.ps1 && cross-env IMPORT_CLEAR=1 node ./node_modules/prisma/build/index.js db seed",
+    "launch": "npm install && node ./scripts/prisma-generate-safe.cjs && node ./node_modules/next/dist/bin/next dev",
+    "dev": "node ./scripts/prisma-generate-safe.cjs && node ./node_modules/next/dist/bin/next dev",
+    "dev:server": "node ./node_modules/next/dist/bin/next dev",
+    "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true});console.log('[OK] dossier .next supprime');}catch(e){console.log(e.message);process.exit(1);}\"",
+    "dev:fresh": "node ./scripts/dev-fresh.cjs",
+    "auth:setup": "node ./node_modules/prisma/build/index.js db push && node ./scripts/prisma-generate-safe.cjs && node ./node_modules/tsx/dist/cli.mjs prisma/seed-auth-users.ts",
+    "build": "node ./node_modules/next/dist/bin/next build",
+    "start": "node ./node_modules/next/dist/bin/next start",
+    "lint": "node ./node_modules/next/dist/bin/next lint",
+    "db:generate": "node ./scripts/prisma-generate-safe.cjs",
+    "db:push": "node ./node_modules/prisma/build/index.js db push",
+    "db:push:force": "node ./node_modules/prisma/build/index.js db push --accept-data-loss",
+    "db:migrate": "node ./node_modules/prisma/build/index.js migrate dev",
+    "db:studio": "node ./node_modules/prisma/build/index.js studio",
+    "postinstall": "node ./scripts/postinstall-prisma.cjs"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@prisma/client": "^6.3.0",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slot": "^1.1.1",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "@tanstack/react-table": "^8.21.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.469.0",
+    "next": "14.2.35",
+    "next-themes": "^0.4.6",
+    "pdf-lib": "^1.17.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.75.0",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "cross-env": "^7.0.3",
+    "csv-parse": "^5.6.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8.4.49",
+    "prisma": "^6.3.0",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.2"
+  }
+}

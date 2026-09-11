@@ -1,0 +1,143 @@
+import type { InterventionType, MaintenanceWorkflowStatus, Prisma } from "@prisma/client";
+
+import type { PaginatedResult } from "@/lib/db/pagination";
+import { prisma } from "@/lib/db/prisma";
+import type { MachineAssetStatus } from "@prisma/client";
+
+export const MACHINE_HISTORY_PAGE_SIZE = 10;
+
+const historyLogSelect = {
+  id: true,
+  date: true,
+  type: true,
+  importSource: true,
+  failureDescription: true,
+  workPerformed: true,
+  workflowStatus: true,
+  technician: { select: { firstName: true, lastName: true } },
+  maintenanceOrderLine: {
+    select: { maintenanceOrder: { select: { reference: true } } },
+  },
+} satisfies Prisma.MaintenanceLogSelect;
+
+type HistoryLogRow = Prisma.MaintenanceLogGetPayload<{ select: typeof historyLogSelect }>;
+
+export type MachineHistoryHeader = {
+  id: string;
+  name: string;
+  code: string;
+  location: string;
+  assetStatus: MachineAssetStatus;
+};
+
+export type MachineHistoryRow = {
+  id: string;
+  date: string;
+  referenceCode: string;
+  type: InterventionType;
+  technicianName: string | null;
+  description: string;
+  workflowStatus: MaintenanceWorkflowStatus;
+};
+
+function mapTechnicianName(tech: { firstName: string; lastName: string } | null): string | null {
+  if (!tech) return null;
+  const name = `${tech.firstName} ${tech.lastName}`.trim();
+  return name || null;
+}
+
+function mapReferenceCode(row: Pick<HistoryLogRow, "id" | "importSource" | "maintenanceOrderLine">): string {
+  return row.importSource ?? row.maintenanceOrderLine?.maintenanceOrder.reference ?? row.id.slice(0, 8);
+}
+
+function mapDescription(failureDescription: string | null, workPerformed: string): string {
+  const failure = failureDescription?.trim();
+  if (failure) return failure;
+  const work = workPerformed.trim();
+  return work || "—";
+}
+
+function mapHistoryRow(row: HistoryLogRow): MachineHistoryRow {
+  return {
+    id: row.id,
+    date: row.date.toISOString(),
+    referenceCode: mapReferenceCode(row),
+    type: row.type,
+    technicianName: mapTechnicianName(row.technician),
+    description: mapDescription(row.failureDescription, row.workPerformed),
+    workflowStatus: row.workflowStatus,
+  };
+}
+
+export async function fetchMachineHistoryHeader(machineId: string): Promise<MachineHistoryHeader | null> {
+  const machine = await prisma.machine.findUnique({
+    where: { id: machineId },
+    select: {
+      id: true,
+      name: true,
+      location: true,
+      legacyMatricule: true,
+      assetStatus: true,
+    },
+  });
+
+  if (!machine) return null;
+
+  return {
+    id: machine.id,
+    name: machine.name,
+    code: machine.legacyMatricule != null ? `M${machine.legacyMatricule}` : machine.id.slice(0, 8),
+    location: machine.location,
+    assetStatus: machine.assetStatus,
+  };
+}
+
+export async function fetchMachineHistoryPage(
+  machineId: string,
+  page: number,
+  pageSize = MACHINE_HISTORY_PAGE_SIZE,
+): Promise<PaginatedResult<MachineHistoryRow> | null> {
+  const exists = await prisma.machine.findUnique({
+    where: { id: machineId },
+    select: { id: true },
+  });
+  if (!exists) return null;
+
+  const safePage = Math.max(1, page);
+  const skip = (safePage - 1) * pageSize;
+
+  const [total, rows] = await prisma.$transaction([
+    prisma.maintenanceLog.count({ where: { machineId } }),
+    prisma.maintenanceLog.findMany({
+      where: { machineId },
+      orderBy: { date: "desc" },
+      skip,
+      take: pageSize,
+      select: historyLogSelect,
+    }),
+  ]);
+
+  return {
+    items: rows.map(mapHistoryRow),
+    total,
+    page: safePage,
+    pageSize,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+  };
+}
+
+export async function fetchMachineHistoryExportRows(machineId: string): Promise<MachineHistoryRow[] | null> {
+  const exists = await prisma.machine.findUnique({
+    where: { id: machineId },
+    select: { id: true },
+  });
+  if (!exists) return null;
+
+  const rows = await prisma.maintenanceLog.findMany({
+    where: { machineId },
+    orderBy: { date: "desc" },
+    select: historyLogSelect,
+  });
+
+  return rows.map(mapHistoryRow);
+}

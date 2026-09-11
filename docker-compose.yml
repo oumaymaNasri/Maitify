@@ -1,0 +1,54 @@
+# NutriFish GMAO — développement local
+# DB seule :     docker compose up db
+# App + DB :     docker compose up app
+# (rebuild app)  docker compose up app --build
+
+name: nutrifish-gmao
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nutrifish
+      POSTGRES_PASSWORD: nutrifish
+      POSTGRES_DB: nutrifish_gmao
+    # Port 5433 sur l'hôte : évite le conflit si PostgreSQL est déjà installé sur 5432
+    ports:
+      - "5433:5432"
+    volumes:
+      - nutrifish_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nutrifish -d nutrifish_gmao"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://nutrifish:nutrifish@db:5432/nutrifish_gmao?schema=public
+      NEXTAUTH_URL: http://localhost:3000
+      # File watching fiable depuis le conteneur (Windows / bind mount)
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      # Code source : synchronisé avec l'hôte
+      - .:/app
+      # Volumes anonymes : node_modules et .next restent dans le FS Linux du conteneur
+      # (évite la synchro OneDrive/Windows → builds et HMR beaucoup plus rapides)
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      db:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+volumes:
+  nutrifish_pg_data:

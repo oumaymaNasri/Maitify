@@ -1,0 +1,481 @@
+// =============================================================================
+// NutriFish GMAO — Schéma relationnel EAM (PostgreSQL)
+// Modules : Techniciens/RH · Parc machines · Stock · Interventions · Qualité eau
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ——— Enums RH / Techniciens ———
+
+enum TechnicianRole {
+  TECHNICIEN
+  RESPONSABLE
+}
+
+enum TechnicianSpecialty {
+  ELECTRIQUE
+  MECANIQUE
+  FLUIDES
+}
+
+enum TechnicianAvailability {
+  DISPONIBLE
+  EN_INTERVENTION
+}
+
+// ——— Enums parc machines ———
+
+enum MachineAssetStatus {
+  OPERATIONAL
+  DOWN
+  UNDER_MAINTENANCE
+}
+
+/// Fréquence / secteur de maintenance préventive (spec usine)
+enum MaintenanceFrequency {
+  JOURNALIERE
+  HEBDOMADAIRE
+  MENSUELLE
+}
+
+// ——— Enums interventions (bons de travail) ———
+
+enum OperationType {
+  REMPLACEMENT
+  DIAGNOSTIC
+  AMELIORATION
+  CONTROLE
+}
+
+enum FailureCause {
+  USURE_NORMALE
+  DEFAUT_UTILISATEUR
+  DEFAUT_PRODUIT
+  AUTRE
+}
+
+enum MaintenanceWorkflowStatus {
+  OPEN
+  COMPLETED
+}
+
+enum MaintenanceOrderStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum StockMovementType {
+  ENTREE
+  SORTIE
+}
+
+/// Compatibilité historique import Access
+enum InterventionType {
+  CORRECTIVE
+  PREVENTIVE
+  AMELIORATION
+}
+
+// ——— Enums qualité eau ———
+
+enum WaterZone {
+  EAU_ADOUC_IE
+  BACHE_1
+  BACHE_2
+  EAU_CHAUDIERE
+  RETOUR_CONDENSAT
+}
+
+enum DocumentCategory {
+  MACHINE_MANUAL
+  QUALITY_SHEET
+  PHOTO
+  SCHEMA
+  OTHER
+}
+
+enum MaintenanceAttachmentKind {
+  PHOTO_BEFORE
+  PHOTO_AFTER
+  SIGNATURE_IMAGE
+  OTHER
+}
+
+enum AlertType {
+  WATER_QUALITY
+  STOCK_LOW
+  MAINTENANCE_OVERDUE
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+// ——— Auth (optionnel, lien technicien) ———
+
+enum UserRole {
+  TECHNICIEN
+  RESPONSABLE
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          UserRole  @default(TECHNICIEN)
+  passwordHash  String?   @map("password_hash")
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  waterMeasurements WaterQualityMeasurement[] @relation("WaterRecorder")
+  technician        Technician?
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ——— Module 1 : Techniciens & RH ———
+
+model Technician {
+  id           String                 @id @default(cuid())
+  firstName    String                 @map("first_name")
+  lastName     String                 @map("last_name")
+  specialty    TechnicianSpecialty
+  role         TechnicianRole         @default(TECHNICIEN)
+  availability TechnicianAvailability @default(DISPONIBLE)
+  email        String?
+  phone        String?
+  employeeCode String?                @unique @map("employee_code")
+  userId       String?                @unique
+  user         User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  maintenanceLogs MaintenanceLog[]
+
+  @@index([specialty])
+  @@index([availability])
+  @@index([role])
+}
+
+// ——— Module 2 : Parc machines (assets) ———
+
+model Machine {
+  id                 String               @id @default(cuid())
+  legacyMatricule    Int?                 @unique
+  name               String
+  location           String
+  maintenanceSector  MaintenanceFrequency @default(HEBDOMADAIRE) @map("maintenance_sector")
+  qrCode             String?              @unique
+  description        String?              @db.Text
+  targetAvailability Float?               @default(0.95)
+  galleryImageUrls   String[]             @default([]) @map("galerie_images")
+  assetStatus        MachineAssetStatus   @default(OPERATIONAL) @map("asset_status")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  photos          MachinePhoto[]
+  manuals         MachineManual[]
+  maintenanceLogs       MaintenanceLog[]
+  maintenanceOrderLines MaintenanceOrderLine[]
+  spareParts            SparePart[]
+  partMachines          PartMachine[]
+
+  @@index([assetStatus])
+  @@index([location])
+  @@index([maintenanceSector])
+}
+
+model MachinePhoto {
+  id        String   @id @default(cuid())
+  machineId String
+  machine   Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  sortOrder  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([machineId])
+}
+
+model MachineManual {
+  id        String           @id @default(cuid())
+  machineId String
+  machine   Machine          @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  title     String
+  fileUrl   String
+  category  DocumentCategory @default(MACHINE_MANUAL)
+  createdAt DateTime         @default(now())
+
+  @@index([machineId])
+  @@map("MachineDocument")
+}
+
+// ——— Module 4 : Maintenance & bons d'intervention ———
+
+model MaintenanceLog {
+  id                 String                    @id @default(cuid())
+  machineId          String
+  machine            Machine                   @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  technicianId       String?
+  technician         Technician?               @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+
+  date               DateTime
+  operationType      OperationType             @default(DIAGNOSTIC) @map("operation_type")
+  /// Legacy import Access
+  type               InterventionType          @default(CORRECTIVE)
+  workflowStatus     MaintenanceWorkflowStatus @default(OPEN) @map("workflow_status")
+
+  failureDescription String?                   @db.Text
+  workPerformed      String                    @db.Text
+  durationMinutes    Int?
+  downtimeMinutes    Int?                      @map("downtime_minutes")
+  failureCause       FailureCause?
+  signature          String?                   @db.Text
+  importSource       String?
+
+  sectorMaintenance String?
+  service           String?
+  operation         String?
+  difficulties      String? @db.Text
+
+  preventiveCleaning    Boolean?
+  preventiveLubrication Boolean?
+  preventiveOil         Boolean?
+  preventiveControl     Boolean? @map("preventive_control")
+  preventiveNonConforme Boolean? @map("preventive_non_conforme")
+
+  maintenanceOrderLineId String?               @unique @map("maintenance_order_line_id")
+  maintenanceOrderLine   MaintenanceOrderLine? @relation(fields: [maintenanceOrderLineId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sparePartUsages SparePartUsage[]
+  attachments     MaintenanceAttachment[]
+
+  @@index([machineId])
+  @@index([technicianId])
+  @@index([date])
+  @@index([operationType])
+  @@index([workflowStatus])
+  @@index([machineId, date])
+  @@map("Intervention")
+}
+
+// ——— Ordres de maintenance (planification Directeur) ———
+
+model MaintenanceOrder {
+  id                 String                   @id @default(cuid())
+  reference          String                   @unique
+  plannedDate        DateTime                 @map("planned_date")
+  interventionType   InterventionType         @default(PREVENTIVE) @map("intervention_type")
+  status             MaintenanceOrderStatus   @default(ACTIVE)
+  observationComment String?                  @map("observation_comment") @db.Text
+  managerApproval    String?                  @map("manager_approval") @db.Text
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  lines MaintenanceOrderLine[]
+
+  @@index([plannedDate])
+  @@index([status])
+  @@map("MaintenanceOrder")
+}
+
+model MaintenanceOrderLine {
+  id                 String           @id @default(cuid())
+  maintenanceOrderId String           @map("maintenance_order_id")
+  maintenanceOrder   MaintenanceOrder @relation(fields: [maintenanceOrderId], references: [id], onDelete: Cascade)
+  machineId          String           @map("machine_id")
+  machine            Machine          @relation(fields: [machineId], references: [id], onDelete: Restrict)
+  taskNettoyage      Boolean          @default(false) @map("task_nettoyage")
+  taskGraissage      Boolean          @default(false) @map("task_graissage")
+  taskHuile          Boolean          @default(false) @map("task_huile")
+  taskControl        Boolean          @default(false) @map("task_control")
+  taskNonConforme    Boolean          @default(false) @map("task_non_conforme")
+  maintenanceLog     MaintenanceLog?
+
+  @@unique([maintenanceOrderId, machineId])
+  @@index([machineId])
+  @@index([maintenanceOrderId])
+  @@map("MaintenanceOrderLine")
+}
+
+model MaintenanceAttachment {
+  id               String                    @id @default(cuid())
+  maintenanceLogId String
+  maintenanceLog     MaintenanceLog            @relation(fields: [maintenanceLogId], references: [id], onDelete: Cascade)
+  kind             MaintenanceAttachmentKind
+  url              String
+  createdAt        DateTime                  @default(now())
+
+  @@index([maintenanceLogId])
+}
+
+// ——— Module 3 : Stock & pièces (SparePart + PartUsage) ———
+
+model SparePart {
+  id          String   @id @default(cuid())
+  designation String
+  brand       String?
+  reference   String?
+  imageUrl    String?
+  quantity    Int      @default(0)
+  minStock    Int      @default(0) @map("min_stock")
+  machineId   String?
+  machine     Machine? @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  usages         SparePartUsage[]
+  stockMovements StockMovement[]
+  partMachines   PartMachine[]
+
+  @@index([reference])
+  @@index([designation])
+  @@index([quantity])
+  @@index([machineId])
+  @@map("Part")
+}
+
+model PartMachine {
+  partId    String    @map("part_id")
+  machineId String    @map("machine_id")
+  part      SparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
+  machine   Machine   @relation(fields: [machineId], references: [id], onDelete: Cascade)
+
+  @@id([partId, machineId])
+  @@index([machineId])
+  @@map("PartMachine")
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  partId    String            @map("part_id")
+  part      SparePart         @relation(fields: [partId], references: [id], onDelete: Cascade)
+  type      StockMovementType
+  quantity  Int
+  date      DateTime          @default(now())
+  motif     String?           @db.Text
+  createdAt DateTime          @default(now())
+
+  @@index([partId, date])
+  @@index([date])
+  @@map("StockMovement")
+}
+
+model SparePartUsage {
+  id               String         @id @default(cuid())
+  maintenanceLogId String         @map("intervention_id")
+  maintenanceLog   MaintenanceLog @relation(fields: [maintenanceLogId], references: [id], onDelete: Cascade)
+  sparePartId      String         @map("part_id")
+  sparePart        SparePart      @relation(fields: [sparePartId], references: [id], onDelete: Restrict)
+  quantityUsed     Int            @default(1) @map("quantity_used")
+
+  @@unique([maintenanceLogId, sparePartId])
+  @@index([maintenanceLogId])
+  @@index([sparePartId])
+  @@map("InterventionPart")
+}
+
+// ——— Qualité eau & alertes ———
+
+model WaterQualityMeasurement {
+  id           String    @id @default(cuid())
+  zone         WaterZone
+  measuredAt   DateTime  @default(now())
+  ph           Float?
+  th           Float?
+  conductivity Float?
+  ta           Float?
+  tac          Float?
+  cl           Float?
+  notes        String?   @db.Text
+  recordedById String?
+  recorder     User?     @relation("WaterRecorder", fields: [recordedById], references: [id])
+
+  @@index([zone, measuredAt])
+  @@index([measuredAt])
+}
+
+model WaterQualityThreshold {
+  zone            WaterZone @id
+  phMin           Float?
+  phMax           Float?
+  thMin           Float?
+  thMax           Float?
+  taMin           Float?
+  taMax           Float?
+  tacMin          Float?
+  tacMax          Float?
+  clMin           Float?
+  clMax           Float?
+  conductivityMin Float?
+  conductivityMax Float?
+  updatedAt       DateTime  @updatedAt
+}
+
+model GmaoAlert {
+  id         String        @id @default(cuid())
+  type       AlertType
+  severity   AlertSeverity
+  title      String
+  message    String        @db.Text
+  metadata   Json?
+  resolvedAt DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([resolvedAt, createdAt])
+  @@index([type, resolvedAt])
+}

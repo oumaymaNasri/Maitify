@@ -1,0 +1,534 @@
+﻿{
+    "tables":  {
+                   "Suivie qualité d\u0027eau":  {
+                                                     "rowEstimate":  null,
+                                                     "columns":  [
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Cl (mg/l)",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Conductivité (μS/cm)",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  7,
+                                                                         "name":  "Date",
+                                                                         "inferredType":  "DATETIME"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  3,
+                                                                         "name":  "Matricule",
+                                                                         "inferredType":  "INTEGER"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Nom de Technicien",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "PH",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Retour condensat",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "TA (°F)",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "TAC (°F)",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "TH adoucie",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "TH Bache 1",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "TH Bache 2",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "TH Chaudière",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     }
+                                                                 ]
+                                                 },
+                   "table d\u0027intervention":  {
+                                                     "rowEstimate":  null,
+                                                     "columns":  [
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "CAUSE DE DEFAILLANCE",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "CAUSE LIE A LA DEFAILLANCE",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  7,
+                                                                         "name":  "date",
+                                                                         "inferredType":  "DATETIME"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "DESCRIPTION DE DYSFONCTIONNEMENT",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "DIFFICULTES RENCONTREES",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Emplacement",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Intervanant",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "MARQUE",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  3,
+                                                                         "name":  "matricule",
+                                                                         "inferredType":  "INTEGER"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Nom de la machine",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Opération",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "PIECE DE RECHANGE ET CONSOMMABLES",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "QUANTITE",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "RAPPORT D\u0027INTERVENTION",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "REFERENCE",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "Secteur Maintenance",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "service",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "TEMPS D\u0027INTERVENTION",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     },
+                                                                     {
+                                                                         "dataTypeOleDb":  130,
+                                                                         "name":  "TYPE DE MAINTENANCE",
+                                                                         "inferredType":  "LONG_TEXT"
+                                                                     }
+                                                                 ]
+                                                 },
+                   "Liste de Piece de rechange":  {
+                                                      "rowEstimate":  null,
+                                                      "columns":  [
+                                                                      {
+                                                                          "dataTypeOleDb":  130,
+                                                                          "name":  "DESIGNATION",
+                                                                          "inferredType":  "LONG_TEXT"
+                                                                      },
+                                                                      {
+                                                                          "dataTypeOleDb":  130,
+                                                                          "name":  "MACHINE",
+                                                                          "inferredType":  "LONG_TEXT"
+                                                                      },
+                                                                      {
+                                                                          "dataTypeOleDb":  130,
+                                                                          "name":  "MARQUE",
+                                                                          "inferredType":  "LONG_TEXT"
+                                                                      },
+                                                                      {
+                                                                          "dataTypeOleDb":  3,
+                                                                          "name":  "matricule",
+                                                                          "inferredType":  "INTEGER"
+                                                                      },
+                                                                      {
+                                                                          "dataTypeOleDb":  130,
+                                                                          "name":  "QUANTITE",
+                                                                          "inferredType":  "LONG_TEXT"
+                                                                      },
+                                                                      {
+                                                                          "dataTypeOleDb":  130,
+                                                                          "name":  "REFERENCE",
+                                                                          "inferredType":  "LONG_TEXT"
+                                                                      }
+                                                                  ]
+                                                  },
+                   "Historique machine":  {
+                                              "rowEstimate":  null,
+                                              "columns":  [
+                                                              {
+                                                                  "dataTypeOleDb":  130,
+                                                                  "name":  "Nom de la machine",
+                                                                  "inferredType":  "LONG_TEXT"
+                                                              }
+                                                          ]
+                                          },
+                   "fiche d\u0027entretien":  {
+                                                  "rowEstimate":  null,
+                                                  "columns":  [
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Cause de l\u0027arret",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Commentaire d\u0027observation",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  7,
+                                                                      "name":  "Date",
+                                                                      "inferredType":  "DATETIME"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Durée d\u0027intervention",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Graissage",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "huile",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  3,
+                                                                      "name":  "Matricule",
+                                                                      "inferredType":  "INTEGER"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Nettoyage",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Nom de la machine",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Nom de Technicien",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "NON",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "OUI",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Pièce de rechange",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Qtite",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Signature de Technicien",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "TH_Adousseceur",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "TH_Bach à eau n°1",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "TH_Bach à eau n°2",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "TH_chaudière",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  },
+                                                                  {
+                                                                      "dataTypeOleDb":  130,
+                                                                      "name":  "Type d\u0027intervention",
+                                                                      "inferredType":  "LONG_TEXT"
+                                                                  }
+                                                              ]
+                                              },
+                   "Table des erreurs":  {
+                                             "rowEstimate":  null,
+                                             "columns":  [
+                                                             {
+                                                                 "dataTypeOleDb":  7,
+                                                                 "name":  "03/02/2025",
+                                                                 "inferredType":  "DATETIME"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "1",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  5,
+                                                                 "name":  "105",
+                                                                 "inferredType":  "DOUBLE"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  5,
+                                                                 "name":  "294",
+                                                                 "inferredType":  "DOUBLE"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Ajout un ventilateur de refroidissement",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "CORRECTIVE",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Dysfonctionnement moteur de Répartition Produit",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "ELECTRIQUE",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "F17",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "F20",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Journalière",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Manque de refroidissement",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "med Lazreg",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "PRODUCTION",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Rez -de-chaussée",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "RIEN",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Sechoir",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Temerature Elevée",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Ventilateur 220V",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             },
+                                                             {
+                                                                 "dataTypeOleDb":  130,
+                                                                 "name":  "Ventilateur 220V1",
+                                                                 "inferredType":  "LONG_TEXT"
+                                                             }
+                                                         ]
+                                         },
+                   "FICHE D\u0027INTERVENTION MAINTENANCE":  {
+                                                                 "rowEstimate":  null,
+                                                                 "columns":  [
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "CAUSE DE DEFAILLANCE",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "CAUSE LIE A LA DEFAILLANCE",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  7,
+                                                                                     "name":  "date",
+                                                                                     "inferredType":  "DATETIME"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "DESCRIPTION DE DYSFONCTIONNEMENT",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "DIFFICULTES RENCONTREES",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "Emplacement",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "Intervanant",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "MARQUE",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  3,
+                                                                                     "name":  "matricule",
+                                                                                     "inferredType":  "INTEGER"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "Nom de la machine",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "Opération",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "PIECE DE RECHANGE ET CONSOMMABLES",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "QUANTITE",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "RAPPORT D\u0027INTERVENTION",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "REFERENCE",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "Secteur Maintenance",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "service",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "TEMPS D\u0027INTERVENTION",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 },
+                                                                                 {
+                                                                                     "dataTypeOleDb":  130,
+                                                                                     "name":  "TYPE DE MAINTENANCE",
+                                                                                     "inferredType":  "LONG_TEXT"
+                                                                                 }
+                                                                             ]
+                                                             }
+               },
+    "sourceFile":  "Maintenance preventif Nutrifsh2023.accdb",
+    "introspectedAt":  "2026-05-10T18:17:17.5262448Z",
+    "oleDbProviders":  [
+                           "Microsoft.ACE.OLEDB.16.0"
+                       ]
+}

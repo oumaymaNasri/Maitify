@@ -1,0 +1,210 @@
+import type { InterventionType, MaintenanceOrderStatus, Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
+
+import { CACHE_TAGS } from "@/lib/cache/tags";
+import type { PaginatedResult } from "@/lib/db/pagination";
+import { prisma } from "@/lib/db/prisma";
+
+export type MaintenanceOrderRow = {
+  id: string;
+  reference: string;
+  plannedDate: string;
+  interventionType: InterventionType;
+  status: MaintenanceOrderStatus;
+  observationComment: string | null;
+  managerApproval: string | null;
+  machineCount: number;
+  machineNames: string;
+  pendingLineCount: number;
+  createdAt: string;
+};
+
+export const MAINTENANCE_ORDERS_PAGE_SIZE = 10;
+
+const orderListSelect = {
+  id: true,
+  reference: true,
+  plannedDate: true,
+  interventionType: true,
+  status: true,
+  observationComment: true,
+  managerApproval: true,
+  createdAt: true,
+  lines: {
+    select: {
+      id: true,
+      machine: { select: { name: true } },
+      maintenanceLog: { select: { id: true } },
+    },
+  },
+} as const;
+
+type OrderListRow = {
+  id: string;
+  reference: string;
+  plannedDate: Date;
+  interventionType: InterventionType;
+  status: MaintenanceOrderStatus;
+  observationComment: string | null;
+  managerApproval: string | null;
+  createdAt: Date;
+  lines: { id: string; machine: { name: string }; maintenanceLog: { id: string } | null }[];
+};
+
+function mapOrderRows(rows: OrderListRow[]): MaintenanceOrderRow[] {
+  return rows.map((o) => {
+    const pending = o.lines.filter((l) => !l.maintenanceLog).length;
+    return {
+      id: o.id,
+      reference: o.reference,
+      plannedDate: o.plannedDate.toISOString(),
+      interventionType: o.interventionType,
+      status: o.status,
+      observationComment: o.observationComment,
+      managerApproval: o.managerApproval,
+      machineCount: o.lines.length,
+      machineNames: o.lines.map((l) => l.machine.name).join(", "),
+      pendingLineCount: pending,
+      createdAt: o.createdAt.toISOString(),
+    };
+  });
+}
+
+function buildOrdersWhere(filters?: {
+  q?: string;
+  status?: string;
+  type?: string;
+}): Prisma.MaintenanceOrderWhereInput {
+  const and: Prisma.MaintenanceOrderWhereInput[] = [];
+  const q = filters?.q?.trim();
+  if (q) {
+    and.push({
+      OR: [
+        { reference: { contains: q, mode: "insensitive" } },
+        { observationComment: { contains: q, mode: "insensitive" } },
+        { lines: { some: { machine: { name: { contains: q, mode: "insensitive" } } } } },
+      ],
+    });
+  }
+  if (filters?.status && filters.status !== "ALL") {
+    and.push({ status: filters.status as MaintenanceOrderStatus });
+  }
+  if (filters?.type && filters.type !== "ALL") {
+    and.push({ interventionType: filters.type as InterventionType });
+  }
+  return and.length ? { AND: and } : {};
+}
+
+export async function fetchMaintenanceOrdersPage(
+  page = 1,
+  pageSize = MAINTENANCE_ORDERS_PAGE_SIZE,
+  filters?: { q?: string; status?: string; type?: string },
+): Promise<PaginatedResult<MaintenanceOrderRow>> {
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.max(1, Math.min(pageSize, 50));
+  const skip = (safePage - 1) * safeLimit;
+  const where = buildOrdersWhere(filters);
+
+  const [total, rows] = await Promise.all([
+    prisma.maintenanceOrder.count({ where }),
+    prisma.maintenanceOrder.findMany({
+      where,
+      skip,
+      take: safeLimit,
+      orderBy: [{ plannedDate: "desc" }, { createdAt: "desc" }],
+      select: orderListSelect,
+    }),
+  ]);
+
+  return {
+    items: mapOrderRows(rows),
+    total,
+    page: safePage,
+    pageSize: safeLimit,
+    pageCount: Math.max(1, Math.ceil(total / safeLimit) || 1),
+  };
+}
+
+/** @deprecated Utiliser fetchMaintenanceOrdersPage — conserve la 1re page pour compatibilité. */
+export async function fetchMaintenanceOrders(): Promise<MaintenanceOrderRow[]> {
+  const page = await fetchMaintenanceOrdersPage(1, MAINTENANCE_ORDERS_PAGE_SIZE);
+  return page.items;
+}
+
+export function getMaintenanceOrdersCached(
+  page = 1,
+  pageSize = MAINTENANCE_ORDERS_PAGE_SIZE,
+  filters?: { q?: string; status?: string; type?: string },
+) {
+  const q = filters?.q ?? "";
+  const status = filters?.status ?? "ALL";
+  const type = filters?.type ?? "ALL";
+  return unstable_cache(
+    () => fetchMaintenanceOrdersPage(page, pageSize, filters),
+    [CACHE_TAGS.maintenanceOrders, String(page), String(pageSize), q, status, type],
+    { revalidate: 60, tags: [CACHE_TAGS.maintenanceOrders] },
+  )();
+}
+
+export type ActiveMaintenanceOrderOption = {
+  id: string;
+  reference: string;
+  plannedDate: string;
+  interventionType: InterventionType;
+  lines: {
+    lineId: string;
+    machineId: string;
+    machineName: string;
+    taskNettoyage: boolean;
+    taskGraissage: boolean;
+    taskHuile: boolean;
+    taskControl: boolean;
+    taskNonConforme: boolean;
+  }[];
+};
+
+export async function fetchActiveMaintenanceOrders(): Promise<ActiveMaintenanceOrderOption[]> {
+  const rows = await prisma.maintenanceOrder.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: { plannedDate: "asc" },
+    take: 30,
+    select: {
+      id: true,
+      reference: true,
+      plannedDate: true,
+      interventionType: true,
+      lines: {
+        where: { maintenanceLog: { is: null } },
+        select: {
+          id: true,
+          machineId: true,
+          taskNettoyage: true,
+          taskGraissage: true,
+          taskHuile: true,
+          taskControl: true,
+          taskNonConforme: true,
+          machine: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  return rows
+    .filter((o) => o.lines.length > 0)
+    .map((o) => ({
+      id: o.id,
+      reference: o.reference,
+      plannedDate: o.plannedDate.toISOString(),
+      interventionType: o.interventionType,
+      lines: o.lines.map((l) => ({
+        lineId: l.id,
+        machineId: l.machineId,
+        machineName: l.machine.name,
+        taskNettoyage: l.taskNettoyage,
+        taskGraissage: l.taskGraissage,
+        taskHuile: l.taskHuile,
+        taskControl: l.taskControl,
+        taskNonConforme: l.taskNonConforme,
+      })),
+    }));
+}
