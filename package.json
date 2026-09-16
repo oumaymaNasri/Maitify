@@ -21,6 +21,7 @@
     "auth:setup": "node ./node_modules/prisma/build/index.js db push && node ./scripts/prisma-generate-safe.cjs && node ./node_modules/tsx/dist/cli.mjs prisma/seed-auth-users.ts",
     "build": "node ./node_modules/next/dist/bin/next build",
     "start": "node ./node_modules/next/dist/bin/next start",
+    "start:prod": "node ./scripts/start-prod.cjs",
     "lint": "node ./node_modules/next/dist/bin/next lint",
     "db:generate": "node ./scripts/prisma-generate-safe.cjs",
     "db:push": "node ./node_modules/prisma/build/index.js db push",

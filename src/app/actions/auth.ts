@@ -143,6 +143,7 @@ export async function loginAction(formData: FormData): Promise<LoginActionResult
     {
       httpOnly: true,
       sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: SESSION_MAX_AGE,
     },
