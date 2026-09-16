@@ -9,6 +9,7 @@ const root = path.join(__dirname, "..");
 const prismaCli = path.join(root, "node_modules", "prisma", "build", "index.js");
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
 const seedUsers = path.join(root, "prisma", "seed-auth-users.ts");
+const seedMachines = path.join(root, "prisma", "seed-machines-affiche.ts");
 const tsx = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
 
 function run(cmd) {
@@ -29,6 +30,8 @@ run(`node "${prismaCli}" db push --accept-data-loss`);
 if (process.env.SEED_DEMO_USERS !== "0") {
   console.log("[start-prod] seed comptes démo…");
   run(`node "${tsx}" "${seedUsers}"`);
+  console.log("[start-prod] seed parc machines…");
+  run(`node "${tsx}" "${seedMachines}"`);
 }
 
 const port = process.env.PORT || "3000";
