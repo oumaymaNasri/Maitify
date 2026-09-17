@@ -406,26 +406,28 @@ async function persistLogs(rows: PreparedLog[]) {
 
 async function main() {
   const force = process.env.SEED_MAINTENANCES_FORCE === "1";
+  const corrective = loadRows("prisma/data/maintenances-correctives.json");
+  const preventive = loadRows("prisma/data/maintenances-preventives.json");
+  const expected = corrective.length + preventive.length;
+
   const existing = await prisma.maintenanceLog.count({
     where: { importSource: { in: [SOURCE_CORRECTIVE, SOURCE_PREVENTIVE] } },
   });
 
-  if (existing > 0 && !force) {
-    console.log(
-      `[seed-maintenances] ${existing} lignes Excel déjà en base. Ignoré (SEED_MAINTENANCES_FORCE=1 pour réimporter).`,
-    );
+  if (existing >= expected && !force) {
+    console.log(`[seed-maintenances] ${existing} lignes Excel déjà en base (attendu ${expected}). Ignoré.`);
     return;
   }
 
-  if (existing > 0 && force) {
-    console.log(`[seed-maintenances] suppression des ${existing} lignes Excel précédentes…`);
+  if (existing > 0) {
+    console.log(
+      `[seed-maintenances] import incomplet ou forcé (${existing}/${expected}) — suppression puis réimport…`,
+    );
     await prisma.maintenanceLog.deleteMany({
       where: { importSource: { in: [SOURCE_CORRECTIVE, SOURCE_PREVENTIVE] } },
     });
   }
 
-  const corrective = loadRows("prisma/data/maintenances-correctives.json");
-  const preventive = loadRows("prisma/data/maintenances-preventives.json");
   console.log(`[seed-maintenances] Excel : ${corrective.length} correctives, ${preventive.length} préventives`);
 
   const machines = await loadMachineIndex();
