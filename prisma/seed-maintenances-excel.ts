@@ -212,34 +212,6 @@ async function resolveTechnician(name: string | undefined, cache: Map<string, Te
   return created;
 }
 
-async function findOrCreatePart(params: {
-  machineId: string;
-  designation: string;
-  reference: string | null;
-  brand: string | null;
-}): Promise<string> {
-  const refKey = params.reference?.trim() ? params.reference.trim() : null;
-  const existing = await prisma.sparePart.findFirst({
-    where: {
-      machineId: params.machineId,
-      designation: params.designation,
-      reference: refKey,
-    },
-    select: { id: true },
-  });
-  if (existing) return existing.id;
-  const created = await prisma.sparePart.create({
-    data: {
-      machineId: params.machineId,
-      designation: params.designation,
-      reference: refKey,
-      brand: params.brand,
-      quantity: 0,
-    },
-  });
-  return created.id;
-}
-
 type PreparedLog = {
   machineId: string;
   technicianId: string | null;
@@ -381,72 +353,51 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
 }
 
 async function persistLogs(rows: PreparedLog[]) {
-  const BATCH = 200;
+  const BATCH = 500;
   let created = 0;
   let parts = 0;
   let waterCount = 0;
 
   for (let i = 0; i < rows.length; i += BATCH) {
     const chunk = rows.slice(i, i + BATCH);
-    const createdRows = await prisma.$transaction(
-      chunk.map((row) =>
-        prisma.maintenanceLog.create({
-          data: {
-            machineId: row.machineId,
-            technicianId: row.technicianId,
-            date: row.date,
-            operationType: row.operationType,
-            type: row.type,
-            workflowStatus: row.workflowStatus,
-            failureDescription: row.failureDescription,
-            workPerformed: row.workPerformed,
-            durationMinutes: row.durationMinutes,
-            failureCause: row.failureCause,
-            signature: row.signature,
-            importSource: row.importSource,
-            sectorMaintenance: row.sectorMaintenance,
-            service: row.service,
-            operation: row.operation,
-            difficulties: row.difficulties,
-            preventiveCleaning: row.preventiveCleaning,
-            preventiveLubrication: row.preventiveLubrication,
-            preventiveOil: row.preventiveOil,
-          },
-          select: { id: true },
-        }),
-      ),
-    );
+    const result = await prisma.maintenanceLog.createMany({
+      data: chunk.map((row) => ({
+        machineId: row.machineId,
+        technicianId: row.technicianId,
+        date: row.date,
+        operationType: row.operationType,
+        type: row.type,
+        workflowStatus: row.workflowStatus,
+        failureDescription: row.failureDescription,
+        workPerformed: row.workPerformed,
+        durationMinutes: row.durationMinutes,
+        failureCause: row.failureCause,
+        signature: row.signature,
+        importSource: row.importSource,
+        sectorMaintenance: row.sectorMaintenance,
+        service: row.service,
+        operation: row.operation,
+        difficulties: row.difficulties,
+        preventiveCleaning: row.preventiveCleaning,
+        preventiveLubrication: row.preventiveLubrication,
+        preventiveOil: row.preventiveOil,
+      })),
+    });
+    created += result.count;
 
-    for (let j = 0; j < chunk.length; j += 1) {
-      const row = chunk[j];
-      const id = createdRows[j]?.id;
-      if (!id) continue;
-      if (row.part) {
-        const partId = await findOrCreatePart({
-          machineId: row.machineId,
-          designation: row.part.designation,
-          reference: row.part.reference,
-          brand: row.part.brand,
-        });
-        await prisma.sparePartUsage.create({
-          data: { maintenanceLogId: id, sparePartId: partId, quantityUsed: row.part.qty },
-        });
-        parts += 1;
-      }
-      if (row.water?.length) {
-        await prisma.waterQualityMeasurement.createMany({
-          data: row.water.map((w) => ({
-            zone: w.zone,
-            measuredAt: w.measuredAt,
-            th: w.th,
-            notes: w.notes,
-          })),
-        });
-        waterCount += row.water.length;
-      }
+    const waters = chunk.flatMap((row) => row.water ?? []);
+    if (waters.length) {
+      await prisma.waterQualityMeasurement.createMany({
+        data: waters.map((w) => ({
+          zone: w.zone,
+          measuredAt: w.measuredAt,
+          th: w.th,
+          notes: w.notes,
+        })),
+      });
+      waterCount += waters.length;
     }
 
-    created += chunk.length;
     console.log(`[seed-maintenances] ${created}/${rows.length} interventions…`);
   }
 
