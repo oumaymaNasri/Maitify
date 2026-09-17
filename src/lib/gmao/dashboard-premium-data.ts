@@ -5,6 +5,7 @@ import type { LiveAlertVm } from "@/components/dashboard/dashboard-live-alerts";
 import { getMttrMonthlySeries } from "@/lib/gmao/chart-series";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { prisma } from "@/lib/db/prisma";
+import { startOfTodayTunis } from "@/lib/gmao/intervention-status";
 
 type DailyAggRow = { day_key: string; interventions: number; pannes: number; minutes: number };
 
@@ -254,7 +255,9 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
     prisma.$queryRaw<[{ count: number }]>`SELECT COUNT(*)::int AS count FROM "Part" WHERE quantity <= min_stock`.then(
       (r) => Number(r[0]?.count ?? 0),
     ),
-    prisma.maintenanceLog.count({ where: { workflowStatus: "OPEN" } }),
+    prisma.maintenanceLog.count({
+      where: { type: "PREVENTIVE", date: { gt: startOfTodayTunis() } },
+    }),
     prisma.maintenanceLog.aggregate({
       where: { date: { gte: monthStart }, durationMinutes: { not: null, gt: 0 } },
       _sum: { durationMinutes: true },

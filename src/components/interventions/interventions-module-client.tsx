@@ -1,6 +1,6 @@
 "use client";
 
-import { MaintenanceWorkflowStatus, OperationType } from "@prisma/client";
+import { InterventionType, MaintenanceWorkflowStatus, OperationType } from "@prisma/client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -20,6 +20,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { formatDateFrMedium } from "@/lib/utils/format-date";
 import { operationTypeFr } from "@/lib/view/gmao-labels";
+import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 import { fuzzyMatch } from "@/lib/utils/fuzzy";
 
@@ -37,17 +38,25 @@ const DeleteConfirmDialog = dynamic(
 );
 
 type StatusFilter = "ALL" | MaintenanceWorkflowStatus;
+type TypeFilter = "ALL" | InterventionType;
 type OperationFilter = "ALL" | OperationType;
 type DateFilter = "ALL" | "7" | "30" | "90";
 type InterventionSearchRow = InterventionListVm & { searchBlob: string };
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "Tous" },
-  { value: MaintenanceWorkflowStatus.OPEN, label: maintenanceWorkflowStatusFr(MaintenanceWorkflowStatus.OPEN) },
+  { value: MaintenanceWorkflowStatus.OPEN, label: "À faire" },
   {
     value: MaintenanceWorkflowStatus.COMPLETED,
     label: maintenanceWorkflowStatusFr(MaintenanceWorkflowStatus.COMPLETED),
   },
+] as const;
+
+const TYPE_OPTIONS = [
+  { value: "ALL", label: "Tous" },
+  { value: InterventionType.PREVENTIVE, label: interventionTypeFr(InterventionType.PREVENTIVE) },
+  { value: InterventionType.CORRECTIVE, label: interventionTypeFr(InterventionType.CORRECTIVE) },
+  { value: InterventionType.AMELIORATION, label: interventionTypeFr(InterventionType.AMELIORATION) },
 ] as const;
 
 const OPERATION_OPTIONS = [
@@ -65,7 +74,7 @@ const DATE_OPTIONS = [
 function buildSearchRows(rows: InterventionListVm[]): InterventionSearchRow[] {
   return rows.map((r) => ({
     ...r,
-    searchBlob: `${r.id} ${r.machineName} ${r.machineLocation} ${r.technicianName ?? ""} ${r.operation ?? ""} ${operationTypeFr(r.operationType)} ${r.importSource ?? ""}`,
+    searchBlob: `${r.id} ${r.machineName} ${r.machineLocation} ${r.technicianName ?? ""} ${r.operation ?? ""} ${interventionTypeFr(r.type)} ${operationTypeFr(r.operationType)} ${r.importSource ?? ""}`,
   }));
 }
 
@@ -82,7 +91,17 @@ type InterventionsModuleClientProps = {
   machines: MachineOption[];
   technicians: TechnicianOption[];
   readOnly?: boolean;
+  typeFilter?: TypeFilter;
+  statusFilter?: StatusFilter;
 };
+
+function buildListQuery(page: number, type: TypeFilter, status: StatusFilter): string {
+  const params = new URLSearchParams();
+  if (page > 1) params.set("page", String(page));
+  if (type !== "ALL") params.set("type", type);
+  if (status !== "ALL") params.set("status", status);
+  return params.toString();
+}
 
 const newInterventionAction = (
   <ButtonLink href="/interventions/new" size="sm" className="h-9 rounded-xl bg-[#1F76FB] hover:bg-[#1a65d6]">
@@ -96,6 +115,8 @@ export function InterventionsModuleClient({
   machines,
   technicians,
   readOnly = false,
+  typeFilter = "ALL",
+  statusFilter = "ALL",
 }: InterventionsModuleClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -106,7 +127,6 @@ export function InterventionsModuleClient({
     () => true,
     () => false,
   );
-  const [status, setStatus] = React.useState<StatusFilter>("ALL");
   const [operation, setOperation] = React.useState<OperationFilter>("ALL");
   const [dateRange, setDateRange] = React.useState<DateFilter>("ALL");
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
@@ -130,16 +150,21 @@ export function InterventionsModuleClient({
     setRows(initialRows);
   }, [initialRows]);
 
+  const goToList = React.useCallback(
+    (nextPage: number, type: TypeFilter, status: StatusFilter) => {
+      const qs = buildListQuery(nextPage, type, status);
+      router.push(qs ? `${pathname}?${qs}` : pathname);
+    },
+    [pathname, router],
+  );
+
   const goToPage = React.useCallback(
     (nextPage: number) => {
       const safe = Math.max(1, Math.min(nextPage, pagination.pageCount));
       if (safe === pagination.page) return;
-      const params = new URLSearchParams();
-      if (safe > 1) params.set("page", String(safe));
-      const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname);
+      goToList(safe, typeFilter, statusFilter);
     },
-    [pagination.page, pagination.pageCount, pathname, router],
+    [goToList, pagination.page, pagination.pageCount, typeFilter, statusFilter],
   );
 
   const searchRows = React.useMemo(() => buildSearchRows(rows), [rows]);
@@ -155,13 +180,12 @@ export function InterventionsModuleClient({
     }
 
     return searchRows.filter((r) => {
-      if (status !== "ALL" && r.workflowStatus !== status) return false;
       if (operation !== "ALL" && r.operationType !== operation) return false;
       if (mounted && cutoff > 0 && new Date(r.date).getTime() < cutoff) return false;
       if (!needle) return true;
       return fuzzyMatch(needle, r.searchBlob);
     });
-  }, [searchRows, debouncedQ, status, operation, dateRange, mounted]);
+  }, [searchRows, debouncedQ, operation, dateRange, mounted]);
 
   React.useEffect(() => {
     const visible = new Set(filtered.map((r) => r.id));
@@ -174,10 +198,17 @@ export function InterventionsModuleClient({
   const filters = React.useMemo(
     () => [
       {
+        id: "type",
+        label: "Type d'intervention",
+        value: typeFilter,
+        onChange: (v: string) => goToList(1, v as TypeFilter, statusFilter),
+        options: [...TYPE_OPTIONS],
+      },
+      {
         id: "status",
         label: "Statut",
-        value: status,
-        onChange: (v: string) => startFilterTransition(() => setStatus(v as StatusFilter)),
+        value: statusFilter,
+        onChange: (v: string) => goToList(1, typeFilter, v as StatusFilter),
         options: [...STATUS_OPTIONS],
       },
       {
@@ -195,7 +226,7 @@ export function InterventionsModuleClient({
         options: DATE_OPTIONS,
       },
     ],
-    [status, operation, dateRange],
+    [typeFilter, statusFilter, operation, dateRange, goToList],
   );
 
   const handleDeleted = React.useCallback((id: string) => {

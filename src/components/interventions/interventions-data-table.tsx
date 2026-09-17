@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateFrShort } from "@/lib/utils/format-date";
 import { operationTypeFr } from "@/lib/view/gmao-labels";
+import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 import { cn } from "@/lib/utils";
 
@@ -143,6 +144,18 @@ function InterventionsDataTableInner({
               {formatDateFrShort(row.original.date)}
             </p>
           </div>
+        ),
+      },
+      {
+        accessorKey: "type",
+        header: "Type d'intervention",
+        cell: ({ row }) => (
+          <Badge
+            variant={row.original.type === "CORRECTIVE" ? "warning" : "secondary"}
+            className="font-normal"
+          >
+            {interventionTypeFr(row.original.type)}
+          </Badge>
         ),
       },
       {

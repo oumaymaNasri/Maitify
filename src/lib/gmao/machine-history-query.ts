@@ -2,6 +2,7 @@ import type { InterventionType, MaintenanceWorkflowStatus, Prisma } from "@prism
 
 import type { PaginatedResult } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
+import { workflowStatusForLog } from "@/lib/gmao/intervention-status";
 import type { MachineAssetStatus } from "@prisma/client";
 
 export const MACHINE_HISTORY_PAGE_SIZE = 10;
@@ -65,7 +66,7 @@ function mapHistoryRow(row: HistoryLogRow): MachineHistoryRow {
     type: row.type,
     technicianName: mapTechnicianName(row.technician),
     description: mapDescription(row.failureDescription, row.workPerformed),
-    workflowStatus: row.workflowStatus,
+    workflowStatus: workflowStatusForLog(row.type, row.date),
   };
 }
 

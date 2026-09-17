@@ -1,5 +1,6 @@
 import type { InterventionDetailVm } from "@/components/interventions/intervention-types";
 import { prisma } from "@/lib/db/prisma";
+import { workflowStatusForLog } from "@/lib/gmao/intervention-status";
 
 const detailSelect = {
   id: true,
@@ -38,7 +39,7 @@ export async function fetchInterventionDetail(id: string): Promise<InterventionD
     date: row.date.toISOString(),
     operationType: row.operationType,
     type: row.type,
-    workflowStatus: row.workflowStatus,
+    workflowStatus: workflowStatusForLog(row.type, row.date),
     failureDescription: row.failureDescription,
     workPerformed: row.workPerformed,
     difficulties: row.difficulties,

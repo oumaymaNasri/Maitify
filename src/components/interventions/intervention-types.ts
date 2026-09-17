@@ -9,6 +9,7 @@ export type InterventionListVm = {
   id: string;
   date: string;
   operationType: OperationType;
+  type: InterventionType;
   workflowStatus: MaintenanceWorkflowStatus;
   failureDescription: string | null;
   workPerformed: string;

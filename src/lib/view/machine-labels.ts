@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 export function maintenanceWorkflowStatusFr(status: MaintenanceWorkflowStatus): string {
   switch (status) {
     case MaintenanceWorkflowStatus.OPEN:
-      return "En cours";
+      return "À faire";
     case MaintenanceWorkflowStatus.COMPLETED:
       return "Clôturée";
     default:

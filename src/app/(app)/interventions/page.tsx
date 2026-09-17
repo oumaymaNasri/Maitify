@@ -8,13 +8,28 @@ import {
   INTERVENTIONS_PAGE_SIZE,
 } from "@/lib/gmao/interventions-query";
 import { getSession } from "@/lib/auth/session-server";
+import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type PageProps = {
-  searchParams?: { page?: string };
+  searchParams?: { page?: string; type?: string; status?: string };
 };
+
+function parseTypeFilter(raw?: string): InterventionType | "ALL" {
+  if (raw === InterventionType.PREVENTIVE || raw === InterventionType.CORRECTIVE || raw === InterventionType.AMELIORATION) {
+    return raw;
+  }
+  return "ALL";
+}
+
+function parseStatusFilter(raw?: string): MaintenanceWorkflowStatus | "ALL" {
+  if (raw === MaintenanceWorkflowStatus.OPEN || raw === MaintenanceWorkflowStatus.COMPLETED) {
+    return raw;
+  }
+  return "ALL";
+}
 
 export default async function InterventionsPage({ searchParams }: PageProps) {
   try {
@@ -23,9 +38,14 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const technicianScopeId = isTechnician ? session?.technicianId : null;
 
     const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
+    const typeFilter = parseTypeFilter(searchParams?.type);
+    const statusFilter = parseStatusFilter(searchParams?.status);
 
     const [paginated, machineRows, techRows] = await Promise.all([
-      fetchInterventionsInventory(technicianScopeId, page, INTERVENTIONS_PAGE_SIZE),
+      fetchInterventionsInventory(technicianScopeId, page, INTERVENTIONS_PAGE_SIZE, {
+        type: typeFilter,
+        status: statusFilter,
+      }),
       getInterventionMachineOptionsCached(),
       getInterventionTechnicianOptionsCached(),
     ]);
@@ -49,6 +69,8 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
         machines={machines}
         technicians={technicians}
         readOnly={isTechnician}
+        typeFilter={typeFilter}
+        statusFilter={statusFilter}
       />
     );
   } catch (e) {

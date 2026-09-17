@@ -17,6 +17,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { startOfTodayTunis, workflowStatusForLog } from "../src/lib/gmao/intervention-status";
+
 const prisma = new PrismaClient();
 
 const SOURCE_CORRECTIVE = "xlsx_corrective";
@@ -231,7 +233,7 @@ type PreparedLog = {
   date: Date;
   operationType: OperationType;
   type: InterventionType;
-  workflowStatus: "COMPLETED";
+  workflowStatus: ReturnType<typeof workflowStatusForLog>;
   failureDescription: string | null;
   workPerformed: string;
   durationMinutes: number | null;
@@ -268,13 +270,14 @@ async function importCorrective(rows: ExcelRow[], machines: Map<string, Machine>
     const tech = await resolveTechnician(r["Intervanant"] || r["Intervenant"], techs);
     const desig = norm(r["PIECE DE RECHANGE ET CONSOMMABLES"]);
     const ref = norm(r["REFERENCE"]);
+    const date = parseExcelDate(r["Date"] || r["date"]);
     prepared.push({
       machineId: machine.id,
       technicianId: tech?.id ?? null,
-      date: parseExcelDate(r["Date"] || r["date"]),
+      date,
       operationType: operationTypeFromFr(r["Opération"], type),
       type,
-      workflowStatus: "COMPLETED",
+      workflowStatus: workflowStatusForLog(type, date),
       failureDescription,
       workPerformed: workParts.join("\n").trim() || "(Import Excel — pas de rapport)",
       durationMinutes: parseMinutes(r["TEMPS D'INTERVENTION"]),
@@ -337,7 +340,7 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
       date,
       operationType: operationTypeFromFr(r["Type d'intervention"], type),
       type,
-      workflowStatus: "COMPLETED",
+      workflowStatus: workflowStatusForLog(type, date),
       failureDescription: norm(r["Cause de l'arret"]) || null,
       workPerformed: workParts.join("\n").trim() || "(Import Excel préventif)",
       durationMinutes: parseMinutes(r["Durée d'intervention"]),
@@ -417,6 +420,25 @@ async function persistLogs(rows: PreparedLog[]) {
   return { created, parts, waterCount };
 }
 
+async function syncWorkflowStatuses() {
+  const start = startOfTodayTunis();
+  const closedOthers = await prisma.maintenanceLog.updateMany({
+    where: { type: { not: "PREVENTIVE" } },
+    data: { workflowStatus: "COMPLETED" },
+  });
+  const closedPastPrev = await prisma.maintenanceLog.updateMany({
+    where: { type: "PREVENTIVE", date: { lte: start } },
+    data: { workflowStatus: "COMPLETED" },
+  });
+  const openFuturePrev = await prisma.maintenanceLog.updateMany({
+    where: { type: "PREVENTIVE", date: { gt: start } },
+    data: { workflowStatus: "OPEN" },
+  });
+  console.log(
+    `[seed-maintenances] statuts : clôturées non-prév=${closedOthers.count} prév passées=${closedPastPrev.count} à faire=${openFuturePrev.count}`,
+  );
+}
+
 async function main() {
   const force = process.env.SEED_MAINTENANCES_FORCE === "1";
   const corrective = loadRows("maintenances-correctives.json");
@@ -431,7 +453,8 @@ async function main() {
   });
 
   if (existing >= expected && !force) {
-    console.log(`[seed-maintenances] ${existing} lignes Excel déjà en base (attendu ${expected}). Ignoré.`);
+    console.log(`[seed-maintenances] ${existing} lignes Excel déjà en base (attendu ${expected}).`);
+    await syncWorkflowStatuses();
     return;
   }
 
@@ -464,6 +487,7 @@ async function main() {
     `[seed-maintenances] OK préventives créées=${prevStats.created} pièces=${prevStats.parts} TH=${prevStats.waterCount}`,
   );
   console.log(`[seed-maintenances] total interventions en base=${total}`);
+  await syncWorkflowStatuses();
 }
 
 main()

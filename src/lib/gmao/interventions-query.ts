@@ -1,10 +1,12 @@
-import type { OperationType, Prisma } from "@prisma/client";
+import type { InterventionType, OperationType, Prisma } from "@prisma/client";
+import { MaintenanceWorkflowStatus } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import type { PaginatedResult, PaginationParams } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
+import { workflowStatusForLog, workflowStatusWhere } from "@/lib/gmao/intervention-status";
 
 export const INTERVENTIONS_PAGE_SIZE = 10;
 
@@ -13,6 +15,7 @@ const listSelect = {
   id: true,
   date: true,
   operationType: true,
+  type: true,
   workflowStatus: true,
   durationMinutes: true,
   importSource: true,
@@ -28,6 +31,7 @@ function mapListRows(
     id: string;
     date: Date;
     operationType: OperationType;
+    type: InterventionType;
     workflowStatus: InterventionListVm["workflowStatus"];
     durationMinutes: number | null;
     importSource: string | null;
@@ -42,7 +46,8 @@ function mapListRows(
     id: r.id,
     date: r.date.toISOString(),
     operationType: r.operationType,
-    workflowStatus: r.workflowStatus,
+    type: r.type,
+    workflowStatus: workflowStatusForLog(r.type, r.date),
     failureDescription: null,
     workPerformed: "",
     machineId: r.machineId,
@@ -71,16 +76,46 @@ function buildWhere(q: string): Prisma.MaintenanceLogWhereInput {
   };
 }
 
+export type InterventionListFilters = {
+  type?: InterventionType | "ALL" | null;
+  status?: MaintenanceWorkflowStatus | "ALL" | null;
+};
+
+function filterWhere(filters?: InterventionListFilters): Prisma.MaintenanceLogWhereInput {
+  const and: Prisma.MaintenanceLogWhereInput[] = [];
+  if (filters?.type && filters.type !== "ALL") {
+    and.push({ type: filters.type });
+  }
+  if (filters?.status && filters.status !== "ALL") {
+    and.push(workflowStatusWhere(filters.status) as Prisma.MaintenanceLogWhereInput);
+  }
+  if (!and.length) return {};
+  return { AND: and };
+}
+
 function scopeWhere(technicianId?: string | null): Prisma.MaintenanceLogWhereInput {
   return technicianId ? { technicianId } : {};
+}
+
+function inventoryWhere(
+  technicianId?: string | null,
+  filters?: InterventionListFilters,
+): Prisma.MaintenanceLogWhereInput {
+  const parts = [scopeWhere(technicianId), filterWhere(filters)].filter(
+    (w) => Object.keys(w).length > 0,
+  );
+  if (!parts.length) return {};
+  if (parts.length === 1) return parts[0]!;
+  return { AND: parts };
 }
 
 export async function fetchInterventionsInventory(
   technicianId?: string | null,
   page = 1,
   limit = INTERVENTIONS_PAGE_SIZE,
+  filters?: InterventionListFilters,
 ): Promise<PaginatedResult<InterventionListVm>> {
-  const where = scopeWhere(technicianId);
+  const where = inventoryWhere(technicianId, filters);
   const safePage = Math.max(1, page);
   const safeLimit = Math.max(1, Math.min(limit, 50));
   const skip = (safePage - 1) * safeLimit;
@@ -106,8 +141,11 @@ export async function fetchInterventionsInventory(
 }
 
 /** Export CSV/PDF — toutes les fiches (hors pagination UI). */
-export async function fetchAllInterventionsInventory(technicianId?: string | null): Promise<InterventionListVm[]> {
-  const where = scopeWhere(technicianId);
+export async function fetchAllInterventionsInventory(
+  technicianId?: string | null,
+  filters?: InterventionListFilters,
+): Promise<InterventionListVm[]> {
+  const where = inventoryWhere(technicianId, filters);
   const rows = await prisma.maintenanceLog.findMany({
     where,
     orderBy: [{ date: "desc" }, { id: "desc" }],

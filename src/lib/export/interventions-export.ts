@@ -1,4 +1,5 @@
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
+import { interventionTypeFr } from "@/lib/view/labels";
 import { operationTypeFr } from "@/lib/view/gmao-labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
@@ -17,6 +18,7 @@ function interventionExportRows(items: InterventionListVm[]): string[][] {
     "Machine",
     "Emplacement",
     "Technicien",
+    "Type d'intervention",
     "Opération",
     "Statut",
     "Durée (min)",
@@ -28,6 +30,7 @@ function interventionExportRows(items: InterventionListVm[]): string[][] {
     r.machineName,
     r.machineLocation,
     r.technicianName ?? "—",
+    interventionTypeFr(r.type),
     operationTypeFr(r.operationType),
     maintenanceWorkflowStatusFr(r.workflowStatus),
     r.durationMinutes != null ? String(r.durationMinutes) : "—",
