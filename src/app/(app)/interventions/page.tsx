@@ -2,12 +2,15 @@ import { DbErrorHint } from "@/components/layout/DbError";
 import { InterventionsModuleClient } from "@/components/interventions/interventions-module-client";
 import type { MachineOption, TechnicianOption } from "@/components/interventions/InterventionIntelligentForm";
 import {
+  fetchInterventionsInventory,
   getInterventionMachineOptionsCached,
-  getInterventionsInventoryCached,
   getInterventionTechnicianOptionsCached,
   INTERVENTIONS_PAGE_SIZE,
 } from "@/lib/gmao/interventions-query";
 import { getSession } from "@/lib/auth/session-server";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type PageProps = {
   searchParams?: { page?: string };
@@ -22,7 +25,7 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
 
     const [paginated, machineRows, techRows] = await Promise.all([
-      getInterventionsInventoryCached(technicianScopeId, page, INTERVENTIONS_PAGE_SIZE),
+      fetchInterventionsInventory(technicianScopeId, page, INTERVENTIONS_PAGE_SIZE),
       getInterventionMachineOptionsCached(),
       getInterventionTechnicianOptionsCached(),
     ]);

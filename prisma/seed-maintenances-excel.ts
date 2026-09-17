@@ -13,8 +13,9 @@ import {
   type Machine,
   type Technician,
 } from "@prisma/client";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const prisma = new PrismaClient();
 
@@ -25,11 +26,23 @@ const UNNAMED_MACHINE = "(Sans machine — import Excel)";
 
 type ExcelRow = Record<string, string>;
 
-function loadRows(relPath: string): ExcelRow[] {
-  const raw = JSON.parse(readFileSync(resolve(process.cwd(), relPath), "utf8"));
-  if (Array.isArray(raw)) return raw as ExcelRow[];
-  if (Array.isArray(raw?.rows)) return raw.rows as ExcelRow[];
-  return [];
+function loadRows(fileName: string): ExcelRow[] {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    join(here, "data", fileName),
+    join(process.cwd(), "prisma", "data", fileName),
+  ];
+  const file = candidates.find((p) => existsSync(p));
+  if (!file) {
+    throw new Error(`[seed-maintenances] Fichier introuvable : ${fileName} (cherché ${candidates.join(" | ")})`);
+  }
+  const raw = JSON.parse(readFileSync(file, "utf8"));
+  const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.rows) ? raw.rows : [];
+  if (!rows.length) {
+    throw new Error(`[seed-maintenances] ${fileName} est vide (${file})`);
+  }
+  console.log(`[seed-maintenances] lu ${rows.length} lignes depuis ${file}`);
+  return rows as ExcelRow[];
 }
 
 function norm(s: string | undefined): string {
@@ -406,9 +419,12 @@ async function persistLogs(rows: PreparedLog[]) {
 
 async function main() {
   const force = process.env.SEED_MAINTENANCES_FORCE === "1";
-  const corrective = loadRows("prisma/data/maintenances-correctives.json");
-  const preventive = loadRows("prisma/data/maintenances-preventives.json");
+  const corrective = loadRows("maintenances-correctives.json");
+  const preventive = loadRows("maintenances-preventives.json");
   const expected = corrective.length + preventive.length;
+  if (expected <= 0) {
+    throw new Error("[seed-maintenances] Aucune ligne Excel à importer.");
+  }
 
   const existing = await prisma.maintenanceLog.count({
     where: { importSource: { in: [SOURCE_CORRECTIVE, SOURCE_PREVENTIVE] } },
