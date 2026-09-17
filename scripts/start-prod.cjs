@@ -10,6 +10,7 @@ const prismaCli = path.join(root, "node_modules", "prisma", "build", "index.js")
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
 const seedUsers = path.join(root, "prisma", "seed-auth-users.ts");
 const seedMachines = path.join(root, "prisma", "seed-machines-affiche.ts");
+const seedMaintenances = path.join(root, "prisma", "seed-maintenances-excel.ts");
 const tsx = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
 
 function run(cmd) {
@@ -32,6 +33,8 @@ if (process.env.SEED_DEMO_USERS !== "0") {
   run(`node "${tsx}" "${seedUsers}"`);
   console.log("[start-prod] seed parc machines…");
   run(`node "${tsx}" "${seedMachines}"`);
+  console.log("[start-prod] seed maintenances Excel…");
+  run(`node "${tsx}" "${seedMaintenances}"`);
 }
 
 const port = process.env.PORT || "3000";
