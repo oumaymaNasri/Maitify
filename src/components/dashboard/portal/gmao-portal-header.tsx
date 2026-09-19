@@ -45,9 +45,9 @@ export function GmaoPortalHeader() {
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0B2A5B] text-white shadow-md">
       <div className="flex h-16 w-full items-center gap-x-4 overflow-x-auto whitespace-nowrap px-4 [scrollbar-width:none] md:gap-x-6 md:px-5 lg:px-6 [&::-webkit-scrollbar]:hidden">
-        <Link href="/dashboard" className="flex shrink-0 items-center leading-none">
+        <Link href="/dashboard" className="flex shrink-0 flex-col justify-center leading-tight whitespace-normal">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-300">NutriFish</span>
-          <span className="ml-1.5 text-base font-bold tracking-tight">
+          <span className="text-base font-bold tracking-tight">
             GMAO<span className="font-semibold text-sky-300"> Pro</span>
           </span>
         </Link>
