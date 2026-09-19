@@ -22,6 +22,7 @@ import { startOfTodayTunis, workflowStatusForLog } from "../src/lib/gmao/interve
 const prisma = new PrismaClient();
 
 const SOURCE_COMBINED = "xlsx_combinees";
+const EXPECTED_USEFUL_ROWS = 3437;
 const DEFAULT_LOCATION = "Usine NutriFish";
 const UNNAMED_MACHINE = "(Sans machine — import Excel)";
 
@@ -42,8 +43,15 @@ function loadRows(fileName: string): ExcelRow[] {
   if (!rows.length) {
     throw new Error(`[seed-maintenances] ${fileName} est vide (${file})`);
   }
-  console.log(`[seed-maintenances] lu ${rows.length} lignes depuis ${file}`);
-  return rows as ExcelRow[];
+  const useful = (rows as ExcelRow[]).filter((r) => Object.values(r).filter((v) => norm(String(v ?? ""))).length >= 2);
+  const skipped = rows.length - useful.length;
+  console.log(`[seed-maintenances] lu ${rows.length} lignes depuis ${file} (utiles=${useful.length} ignorées=${skipped})`);
+  if (useful.length !== EXPECTED_USEFUL_ROWS) {
+    throw new Error(
+      `[seed-maintenances] attendu ${EXPECTED_USEFUL_ROWS} lignes utiles, obtenu ${useful.length}`,
+    );
+  }
+  return useful;
 }
 
 function norm(s: string | undefined): string {

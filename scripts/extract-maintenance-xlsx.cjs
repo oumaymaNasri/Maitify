@@ -65,13 +65,13 @@ function toObjects(grid) {
   const records = [];
   for (const row of grid.slice(1)) {
     const rec = {};
-    let empty = true;
     headers.forEach((h, i) => {
       const v = row[i] == null ? "" : String(row[i]).trim();
       rec[h || `col_${i}`] = v;
-      if (v) empty = false;
     });
-    if (!empty) records.push(rec);
+    // Ignore header (already sliced) and trailing leftover cells (matricule-only).
+    const filled = Object.values(rec).filter(Boolean).length;
+    if (filled >= 2) records.push(rec);
   }
   return { headers, records };
 }

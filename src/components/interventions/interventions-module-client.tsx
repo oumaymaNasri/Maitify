@@ -217,7 +217,7 @@ export function InterventionsModuleClient({
   return (
     <GmaoModuleShell
       title={readOnly ? "Mes interventions" : "Liste de Maintenance"}
-      subtitle="Tableau type tableur : filtres serveur, tri, colonnes déplaçables et redimensionnables. Pagination pour ~12 000 lignes."
+      subtitle="Tableau type tableur : filtres serveur, tri, colonnes déplaçables et redimensionnables. Pagination pour 3 437 lignes Excel."
     >
       <ModuleFilterBar
         onDebouncedSearchChange={handleDebouncedSearch}
