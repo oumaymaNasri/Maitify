@@ -7,20 +7,28 @@ import type {
 
 export type InterventionListVm = {
   id: string;
+  importMatricule: string | null;
   date: string;
-  operationType: OperationType;
-  type: InterventionType;
-  workflowStatus: MaintenanceWorkflowStatus;
-  failureDescription: string | null;
-  workPerformed: string;
+  sectorMaintenance: string | null;
+  service: string | null;
+  technicianId: string | null;
+  technicianName: string | null;
   machineId: string;
   machineName: string;
   machineLocation: string;
-  technicianId: string | null;
-  technicianName: string | null;
-  durationMinutes: number | null;
-  importSource: string | null;
+  failureDescription: string | null;
   operation: string | null;
+  operationType: OperationType;
+  type: InterventionType;
+  workflowStatus: MaintenanceWorkflowStatus;
+  failureCause: FailureCause | null;
+  failureCauseLabel: string | null;
+  linkedFailureCause: string | null;
+  durationMinutes: number | null;
+  workPerformed: string;
+  difficulties: string | null;
+  sparePartsLabel: string | null;
+  importSource: string | null;
 };
 
 export type InterventionSpareLineVm = {

@@ -1,4 +1,4 @@
-import type { InterventionType, OperationType, Prisma } from "@prisma/client";
+import type { FailureCause, InterventionType, OperationType, Prisma } from "@prisma/client";
 import { MaintenanceWorkflowStatus } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
@@ -8,9 +8,8 @@ import type { PaginatedResult, PaginationParams } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 import { workflowStatusForLog, workflowStatusWhere } from "@/lib/gmao/intervention-status";
 
-export const INTERVENTIONS_PAGE_SIZE = 10;
+export const INTERVENTIONS_PAGE_SIZE = 50;
 
-/** Champs légers pour listes / filtres client — sans textes longs ni blobs. */
 const listSelect = {
   id: true,
   date: true,
@@ -19,12 +18,36 @@ const listSelect = {
   workflowStatus: true,
   durationMinutes: true,
   importSource: true,
+  importMatricule: true,
+  linkedFailureCause: true,
+  failureCauseLabel: true,
+  sparePartsLabel: true,
   operation: true,
+  sectorMaintenance: true,
+  service: true,
+  difficulties: true,
+  failureDescription: true,
+  workPerformed: true,
+  failureCause: true,
   machineId: true,
-  machine: { select: { name: true, location: true } },
+  machine: { select: { name: true, location: true, legacyMatricule: true } },
   technicianId: true,
   technician: { select: { firstName: true, lastName: true } },
 } as const;
+
+export type InterventionListFilters = {
+  q?: string | null;
+  type?: InterventionType | "ALL" | null;
+  status?: MaintenanceWorkflowStatus | "ALL" | null;
+  sector?: string | null;
+  technicianId?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  sort?: InterventionSortKey | null;
+  dir?: "asc" | "desc" | null;
+};
+
+export type InterventionSortKey = "date" | "machineName" | "type" | "importMatricule" | "durationMinutes" | "technicianName";
 
 function mapListRows(
   rows: {
@@ -35,29 +58,47 @@ function mapListRows(
     workflowStatus: InterventionListVm["workflowStatus"];
     durationMinutes: number | null;
     importSource: string | null;
+    importMatricule: string | null;
+    linkedFailureCause: string | null;
+    failureCauseLabel: string | null;
+    sparePartsLabel: string | null;
     operation: string | null;
+    sectorMaintenance: string | null;
+    service: string | null;
+    difficulties: string | null;
+    failureDescription: string | null;
+    workPerformed: string;
+    failureCause: FailureCause | null;
     machineId: string;
-    machine: { name: string; location: string };
+    machine: { name: string; location: string; legacyMatricule: number | null };
     technicianId: string | null;
     technician: { firstName: string; lastName: string } | null;
   }[],
 ): InterventionListVm[] {
   return rows.map((r) => ({
     id: r.id,
+    importMatricule: r.importMatricule || (r.machine.legacyMatricule != null ? String(r.machine.legacyMatricule) : r.id.slice(0, 8)),
     date: r.date.toISOString(),
-    operationType: r.operationType,
-    type: r.type,
-    workflowStatus: workflowStatusForLog(r.type, r.date),
-    failureDescription: null,
-    workPerformed: "",
+    sectorMaintenance: r.sectorMaintenance,
+    service: r.service,
+    technicianId: r.technicianId,
+    technicianName: r.technician ? `${r.technician.firstName} ${r.technician.lastName}` : null,
     machineId: r.machineId,
     machineName: r.machine.name,
     machineLocation: r.machine.location,
-    technicianId: r.technicianId,
-    technicianName: r.technician ? `${r.technician.firstName} ${r.technician.lastName}` : null,
-    durationMinutes: r.durationMinutes,
-    importSource: r.importSource,
+    failureDescription: r.failureDescription,
     operation: r.operation,
+    operationType: r.operationType,
+    type: r.type,
+    workflowStatus: workflowStatusForLog(r.type, r.date),
+    failureCause: r.failureCause,
+    failureCauseLabel: r.failureCauseLabel,
+    linkedFailureCause: r.linkedFailureCause,
+    durationMinutes: r.durationMinutes,
+    workPerformed: r.workPerformed,
+    difficulties: r.difficulties,
+    sparePartsLabel: r.sparePartsLabel,
+    importSource: r.importSource,
   }));
 }
 
@@ -70,24 +111,36 @@ function buildWhere(q: string): Prisma.MaintenanceLogWhereInput {
       { workPerformed: { contains: q, mode: "insensitive" } },
       { operation: { contains: q, mode: "insensitive" } },
       { importSource: { contains: q, mode: "insensitive" } },
+      { importMatricule: { contains: q, mode: "insensitive" } },
+      { sectorMaintenance: { contains: q, mode: "insensitive" } },
+      { service: { contains: q, mode: "insensitive" } },
       { technician: { firstName: { contains: q, mode: "insensitive" } } },
       { technician: { lastName: { contains: q, mode: "insensitive" } } },
     ],
   };
 }
 
-export type InterventionListFilters = {
-  type?: InterventionType | "ALL" | null;
-  status?: MaintenanceWorkflowStatus | "ALL" | null;
-};
-
 function filterWhere(filters?: InterventionListFilters): Prisma.MaintenanceLogWhereInput {
   const and: Prisma.MaintenanceLogWhereInput[] = [];
-  if (filters?.type && filters.type !== "ALL") {
-    and.push({ type: filters.type });
-  }
+  const q = filters?.q?.trim();
+  if (q) and.push(buildWhere(q));
+  if (filters?.type && filters.type !== "ALL") and.push({ type: filters.type });
   if (filters?.status && filters.status !== "ALL") {
     and.push(workflowStatusWhere(filters.status) as Prisma.MaintenanceLogWhereInput);
+  }
+  if (filters?.sector && filters.sector !== "ALL") {
+    and.push({ sectorMaintenance: { equals: filters.sector, mode: "insensitive" } });
+  }
+  if (filters?.technicianId && filters.technicianId !== "ALL") {
+    and.push({ technicianId: filters.technicianId });
+  }
+  if (filters?.dateFrom) {
+    const d = new Date(`${filters.dateFrom}T00:00:00.000Z`);
+    if (!Number.isNaN(d.getTime())) and.push({ date: { gte: d } });
+  }
+  if (filters?.dateTo) {
+    const d = new Date(`${filters.dateTo}T23:59:59.999Z`);
+    if (!Number.isNaN(d.getTime())) and.push({ date: { lte: d } });
   }
   if (!and.length) return {};
   return { AND: and };
@@ -101,12 +154,28 @@ function inventoryWhere(
   technicianId?: string | null,
   filters?: InterventionListFilters,
 ): Prisma.MaintenanceLogWhereInput {
-  const parts = [scopeWhere(technicianId), filterWhere(filters)].filter(
-    (w) => Object.keys(w).length > 0,
-  );
+  const parts = [scopeWhere(technicianId), filterWhere(filters)].filter((w) => Object.keys(w).length > 0);
   if (!parts.length) return {};
   if (parts.length === 1) return parts[0]!;
   return { AND: parts };
+}
+
+function orderBy(filters?: InterventionListFilters): Prisma.MaintenanceLogOrderByWithRelationInput[] {
+  const dir = filters?.dir === "asc" ? "asc" : "desc";
+  switch (filters?.sort) {
+    case "machineName":
+      return [{ machine: { name: dir } }, { id: "desc" }];
+    case "type":
+      return [{ type: dir }, { date: "desc" }];
+    case "importMatricule":
+      return [{ importMatricule: dir }, { id: "desc" }];
+    case "durationMinutes":
+      return [{ durationMinutes: dir }, { date: "desc" }];
+    case "technicianName":
+      return [{ technician: { lastName: dir } }, { date: "desc" }];
+    default:
+      return [{ date: dir }, { id: "desc" }];
+  }
 }
 
 export async function fetchInterventionsInventory(
@@ -117,7 +186,7 @@ export async function fetchInterventionsInventory(
 ): Promise<PaginatedResult<InterventionListVm>> {
   const where = inventoryWhere(technicianId, filters);
   const safePage = Math.max(1, page);
-  const safeLimit = Math.max(1, Math.min(limit, 50));
+  const safeLimit = Math.max(1, Math.min(limit, 100));
   const skip = (safePage - 1) * safeLimit;
 
   const [total, rows] = await Promise.all([
@@ -126,7 +195,7 @@ export async function fetchInterventionsInventory(
       where,
       skip,
       take: safeLimit,
-      orderBy: [{ date: "desc" }, { id: "desc" }],
+      orderBy: orderBy(filters),
       select: listSelect,
     }),
   ]);
@@ -140,7 +209,6 @@ export async function fetchInterventionsInventory(
   };
 }
 
-/** Export CSV/PDF — toutes les fiches (hors pagination UI). */
 export async function fetchAllInterventionsInventory(
   technicianId?: string | null,
   filters?: InterventionListFilters,
@@ -148,10 +216,22 @@ export async function fetchAllInterventionsInventory(
   const where = inventoryWhere(technicianId, filters);
   const rows = await prisma.maintenanceLog.findMany({
     where,
-    orderBy: [{ date: "desc" }, { id: "desc" }],
+    orderBy: orderBy(filters),
     select: listSelect,
+    take: 20000,
   });
   return mapListRows(rows);
+}
+
+export async function fetchInterventionSectors(): Promise<string[]> {
+  const rows = await prisma.maintenanceLog.findMany({
+    where: { sectorMaintenance: { not: null } },
+    distinct: ["sectorMaintenance"],
+    select: { sectorMaintenance: true },
+    orderBy: { sectorMaintenance: "asc" },
+    take: 80,
+  });
+  return rows.map((r) => r.sectorMaintenance).filter((s): s is string => Boolean(s?.trim()));
 }
 
 export function getInterventionsInventoryCached(
@@ -213,27 +293,7 @@ export function getInterventionTechnicianOptionsCached() {
 export type InterventionRow = InterventionListVm;
 
 export async function fetchInterventionsPage(params: PaginationParams): Promise<PaginatedResult<InterventionListVm>> {
-  const where = buildWhere(params.q);
-  const skip = (params.page - 1) * params.pageSize;
-
-  const [total, rows] = await Promise.all([
-    prisma.maintenanceLog.count({ where }),
-    prisma.maintenanceLog.findMany({
-      where,
-      skip,
-      take: params.pageSize,
-      orderBy: [{ date: "desc" }, { id: "desc" }],
-      select: listSelect,
-    }),
-  ]);
-
-  return {
-    items: mapListRows(rows),
-    total,
-    page: params.page,
-    pageSize: params.pageSize,
-    pageCount: Math.max(1, Math.ceil(total / params.pageSize) || 1),
-  };
+  return fetchInterventionsInventory(null, params.page, params.pageSize, { q: params.q });
 }
 
 export function getInterventionsPageCached(params: PaginationParams) {

@@ -1,25 +1,81 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, ColumnOrderState, ColumnSizingState, VisibilityState } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Edit2, Eye, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns3, Edit2, Eye, GripVertical, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { InterventionFicheButton } from "@/components/interventions/intervention-fiche-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatDateFrShort } from "@/lib/utils/format-date";
-import { operationTypeFr } from "@/lib/view/gmao-labels";
+import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 import { cn } from "@/lib/utils";
+
+const STORAGE_KEY = "nutrifish.gmao.interventions.table.v1";
+
+const COLUMN_LABELS: Record<string, string> = {
+  select: "Sélection",
+  importMatricule: "Matricule",
+  date: "Date",
+  sectorMaintenance: "Secteur Maintenance",
+  service: "Service",
+  technicianName: "Intervenant",
+  machineName: "Nom de la machine",
+  machineLocation: "Emplacement",
+  failureDescription: "Description de dysfonctionnement",
+  operation: "Opération",
+  type: "Type de maintenance",
+  failureCauseLabel: "Cause de défaillance",
+  linkedFailureCause: "Cause liée à la défaillance",
+  durationMinutes: "Temps d'intervention",
+  workPerformed: "Rapport d'intervention",
+  difficulties: "Difficultés rencontrées",
+  sparePartsLabel: "Pièce de rechange et consommables",
+  actions: "Actions",
+};
+
+const DEFAULT_ORDER = Object.keys(COLUMN_LABELS);
+
+type PersistedTableState = {
+  columnOrder?: string[];
+  columnVisibility?: VisibilityState;
+  columnSizing?: ColumnSizingState;
+};
+
+function loadTableState(): PersistedTableState {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedTableState) : {};
+  } catch {
+    return {};
+  }
+}
+
+function CellText({ value, className }: { value: string | null | undefined; className?: string }) {
+  const text = value?.trim() ? value : "—";
+  return (
+    <p className={cn("max-w-[280px] truncate text-sm text-slate-700", className)} title={text}>
+      {text}
+    </p>
+  );
+}
 
 function RowCheckbox({
   checked,
@@ -33,11 +89,9 @@ function RowCheckbox({
   ariaLabel: string;
 }) {
   const ref = React.useRef<HTMLInputElement>(null);
-
   React.useEffect(() => {
     if (ref.current) ref.current.indeterminate = Boolean(indeterminate);
   }, [indeterminate]);
-
   return (
     <input
       ref={ref}
@@ -50,12 +104,20 @@ function RowCheckbox({
   );
 }
 
-type ServerPaginationProps = {
+export type ServerPaginationProps = {
   page: number;
   pageCount: number;
   total: number;
+  pageSize: number;
   onPrevious: () => void;
   onNext: () => void;
+  onPageSizeChange: (size: number) => void;
+};
+
+export type ServerSortProps = {
+  sort: string;
+  dir: "asc" | "desc";
+  onChange: (sort: string, dir: "asc" | "desc") => void;
 };
 
 type InterventionsDataTableProps = {
@@ -66,12 +128,12 @@ type InterventionsDataTableProps = {
   onEdit: (row: InterventionListVm) => void;
   onDelete: (row: InterventionListVm) => void;
   onBulkDelete: () => void;
-  isPending?: boolean;
   readOnly?: boolean;
-  serverPagination?: ServerPaginationProps;
+  serverPagination: ServerPaginationProps;
+  serverSort: ServerSortProps;
 };
 
-function InterventionsDataTableInner({
+export function InterventionsDataTable({
   interventions,
   selectedIds,
   onSelectedIdsChange,
@@ -79,10 +141,23 @@ function InterventionsDataTableInner({
   onEdit,
   onDelete,
   onBulkDelete,
-  isPending,
   readOnly = false,
   serverPagination,
+  serverSort,
 }: InterventionsDataTableProps) {
+  const persisted = React.useMemo(() => loadTableState(), []);
+  const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(persisted.columnOrder ?? DEFAULT_ORDER);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(persisted.columnVisibility ?? {});
+  const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>(persisted.columnSizing ?? {});
+  const dragCol = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ columnOrder, columnVisibility, columnSizing }),
+    );
+  }, [columnOrder, columnVisibility, columnSizing]);
+
   const visibleIds = React.useMemo(() => interventions.map((r) => r.id), [interventions]);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
@@ -107,291 +182,288 @@ function InterventionsDataTableInner({
     [selectedIds, onSelectedIdsChange],
   );
 
-  const columns = React.useMemo<ColumnDef<InterventionListVm>[]>(
-    () => {
-      const cols: ColumnDef<InterventionListVm>[] = [];
-
-      if (!readOnly) {
-        cols.push({
-          id: "select",
-          header: () => (
-            <RowCheckbox
-              checked={allVisibleSelected}
-              indeterminate={someVisibleSelected && !allVisibleSelected}
-              onChange={toggleAllVisible}
-              ariaLabel="Sélectionner toutes les interventions visibles"
-            />
-          ),
-          cell: ({ row }) => (
-            <RowCheckbox
-              checked={selectedIds.has(row.original.id)}
-              onChange={(checked) => toggleRow(row.original.id, checked)}
-              ariaLabel={`Sélectionner ${row.original.machineName}`}
-            />
-          ),
-          enableSorting: false,
-        });
-      }
-
-      cols.push(
-      {
-        accessorKey: "machineName",
-        header: "Machine",
+  const columns = React.useMemo<ColumnDef<InterventionListVm>[]>(() => {
+    const cols: ColumnDef<InterventionListVm>[] = [];
+    if (!readOnly) {
+      cols.push({
+        id: "select",
+        header: () => (
+          <RowCheckbox
+            checked={allVisibleSelected}
+            indeterminate={someVisibleSelected && !allVisibleSelected}
+            onChange={toggleAllVisible}
+            ariaLabel="Sélectionner la page"
+          />
+        ),
         cell: ({ row }) => (
-          <div className="min-w-[140px]">
-            <p className="font-semibold text-slate-900">{row.original.machineName}</p>
-            <p className="text-xs text-slate-500" suppressHydrationWarning>
-              {formatDateFrShort(row.original.date)}
-            </p>
-          </div>
+          <RowCheckbox
+            checked={selectedIds.has(row.original.id)}
+            onChange={(checked) => toggleRow(row.original.id, checked)}
+            ariaLabel={`Sélectionner ${row.original.machineName}`}
+          />
+        ),
+        size: 44,
+        enableResizing: false,
+        enableSorting: false,
+      });
+    }
+    cols.push(
+      { accessorKey: "importMatricule", header: "Matricule", size: 110, cell: ({ row }) => <CellText value={row.original.importMatricule} className="font-mono text-xs" /> },
+      {
+        accessorKey: "date",
+        header: "Date",
+        size: 110,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap text-sm tabular-nums text-slate-800" suppressHydrationWarning>
+            {formatDateFrShort(row.original.date)}
+          </span>
         ),
       },
+      { accessorKey: "sectorMaintenance", header: "Secteur Maintenance", size: 150, cell: ({ row }) => <CellText value={row.original.sectorMaintenance} /> },
+      { accessorKey: "service", header: "Service", size: 120, cell: ({ row }) => <CellText value={row.original.service} /> },
+      { accessorKey: "technicianName", header: "Intervenant", size: 140, cell: ({ row }) => <CellText value={row.original.technicianName} /> },
+      { accessorKey: "machineName", header: "Nom de la machine", size: 180, cell: ({ row }) => <p className="max-w-[220px] truncate font-semibold text-slate-900" title={row.original.machineName}>{row.original.machineName}</p> },
+      { accessorKey: "machineLocation", header: "Emplacement", size: 140, cell: ({ row }) => <CellText value={row.original.machineLocation} /> },
+      { accessorKey: "failureDescription", header: "Description de dysfonctionnement", size: 220, cell: ({ row }) => <CellText value={row.original.failureDescription} /> },
+      { accessorKey: "operation", header: "Opération", size: 150, cell: ({ row }) => <CellText value={row.original.operation || operationTypeFr(row.original.operationType)} /> },
       {
         accessorKey: "type",
-        header: "Type d'intervention",
+        header: "Type de maintenance",
+        size: 150,
         cell: ({ row }) => (
-          <Badge
-            variant={row.original.type === "CORRECTIVE" ? "warning" : "secondary"}
-            className="font-normal"
-          >
+          <Badge variant={row.original.type === "CORRECTIVE" ? "warning" : "secondary"} className="font-normal">
             {interventionTypeFr(row.original.type)}
           </Badge>
         ),
       },
       {
-        accessorKey: "operationType",
-        header: "Opération",
+        accessorKey: "failureCauseLabel",
+        header: "Cause de défaillance",
+        size: 160,
         cell: ({ row }) => (
-          <Badge variant="secondary" className="font-normal">
-            {operationTypeFr(row.original.operationType)}
-          </Badge>
+          <CellText value={row.original.failureCauseLabel || (row.original.failureCause ? failureCauseFr(row.original.failureCause) : null)} />
         ),
       },
-      {
-        accessorKey: "workflowStatus",
-        header: "Statut",
-        cell: ({ row }) => (
-          <Badge
-            variant={row.original.workflowStatus === "OPEN" ? "warning" : "outline"}
-            className="font-normal"
-          >
-            {maintenanceWorkflowStatusFr(row.original.workflowStatus)}
-          </Badge>
-        ),
-      },
+      { accessorKey: "linkedFailureCause", header: "Cause liée à la défaillance", size: 180, cell: ({ row }) => <CellText value={row.original.linkedFailureCause} /> },
       {
         accessorKey: "durationMinutes",
-        header: "Durée",
+        header: "Temps d'intervention",
+        size: 120,
         cell: ({ row }) => (
-          <span className="tabular-nums text-slate-600">
+          <span className="tabular-nums text-sm text-slate-700">
             {row.original.durationMinutes != null ? `${row.original.durationMinutes} min` : "—"}
           </span>
         ),
       },
-      {
-        accessorKey: "technicianName",
-        header: "Technicien",
-        cell: ({ row }) => <span className="text-sm text-slate-600">{row.original.technicianName ?? "—"}</span>,
-      },
-      {
-        accessorKey: "failureDescription",
-        header: "Dysfonctionnement",
-        cell: ({ row }) => (
-          <p className="max-w-[180px] truncate text-sm text-slate-500" title={row.original.failureDescription ?? ""}>
-            {row.original.failureDescription ?? "—"}
-          </p>
-        ),
-      },
+      { accessorKey: "workPerformed", header: "Rapport d'intervention", size: 240, cell: ({ row }) => <CellText value={row.original.workPerformed} /> },
+      { accessorKey: "difficulties", header: "Difficultés rencontrées", size: 180, cell: ({ row }) => <CellText value={row.original.difficulties} /> },
+      { accessorKey: "sparePartsLabel", header: "Pièce de rechange et consommables", size: 240, cell: ({ row }) => <CellText value={row.original.sparePartsLabel} /> },
       {
         id: "actions",
         header: "Actions",
+        size: 148,
+        enableResizing: false,
+        enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-0.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-xl text-[#1F76FB] hover:bg-[#E8F1FF]"
-              onClick={() => onView(row.original)}
-              aria-label="Voir"
-            >
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-[#1F76FB] hover:bg-[#E8F1FF]" onClick={() => onView(row.original)} aria-label="Voir">
               <Eye className="h-4 w-4" />
             </Button>
             {!readOnly ? (
               <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-[#1F76FB]"
-                  onClick={() => onEdit(row.original)}
-                  aria-label="Modifier"
-                >
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-slate-600 hover:bg-slate-100" onClick={() => onEdit(row.original)} aria-label="Modifier">
                   <Edit2 className="h-4 w-4" />
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600"
-                  onClick={() => onDelete(row.original)}
-                  aria-label="Supprimer"
-                >
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => onDelete(row.original)} aria-label="Supprimer">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </>
             ) : null}
-            <InterventionFicheButton
-              interventionId={row.original.id}
-              machineName={row.original.machineName}
-              size="icon"
-              variant="ghost"
-              useApi
-            />
+            <InterventionFicheButton interventionId={row.original.id} machineName={row.original.machineName} size="icon" variant="ghost" useApi />
           </div>
         ),
       },
-      );
-
-      return cols;
-    },
-    [
-      allVisibleSelected,
-      readOnly,
-      someVisibleSelected,
-      selectedIds,
-      toggleAllVisible,
-      toggleRow,
-      onView,
-      onEdit,
-      onDelete,
-    ],
-  );
+    );
+    return cols;
+  }, [allVisibleSelected, someVisibleSelected, selectedIds, readOnly, onView, onEdit, onDelete, toggleAllVisible, toggleRow]);
 
   const table = useReactTable({
     data: interventions,
     columns,
+    state: { columnOrder, columnVisibility, columnSizing },
+    onColumnOrderChange: setColumnOrder,
+    onColumnVisibilityChange: setColumnVisibility,
+    onColumnSizingChange: setColumnSizing,
+    columnResizeMode: "onChange",
+    enableColumnResizing: true,
     getCoreRowModel: getCoreRowModel(),
-    ...(serverPagination ? {} : { getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize: 10 } } }),
+    getRowId: (row) => row.id,
   });
 
-  const selectedCount = selectedIds.size;
+  const sortable = new Set(["date", "machineName", "type", "importMatricule", "durationMinutes", "technicianName"]);
 
-  if (interventions.length === 0) {
-    return (
-      <p className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-600">
-        Aucune intervention ne correspond aux filtres.
-      </p>
-    );
+  function cycleSort(id: string) {
+    if (!sortable.has(id)) return;
+    if (serverSort.sort === id) {
+      serverSort.onChange(id, serverSort.dir === "asc" ? "desc" : "asc");
+    } else {
+      serverSort.onChange(id, id === "date" ? "desc" : "asc");
+    }
   }
 
   return (
-    <div className={cn("space-y-4", isPending && "opacity-70 transition-opacity")}>
-      {!readOnly && selectedCount > 0 ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-[#1F76FB]/25 bg-[#E8F1FF] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-medium text-slate-800">
-            <span className="tabular-nums text-[#1F76FB]">{selectedCount}</span> élément
-            {selectedCount > 1 ? "s" : ""} sélectionné{selectedCount > 1 ? "s" : ""}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onBulkDelete}
-            className="rounded-xl border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Supprimer la sélection
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id} className="border-0 hover:bg-transparent">
-                {hg.headers.map((h) => (
-                  <TableHead
-                    key={h.id}
-                    className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white first:rounded-tl-xl last:rounded-tr-xl"
-                  >
-                    {flexRender(h.column.columnDef.header, h.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row, i) => (
-              <TableRow
-                key={row.id}
-                data-state={selectedIds.has(row.original.id) ? "selected" : undefined}
-                className={cn(
-                  "border-slate-100 transition-colors hover:bg-[#E8F1FF]/50",
-                  i % 2 === 1 && "bg-slate-50/60",
-                  selectedIds.has(row.original.id) && "bg-[#E8F1FF]/30",
-                )}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-3 py-3 align-middle">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-        <p className="text-sm text-slate-600">
-          <span className="font-semibold tabular-nums text-slate-900">
-            {serverPagination ? serverPagination.total : table.getFilteredRowModel().rows.length}
-          </span>{" "}
-          intervention(s)
-          {serverPagination ? (
-            <span className="text-slate-500">
-              {" "}
-              · page {serverPagination.page}/{serverPagination.pageCount}
-            </span>
-          ) : null}
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
+        <p className="text-xs text-slate-500">
+          Glissez les en-têtes pour réordonner · étirez le bord droit pour redimensionner · {serverPagination.total.toLocaleString("fr-FR")} ligne(s)
         </p>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={serverPagination ? serverPagination.page <= 1 : !table.getCanPreviousPage()}
-            onClick={() => (serverPagination ? serverPagination.onPrevious() : table.previousPage())}
-            className="rounded-xl border-slate-100"
+          {!readOnly && selectedIds.size > 0 ? (
+            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-rose-600" onClick={onBulkDelete}>
+              Supprimer ({selectedIds.size})
+            </Button>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg">
+                <Columns3 className="mr-1.5 h-3.5 w-3.5" />
+                Colonnes
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-80 w-72 overflow-y-auto">
+              <DropdownMenuLabel>Afficher / masquer</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {table.getAllLeafColumns().map((col) => {
+                if (col.id === "select" || col.id === "actions") return null;
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    checked={col.getIsVisible()}
+                    onCheckedChange={(v) => col.toggleVisibility(Boolean(v))}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {COLUMN_LABELS[col.id] ?? col.id}
+                  </DropdownMenuCheckboxItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <div className="max-h-[min(72vh,840px)] overflow-auto">
+        <table className="w-max min-w-full border-separate border-spacing-0 text-sm" style={{ tableLayout: "fixed" }}>
+          <thead className="sticky top-0 z-10 bg-slate-50">
+            {table.getHeaderGroups().map((hg) => (
+              <tr key={hg.id}>
+                {hg.headers.map((header) => {
+                  const id = header.column.id;
+                  const canSort = sortable.has(id);
+                  const isSorted = serverSort.sort === id;
+                  return (
+                    <th
+                      key={header.id}
+                      draggable={id !== "select"}
+                      onDragStart={() => {
+                        dragCol.current = id;
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        const from = dragCol.current;
+                        dragCol.current = null;
+                        if (!from || from === id) return;
+                        setColumnOrder((prev) => {
+                          const next = (prev.length ? prev : DEFAULT_ORDER).filter((c) => c !== from);
+                          const idx = next.indexOf(id);
+                          next.splice(idx < 0 ? next.length : idx, 0, from);
+                          return next;
+                        });
+                      }}
+                      style={{ width: header.getSize() }}
+                      className="relative border-b border-r border-slate-200 px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-600"
+                    >
+                      <button
+                        type="button"
+                        className={cn("flex w-full items-center gap-1 text-left", canSort && "hover:text-[#1F76FB]")}
+                        onClick={() => cycleSort(id)}
+                      >
+                        {id !== "select" ? <GripVertical className="h-3 w-3 shrink-0 text-slate-300" /> : null}
+                        <span className="truncate">{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                        {isSorted ? <span className="text-[#1F76FB]">{serverSort.dir === "asc" ? "↑" : "↓"}</span> : null}
+                      </button>
+                      {header.column.getCanResize() ? (
+                        <div
+                          onMouseDown={header.getResizeHandler()}
+                          onTouchStart={header.getResizeHandler()}
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[#1F76FB]"
+                        />
+                      ) : null}
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.length === 0 ? (
+              <tr>
+                <td colSpan={table.getVisibleLeafColumns().length} className="px-4 py-12 text-center text-slate-500">
+                  Aucune intervention ne correspond aux filtres.
+                </td>
+              </tr>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="odd:bg-white even:bg-slate-50/60 hover:bg-[#F3F8FF]">
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      style={{ width: cell.column.getSize() }}
+                      className="border-b border-r border-slate-100 px-2 py-1.5 align-top"
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-3 py-2 text-sm text-slate-600">
+        <div className="flex items-center gap-2">
+          <span>Lignes / page</span>
+          <select
+            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm"
+            value={serverPagination.pageSize}
+            onChange={(e) => serverPagination.onPageSizeChange(Number(e.target.value))}
           >
+            {[25, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+        <span>
+          Page {serverPagination.page}/{serverPagination.pageCount}
+        </span>
+        <div className="flex gap-1">
+          <Button type="button" variant="outline" size="sm" className="h-8" disabled={serverPagination.page <= 1} onClick={serverPagination.onPrevious}>
             <ChevronLeft className="h-4 w-4" />
-            <span className="sr-only">Précédent</span>
           </Button>
-          <span className="text-sm tabular-nums text-slate-600">
-            Page {serverPagination ? serverPagination.page : table.getState().pagination.pageIndex + 1} /{" "}
-            {serverPagination ? serverPagination.pageCount : Math.max(table.getPageCount(), 1)}
-          </span>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled={
-              serverPagination
-                ? serverPagination.page >= serverPagination.pageCount
-                : !table.getCanNextPage()
-            }
-            onClick={() => (serverPagination ? serverPagination.onNext() : table.nextPage())}
-            className="rounded-xl border-slate-100"
+            className="h-8"
+            disabled={serverPagination.page >= serverPagination.pageCount}
+            onClick={serverPagination.onNext}
           >
             <ChevronRight className="h-4 w-4" />
-            <span className="sr-only">Suivant</span>
           </Button>
         </div>
       </div>
     </div>
   );
 }
-
-export const InterventionsDataTable = React.memo(InterventionsDataTableInner);

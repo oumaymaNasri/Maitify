@@ -283,6 +283,10 @@ model MaintenanceLog {
   failureCause       FailureCause?
   signature          String?                   @db.Text
   importSource       String?
+  importMatricule    String? @map("import_matricule")
+  linkedFailureCause String? @map("linked_failure_cause") @db.Text
+  failureCauseLabel  String? @map("failure_cause_label") @db.Text
+  sparePartsLabel    String? @map("spare_parts_label") @db.Text
 
   sectorMaintenance String?
   service           String?
@@ -310,6 +314,8 @@ model MaintenanceLog {
   @@index([operationType])
   @@index([workflowStatus])
   @@index([machineId, date])
+  @@index([importMatricule])
+  @@index([sectorMaintenance])
   @@map("Intervention")
 }
 

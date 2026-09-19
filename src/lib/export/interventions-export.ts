@@ -1,7 +1,6 @@
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
+import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
-import { operationTypeFr } from "@/lib/view/gmao-labels";
-import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
 function escapeCsv(value: string | number | null | undefined): string {
   const s = value == null ? "" : String(value);
@@ -9,33 +8,45 @@ function escapeCsv(value: string | number | null | undefined): string {
 }
 
 function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(iso));
 }
 
 function interventionExportRows(items: InterventionListVm[]): string[][] {
   const header = [
+    "Matricule",
     "Date",
-    "Machine",
+    "Secteur Maintenance",
+    "Service",
+    "Intervenant",
+    "Nom de la machine",
     "Emplacement",
-    "Technicien",
-    "Type d'intervention",
+    "Description de dysfonctionnement",
     "Opération",
-    "Statut",
-    "Durée (min)",
-    "Dysfonctionnement",
-    "Travaux réalisés",
+    "Type de maintenance",
+    "Cause de défaillance",
+    "Cause liée à la défaillance",
+    "Temps d'intervention",
+    "Rapport d'intervention",
+    "Difficultés rencontrées",
+    "Pièce de rechange et consommables",
   ];
   const rows = items.map((r) => [
+    r.importMatricule ?? "",
     formatDate(r.date),
+    r.sectorMaintenance ?? "",
+    r.service ?? "",
+    r.technicianName ?? "",
     r.machineName,
     r.machineLocation,
-    r.technicianName ?? "—",
+    r.failureDescription ?? "",
+    r.operation || operationTypeFr(r.operationType),
     interventionTypeFr(r.type),
-    operationTypeFr(r.operationType),
-    maintenanceWorkflowStatusFr(r.workflowStatus),
-    r.durationMinutes != null ? String(r.durationMinutes) : "—",
-    r.failureDescription ?? "—",
+    r.failureCauseLabel || (r.failureCause ? failureCauseFr(r.failureCause) : ""),
+    r.linkedFailureCause ?? "",
+    r.durationMinutes != null ? `${r.durationMinutes} min` : "",
     r.workPerformed,
+    r.difficulties ?? "",
+    r.sparePartsLabel ?? "",
   ]);
   return [header, ...rows];
 }
@@ -71,7 +82,7 @@ export function exportInterventionsToPdf(items: InterventionListVm[]) {
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Liste de Maintenance</title></head><body style="font-family:system-ui,sans-serif;padding:24px;">
 <h1 style="color:#1F76FB;font-size:18px;margin:0 0 4px;">NutriFish GMAO — Liste de Maintenance</h1>
 <p style="color:#64748b;font-size:12px;margin:0 0 16px;">${items.length} intervention(s) — ${new Date().toLocaleString("fr-FR")}</p>
-<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;"><thead><tr>${headerCells}</tr></thead><tbody>${tableRows}</tbody></table>
+<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;"><thead><tr>${headerCells}</tr></thead><tbody>${tableRows}</tbody></table></div>
 </body></html>`;
 
   const win = window.open("", "_blank");

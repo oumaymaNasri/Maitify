@@ -240,6 +240,10 @@ type PreparedLog = {
   failureCause: FailureCause | null;
   signature: string | null;
   importSource: string;
+  importMatricule: string | null;
+  linkedFailureCause: string | null;
+  failureCauseLabel: string | null;
+  sparePartsLabel: string | null;
   sectorMaintenance: string | null;
   service: string | null;
   operation: string | null;
@@ -257,20 +261,17 @@ async function importCorrective(rows: ExcelRow[], machines: Map<string, Machine>
     const machineName = norm(r["Nom de la machine"]) || UNNAMED_MACHINE;
     const machine = await resolveMachine(machineName, r["Emplacement"], machines);
     const type = interventionTypeFromFr(r["TYPE DE MAINTENANCE"], InterventionType.CORRECTIVE);
-    const workParts = [
-      norm(r["RAPPORT D'INTERVENTION"]),
-      norm(r["DIFFICULTES RENCONTREES"]),
-      norm(r["Opération"]),
-      norm(r["service"]),
-      norm(r["Secteur Maintenance"]),
-      norm(r["PIECE DE RECHANGE ET CONSOMMABLES"]),
-    ].filter(Boolean);
-    const failureDescription =
-      norm(r["DESCRIPTION DE DYSFONCTIONNEMENT"]) || norm(r["CAUSE DE DEFAILLANCE"]) || null;
+    const failureDescription = norm(r["DESCRIPTION DE DYSFONCTIONNEMENT"]) || null;
+    const rapport = norm(r["RAPPORT D'INTERVENTION"]);
     const tech = await resolveTechnician(r["Intervanant"] || r["Intervenant"], techs);
     const desig = norm(r["PIECE DE RECHANGE ET CONSOMMABLES"]);
     const ref = norm(r["REFERENCE"]);
+    const brand = norm(r["MARQUE"]);
+    const qty = parseIntLoose(r["QUANTITE"]);
     const date = parseExcelDate(r["Date"] || r["date"]);
+    const sparePartsLabel = [desig, brand && `Marque: ${brand}`, ref && `Réf: ${ref}`, qty != null && `Qté: ${qty}`]
+      .filter(Boolean)
+      .join(" · ");
     prepared.push({
       machineId: machine.id,
       technicianId: tech?.id ?? null,
@@ -279,11 +280,15 @@ async function importCorrective(rows: ExcelRow[], machines: Map<string, Machine>
       type,
       workflowStatus: workflowStatusForLog(type, date),
       failureDescription,
-      workPerformed: workParts.join("\n").trim() || "(Import Excel — pas de rapport)",
+      workPerformed: rapport || "(Import Excel — pas de rapport)",
       durationMinutes: parseMinutes(r["TEMPS D'INTERVENTION"]),
       failureCause: failureCauseFromFr(r["CAUSE LIE A LA DEFAILLANCE"], r["CAUSE DE DEFAILLANCE"]),
       signature: null,
       importSource: SOURCE_CORRECTIVE,
+      importMatricule: norm(r["matricule"] || r["Matricule"]) || null,
+      linkedFailureCause: norm(r["CAUSE LIE A LA DEFAILLANCE"]) || null,
+      failureCauseLabel: norm(r["CAUSE DE DEFAILLANCE"]) || null,
+      sparePartsLabel: sparePartsLabel || null,
       sectorMaintenance: norm(r["Secteur Maintenance"]) || null,
       service: norm(r["service"]) || null,
       operation: norm(r["Opération"]) || null,
@@ -295,8 +300,8 @@ async function importCorrective(rows: ExcelRow[], machines: Map<string, Machine>
         ? {
             designation: desig || ref,
             reference: ref || null,
-            brand: norm(r["MARQUE"]) || null,
-            qty: Math.max(1, parseIntLoose(r["QUANTITE"]) ?? 1),
+            brand: brand || null,
+            qty: Math.max(1, qty ?? 1),
           }
         : undefined,
     });
@@ -334,6 +339,9 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
       });
     }
     const desig = norm(r["Pièce de rechange"]);
+    const sparePartsLabel = [desig, parseIntLoose(r["Qtite"]) != null && `Qté: ${parseIntLoose(r["Qtite"])}`]
+      .filter(Boolean)
+      .join(" · ");
     prepared.push({
       machineId: machine.id,
       technicianId: tech?.id ?? null,
@@ -347,6 +355,10 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
       failureCause: null,
       signature: norm(r["Signature de Technicien"]) || null,
       importSource: SOURCE_PREVENTIVE,
+      importMatricule: norm(r["Matricule"] || r["matricule"]) || null,
+      linkedFailureCause: null,
+      failureCauseLabel: null,
+      sparePartsLabel: sparePartsLabel || null,
       sectorMaintenance: null,
       service: null,
       operation: norm(r["Type d'intervention"]) || null,
@@ -390,6 +402,10 @@ async function persistLogs(rows: PreparedLog[]) {
         failureCause: row.failureCause,
         signature: row.signature,
         importSource: row.importSource,
+        importMatricule: row.importMatricule,
+        linkedFailureCause: row.linkedFailureCause,
+        failureCauseLabel: row.failureCauseLabel,
+        sparePartsLabel: row.sparePartsLabel,
         sectorMaintenance: row.sectorMaintenance,
         service: row.service,
         operation: row.operation,
@@ -452,7 +468,12 @@ async function main() {
     where: { importSource: { in: [SOURCE_CORRECTIVE, SOURCE_PREVENTIVE] } },
   });
 
-  if (existing >= expected && !force) {
+  const missingMatricule = await prisma.maintenanceLog.count({
+    where: { importSource: { in: [SOURCE_CORRECTIVE, SOURCE_PREVENTIVE] }, importMatricule: null },
+  });
+  const needsEnrichment = missingMatricule > 100;
+
+  if (existing >= expected && !force && !needsEnrichment) {
     console.log(`[seed-maintenances] ${existing} lignes Excel déjà en base (attendu ${expected}).`);
     await syncWorkflowStatuses();
     return;

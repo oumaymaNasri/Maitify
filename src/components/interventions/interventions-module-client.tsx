@@ -1,8 +1,7 @@
 "use client";
 
-import { InterventionType, MaintenanceWorkflowStatus, OperationType } from "@prisma/client";
+import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -17,12 +16,12 @@ import type { MachineOption, TechnicianOption } from "@/components/interventions
 import { InterventionsDataTable } from "@/components/interventions/interventions-data-table";
 import { InterventionsExportButtons } from "@/components/interventions/interventions-export-buttons";
 import { ButtonLink } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { formatDateFrMedium } from "@/lib/utils/format-date";
-import { operationTypeFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
-import { fuzzyMatch } from "@/lib/utils/fuzzy";
 
 const InterventionDetailSheet = dynamic(
   () => import("@/components/interventions/intervention-detail-sheet").then((m) => ({ default: m.InterventionDetailSheet })),
@@ -39,17 +38,11 @@ const DeleteConfirmDialog = dynamic(
 
 type StatusFilter = "ALL" | MaintenanceWorkflowStatus;
 type TypeFilter = "ALL" | InterventionType;
-type OperationFilter = "ALL" | OperationType;
-type DateFilter = "ALL" | "7" | "30" | "90";
-type InterventionSearchRow = InterventionListVm & { searchBlob: string };
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "Tous" },
   { value: MaintenanceWorkflowStatus.OPEN, label: "À faire" },
-  {
-    value: MaintenanceWorkflowStatus.COMPLETED,
-    label: maintenanceWorkflowStatusFr(MaintenanceWorkflowStatus.COMPLETED),
-  },
+  { value: MaintenanceWorkflowStatus.COMPLETED, label: maintenanceWorkflowStatusFr(MaintenanceWorkflowStatus.COMPLETED) },
 ] as const;
 
 const TYPE_OPTIONS = [
@@ -59,24 +52,19 @@ const TYPE_OPTIONS = [
   { value: InterventionType.AMELIORATION, label: interventionTypeFr(InterventionType.AMELIORATION) },
 ] as const;
 
-const OPERATION_OPTIONS = [
-  { value: "ALL", label: "Toutes" },
-  ...Object.values(OperationType).map((op) => ({ value: op, label: operationTypeFr(op) })),
-];
-
-const DATE_OPTIONS = [
-  { value: "ALL", label: "Toutes dates" },
-  { value: "7", label: "7 derniers jours" },
-  { value: "30", label: "30 derniers jours" },
-  { value: "90", label: "90 derniers jours" },
-];
-
-function buildSearchRows(rows: InterventionListVm[]): InterventionSearchRow[] {
-  return rows.map((r) => ({
-    ...r,
-    searchBlob: `${r.id} ${r.machineName} ${r.machineLocation} ${r.technicianName ?? ""} ${r.operation ?? ""} ${interventionTypeFr(r.type)} ${operationTypeFr(r.operationType)} ${r.importSource ?? ""}`,
-  }));
-}
+export type InterventionsListQuery = {
+  page: number;
+  pageSize: number;
+  q: string;
+  type: TypeFilter;
+  status: StatusFilter;
+  sector: string;
+  technicianId: string;
+  dateFrom: string;
+  dateTo: string;
+  sort: string;
+  dir: "asc" | "desc";
+};
 
 type InterventionsPagination = {
   page: number;
@@ -90,16 +78,24 @@ type InterventionsModuleClientProps = {
   pagination: InterventionsPagination;
   machines: MachineOption[];
   technicians: TechnicianOption[];
+  sectors: string[];
   readOnly?: boolean;
-  typeFilter?: TypeFilter;
-  statusFilter?: StatusFilter;
+  query: InterventionsListQuery;
 };
 
-function buildListQuery(page: number, type: TypeFilter, status: StatusFilter): string {
+export function buildMaintenanceListSearch(query: InterventionsListQuery): string {
   const params = new URLSearchParams();
-  if (page > 1) params.set("page", String(page));
-  if (type !== "ALL") params.set("type", type);
-  if (status !== "ALL") params.set("status", status);
+  if (query.page > 1) params.set("page", String(query.page));
+  if (query.pageSize !== 50) params.set("pageSize", String(query.pageSize));
+  if (query.q.trim()) params.set("q", query.q.trim());
+  if (query.type !== "ALL") params.set("type", query.type);
+  if (query.status !== "ALL") params.set("status", query.status);
+  if (query.sector && query.sector !== "ALL") params.set("sector", query.sector);
+  if (query.technicianId && query.technicianId !== "ALL") params.set("technicianId", query.technicianId);
+  if (query.dateFrom) params.set("dateFrom", query.dateFrom);
+  if (query.dateTo) params.set("dateTo", query.dateTo);
+  if (query.sort && query.sort !== "date") params.set("sort", query.sort);
+  if (query.dir && query.dir !== "desc") params.set("dir", query.dir);
   return params.toString();
 }
 
@@ -114,119 +110,92 @@ export function InterventionsModuleClient({
   pagination,
   machines,
   technicians,
+  sectors,
   readOnly = false,
-  typeFilter = "ALL",
-  statusFilter = "ALL",
+  query,
 }: InterventionsModuleClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [rows, setRows] = React.useState(initialRows);
-  const [debouncedQ, setDebouncedQ] = React.useState("");
-  const mounted = React.useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-  const [operation, setOperation] = React.useState<OperationFilter>("ALL");
-  const [dateRange, setDateRange] = React.useState<DateFilter>("ALL");
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [viewId, setViewId] = React.useState<string | null>(null);
   const [editRow, setEditRow] = React.useState<InterventionListVm | null>(null);
   const [deleteRow, setDeleteRow] = React.useState<InterventionListVm | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
-  const [, startFilterTransition] = React.useTransition();
-
-  const handleDebouncedSearch = React.useCallback((value: string) => {
-    setDebouncedQ(value);
-  }, []);
-
-  const openDetailById = React.useCallback((id: string) => {
-    setViewId(id);
-  }, []);
-
-  useDetailQueryParam(openDetailById);
 
   React.useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
 
-  const goToList = React.useCallback(
-    (nextPage: number, type: TypeFilter, status: StatusFilter) => {
-      const qs = buildListQuery(nextPage, type, status);
+  const pushQuery = React.useCallback(
+    (next: InterventionsListQuery) => {
+      const qs = buildMaintenanceListSearch(next);
       router.push(qs ? `${pathname}?${qs}` : pathname);
     },
     [pathname, router],
   );
 
-  const goToPage = React.useCallback(
-    (nextPage: number) => {
-      const safe = Math.max(1, Math.min(nextPage, pagination.pageCount));
-      if (safe === pagination.page) return;
-      goToList(safe, typeFilter, statusFilter);
+  const patchQuery = React.useCallback(
+    (patch: Partial<InterventionsListQuery>) => {
+      pushQuery({ ...query, page: 1, ...patch });
     },
-    [goToList, pagination.page, pagination.pageCount, typeFilter, statusFilter],
+    [pushQuery, query],
   );
 
-  const searchRows = React.useMemo(() => buildSearchRows(rows), [rows]);
+  const openDetailById = React.useCallback((id: string) => {
+    setViewId(id);
+  }, []);
+  useDetailQueryParam(openDetailById);
 
-  const filtered = React.useMemo(() => {
-    const needle = debouncedQ.trim();
-    let cutoff = 0;
-    if (mounted) {
-      const now = Date.now();
-      if (dateRange === "7") cutoff = now - 7 * 86400000;
-      else if (dateRange === "30") cutoff = now - 30 * 86400000;
-      else if (dateRange === "90") cutoff = now - 90 * 86400000;
-    }
+  const skipSearchEmit = React.useRef(true);
 
-    return searchRows.filter((r) => {
-      if (operation !== "ALL" && r.operationType !== operation) return false;
-      if (mounted && cutoff > 0 && new Date(r.date).getTime() < cutoff) return false;
-      if (!needle) return true;
-      return fuzzyMatch(needle, r.searchBlob);
-    });
-  }, [searchRows, debouncedQ, operation, dateRange, mounted]);
-
-  React.useEffect(() => {
-    const visible = new Set(filtered.map((r) => r.id));
-    setSelectedIds((prev) => {
-      const next = new Set(Array.from(prev).filter((id) => visible.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [filtered]);
+  const handleDebouncedSearch = React.useCallback(
+    (q: string) => {
+      if (skipSearchEmit.current) {
+        skipSearchEmit.current = false;
+        return;
+      }
+      if (q === query.q) return;
+      patchQuery({ q });
+    },
+    [patchQuery, query.q],
+  );
 
   const filters = React.useMemo(
     () => [
       {
         id: "type",
-        label: "Type d'intervention",
-        value: typeFilter,
-        onChange: (v: string) => goToList(1, v as TypeFilter, statusFilter),
+        label: "Type de maintenance",
+        value: query.type,
+        onChange: (v: string) => patchQuery({ type: v as TypeFilter }),
         options: [...TYPE_OPTIONS],
       },
       {
         id: "status",
         label: "Statut",
-        value: statusFilter,
-        onChange: (v: string) => goToList(1, typeFilter, v as StatusFilter),
+        value: query.status,
+        onChange: (v: string) => patchQuery({ status: v as StatusFilter }),
         options: [...STATUS_OPTIONS],
       },
       {
-        id: "operation",
-        label: "Type d'opération",
-        value: operation,
-        onChange: (v: string) => startFilterTransition(() => setOperation(v as OperationFilter)),
-        options: OPERATION_OPTIONS,
+        id: "sector",
+        label: "Secteur",
+        value: query.sector || "ALL",
+        onChange: (v: string) => patchQuery({ sector: v }),
+        options: [{ value: "ALL", label: "Tous" }, ...sectors.map((s) => ({ value: s, label: s }))],
       },
       {
-        id: "date",
-        label: "Date",
-        value: dateRange,
-        onChange: (v: string) => startFilterTransition(() => setDateRange(v as DateFilter)),
-        options: DATE_OPTIONS,
+        id: "technician",
+        label: "Intervenant",
+        value: query.technicianId || "ALL",
+        onChange: (v: string) => patchQuery({ technicianId: v }),
+        options: [
+          { value: "ALL", label: "Tous" },
+          ...technicians.map((t) => ({ value: t.id, label: t.label })),
+        ],
       },
     ],
-    [typeFilter, statusFilter, operation, dateRange, goToList],
+    [query.type, query.status, query.sector, query.technicianId, sectors, technicians, patchQuery],
   );
 
   const handleDeleted = React.useCallback((id: string) => {
@@ -246,18 +215,33 @@ export function InterventionsModuleClient({
   }, []);
 
   return (
-    <GmaoModuleShell title={readOnly ? "Mes interventions" : "Liste de Maintenance"}>
+    <GmaoModuleShell
+      title={readOnly ? "Mes interventions" : "Liste de Maintenance"}
+      subtitle="Tableau type tableur : filtres serveur, tri, colonnes déplaçables et redimensionnables. Pagination pour ~12 000 lignes."
+    >
       <ModuleFilterBar
         onDebouncedSearchChange={handleDebouncedSearch}
-        searchPlaceholder="Recherche : machine, opération…"
+        searchPlaceholder="Recherche globale : matricule, machine, rapport, intervenant…"
+        searchResetKey={`${query.type}-${query.status}-${query.sector}`}
         resultCount={pagination.total}
         action={newInterventionAction}
-        exportActions={readOnly ? undefined : <InterventionsExportButtons items={filtered} />}
+        exportActions={readOnly ? undefined : <InterventionsExportButtons items={rows} />}
         filters={filters}
       />
 
+      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-1">
+          <Label className="text-xs text-slate-600">Date du</Label>
+          <Input type="date" value={query.dateFrom} onChange={(e) => patchQuery({ dateFrom: e.target.value })} className="h-9" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-slate-600">Date au</Label>
+          <Input type="date" value={query.dateTo} onChange={(e) => patchQuery({ dateTo: e.target.value })} className="h-9" />
+        </div>
+      </div>
+
       <InterventionsDataTable
-        interventions={filtered}
+        interventions={rows}
         selectedIds={selectedIds}
         onSelectedIdsChange={setSelectedIds}
         onView={(row) => setViewId(row.id)}
@@ -265,12 +249,19 @@ export function InterventionsModuleClient({
         onDelete={readOnly ? () => {} : setDeleteRow}
         onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
         readOnly={readOnly}
+        serverSort={{
+          sort: query.sort,
+          dir: query.dir,
+          onChange: (sort, dir) => patchQuery({ sort, dir, page: pagination.page }),
+        }}
         serverPagination={{
           page: pagination.page,
           pageCount: pagination.pageCount,
           total: pagination.total,
-          onPrevious: () => goToPage(pagination.page - 1),
-          onNext: () => goToPage(pagination.page + 1),
+          pageSize: pagination.pageSize,
+          onPrevious: () => pushQuery({ ...query, page: Math.max(1, pagination.page - 1) }),
+          onNext: () => pushQuery({ ...query, page: Math.min(pagination.pageCount, pagination.page + 1) }),
+          onPageSizeChange: (pageSize) => patchQuery({ pageSize, page: 1 }),
         }}
       />
 
@@ -285,51 +276,51 @@ export function InterventionsModuleClient({
       {!readOnly ? (
         <>
           <InterventionEditDialog
-        intervention={editRow}
-        open={Boolean(editRow)}
-        onOpenChange={(open) => {
-          if (!open) setEditRow(null);
-        }}
-        machines={machines}
-        technicians={technicians}
-        onUpdated={(updated) => {
-          setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-        }}
-      />
+            intervention={editRow}
+            open={Boolean(editRow)}
+            onOpenChange={(open) => {
+              if (!open) setEditRow(null);
+            }}
+            machines={machines}
+            technicians={technicians}
+            onUpdated={(updated) => {
+              setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+            }}
+          />
 
-      <DeleteConfirmDialog
-        open={Boolean(deleteRow)}
-        onOpenChange={(open) => {
-          if (!open) setDeleteRow(null);
-        }}
-        title="Confirmer la suppression"
-        description={
-          deleteRow
-            ? `Supprimer l'intervention sur « ${deleteRow.machineName} » du ${formatDateFrMedium(deleteRow.date)} ? Action irréversible.`
-            : ""
-        }
-        onConfirm={async () => {
-          if (!deleteRow) return { ok: false, error: "Intervention introuvable." };
-          const res = await deleteMaintenanceLogAction(deleteRow.id);
-          return { ok: res.ok, error: res.ok ? undefined : res.error };
-        }}
-        onSuccess={() => {
-          if (deleteRow) handleDeleted(deleteRow.id);
-        }}
-      />
+          <DeleteConfirmDialog
+            open={Boolean(deleteRow)}
+            onOpenChange={(open) => {
+              if (!open) setDeleteRow(null);
+            }}
+            title="Confirmer la suppression"
+            description={
+              deleteRow
+                ? `Supprimer l'intervention sur « ${deleteRow.machineName} » du ${formatDateFrMedium(deleteRow.date)} ? Action irréversible.`
+                : ""
+            }
+            onConfirm={async () => {
+              if (!deleteRow) return { ok: false, error: "Intervention introuvable." };
+              const res = await deleteMaintenanceLogAction(deleteRow.id);
+              return { ok: res.ok, error: res.ok ? undefined : res.error };
+            }}
+            onSuccess={() => {
+              if (deleteRow) handleDeleted(deleteRow.id);
+            }}
+          />
 
-      <DeleteConfirmDialog
-        open={bulkDeleteOpen}
-        onOpenChange={setBulkDeleteOpen}
-        title="Supprimer la sélection ?"
-        description={`${selectedIds.size} intervention(s) seront définitivement supprimées.`}
-        onConfirm={async () => {
-          const res = await deleteMaintenanceLogsBulkAction(Array.from(selectedIds));
-          if (!res.ok) return { ok: false, error: res.error };
-          handleBulkDeleted(res.ids);
-          return { ok: true };
-        }}
-      />
+          <DeleteConfirmDialog
+            open={bulkDeleteOpen}
+            onOpenChange={setBulkDeleteOpen}
+            title="Supprimer la sélection ?"
+            description={`${selectedIds.size} intervention(s) seront définitivement supprimées.`}
+            onConfirm={async () => {
+              const res = await deleteMaintenanceLogsBulkAction(Array.from(selectedIds));
+              if (!res.ok) return { ok: false, error: res.error };
+              handleBulkDeleted(res.ids);
+              return { ok: true };
+            }}
+          />
         </>
       ) : null}
     </GmaoModuleShell>
