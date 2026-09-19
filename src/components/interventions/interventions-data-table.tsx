@@ -6,7 +6,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Columns3, Edit2, Eye, GripVertical, Trash2 } from "lucide-react";
+import { Columns3, Edit2, Eye, GripVertical, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
@@ -104,17 +104,6 @@ function RowCheckbox({
   );
 }
 
-export type ServerPaginationProps = {
-  page: number;
-  pageCount: number;
-  total: number;
-  catalogTotal?: number;
-  pageSize: number;
-  onPrevious: () => void;
-  onNext: () => void;
-  onPageSizeChange: (size: number) => void;
-};
-
 export type ServerSortProps = {
   sort: string;
   dir: "asc" | "desc";
@@ -130,7 +119,7 @@ type InterventionsDataTableProps = {
   onDelete: (row: InterventionListVm) => void;
   onBulkDelete: () => void;
   readOnly?: boolean;
-  serverPagination: ServerPaginationProps;
+  totals: { total: number; catalogTotal: number };
   serverSort: ServerSortProps;
 };
 
@@ -143,7 +132,7 @@ export function InterventionsDataTable({
   onDelete,
   onBulkDelete,
   readOnly = false,
-  serverPagination,
+  totals,
   serverSort,
 }: InterventionsDataTableProps) {
   const persisted = React.useMemo(() => loadTableState(), []);
@@ -193,7 +182,7 @@ export function InterventionsDataTable({
             checked={allVisibleSelected}
             indeterminate={someVisibleSelected && !allVisibleSelected}
             onChange={toggleAllVisible}
-            ariaLabel="Sélectionner la page"
+            ariaLabel="Sélectionner toutes les lignes"
           />
         ),
         cell: ({ row }) => (
@@ -316,12 +305,10 @@ export function InterventionsDataTable({
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <p className="text-xs text-slate-500">
-          {(serverPagination.catalogTotal ?? serverPagination.total).toLocaleString("fr-FR")} maintenances au total
-          {serverPagination.catalogTotal != null && serverPagination.catalogTotal !== serverPagination.total
-            ? ` · ${serverPagination.total.toLocaleString("fr-FR")} affichées avec le filtre`
-            : ""}
-          {" · "}
-          page {serverPagination.page} sur {serverPagination.pageCount}
+          {totals.catalogTotal.toLocaleString("fr-FR")} maintenances au total
+          {totals.catalogTotal !== totals.total
+            ? ` · ${totals.total.toLocaleString("fr-FR")} affichées avec le filtre`
+            : ` · ${totals.total.toLocaleString("fr-FR")} lignes dans le tableau`}
         </p>
         <div className="flex items-center gap-2">
           {!readOnly && selectedIds.size > 0 ? (
@@ -357,9 +344,9 @@ export function InterventionsDataTable({
         </div>
       </div>
 
-      <div className="max-h-[min(72vh,840px)] overflow-auto">
+      <div className="h-[75vh] max-h-[800px] overflow-x-auto overflow-y-auto">
         <table className="w-max min-w-full border-separate border-spacing-0 text-sm" style={{ tableLayout: "fixed" }}>
-          <thead className="sticky top-0 z-10 bg-slate-50">
+          <thead className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => {
@@ -386,7 +373,7 @@ export function InterventionsDataTable({
                         });
                       }}
                       style={{ width: header.getSize() }}
-                      className="relative border-b border-r border-slate-200 px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-600"
+                      className="relative border-b border-r border-slate-200 bg-slate-50 px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-600"
                     >
                       <button
                         type="button"
@@ -434,41 +421,6 @@ export function InterventionsDataTable({
             )}
           </tbody>
         </table>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-3 py-2 text-sm text-slate-600">
-        <div className="flex items-center gap-2">
-          <span>Lignes / page</span>
-          <select
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm"
-            value={serverPagination.pageSize}
-            onChange={(e) => serverPagination.onPageSizeChange(Number(e.target.value))}
-          >
-            {[25, 50, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-        <span>
-          {(serverPagination.catalogTotal ?? serverPagination.total).toLocaleString("fr-FR")} maintenances · page {serverPagination.page} / {serverPagination.pageCount}
-        </span>
-        <div className="flex gap-1">
-          <Button type="button" variant="outline" size="sm" className="h-8" disabled={serverPagination.page <= 1} onClick={serverPagination.onPrevious}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8"
-            disabled={serverPagination.page >= serverPagination.pageCount}
-            onClick={serverPagination.onNext}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
     </div>
   );

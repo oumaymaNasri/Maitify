@@ -6,7 +6,6 @@ import {
   fetchInterventionsInventory,
   getInterventionMachineOptionsCached,
   getInterventionTechnicianOptionsCached,
-  INTERVENTIONS_PAGE_SIZE,
   type InterventionSortKey,
 } from "@/lib/gmao/interventions-query";
 import { getSession } from "@/lib/auth/session-server";
@@ -17,8 +16,6 @@ export const revalidate = 0;
 
 type PageProps = {
   searchParams?: {
-    page?: string;
-    pageSize?: string;
     q?: string;
     type?: string;
     status?: string;
@@ -54,8 +51,6 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const isTechnician = session?.role === "TECHNICIEN";
     const technicianScopeId = isTechnician ? session?.technicianId : null;
 
-    const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
-    const pageSize = Math.max(1, Math.min(100, Number.parseInt(searchParams?.pageSize ?? String(INTERVENTIONS_PAGE_SIZE), 10) || INTERVENTIONS_PAGE_SIZE));
     const type = parseType(searchParams?.type);
     const status = parseStatus(searchParams?.status);
     const sort = parseSort(searchParams?.sort);
@@ -66,8 +61,8 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const dateFrom = searchParams?.dateFrom ?? "";
     const dateTo = searchParams?.dateTo ?? "";
 
-    const [paginated, machineRows, techRows, sectors] = await Promise.all([
-      fetchInterventionsInventory(technicianScopeId, page, pageSize, {
+    const [inventory, machineRows, techRows, sectors] = await Promise.all([
+      fetchInterventionsInventory(technicianScopeId, 1, 0, {
         q,
         type,
         status,
@@ -92,21 +87,16 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
 
     return (
       <InterventionsModuleClient
-        interventions={paginated.items}
-        pagination={{
-          page: paginated.page,
-          pageCount: paginated.pageCount,
-          total: paginated.total,
-          catalogTotal: paginated.catalogTotal,
-          pageSize: paginated.pageSize,
+        interventions={inventory.items}
+        totals={{
+          total: inventory.total,
+          catalogTotal: inventory.catalogTotal,
         }}
         machines={machines}
         technicians={technicians}
         sectors={sectors}
         readOnly={isTechnician}
         query={{
-          page: paginated.page,
-          pageSize: paginated.pageSize,
           q,
           type,
           status,

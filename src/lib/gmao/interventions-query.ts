@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db/prisma";
 import { workflowStatusForLog, workflowStatusWhere } from "@/lib/gmao/intervention-status";
 
 export const INTERVENTIONS_PAGE_SIZE = 50;
+export const INTERVENTIONS_LIST_CAP = 20_000;
 
 const listSelect = {
   id: true,
@@ -184,35 +185,32 @@ export type InterventionsInventoryResult = PaginatedResult<InterventionListVm> &
 
 export async function fetchInterventionsInventory(
   technicianId?: string | null,
-  page = 1,
-  limit = INTERVENTIONS_PAGE_SIZE,
+  _page = 1,
+  _limit = INTERVENTIONS_PAGE_SIZE,
   filters?: InterventionListFilters,
 ): Promise<InterventionsInventoryResult> {
   const where = inventoryWhere(technicianId, filters);
   const catalogWhere = scopeWhere(technicianId);
-  const safePage = Math.max(1, page);
-  const safeLimit = Math.max(1, Math.min(limit, 100));
-  const skip = (safePage - 1) * safeLimit;
 
-  const [total, catalogTotal, rows] = await Promise.all([
-    prisma.maintenanceLog.count({ where }),
+  const [catalogTotal, rows] = await Promise.all([
     prisma.maintenanceLog.count({ where: catalogWhere }),
     prisma.maintenanceLog.findMany({
       where,
-      skip,
-      take: safeLimit,
+      take: INTERVENTIONS_LIST_CAP,
       orderBy: orderBy(filters),
       select: listSelect,
     }),
   ]);
 
+  const items = mapListRows(rows);
+  const total = items.length;
   return {
-    items: mapListRows(rows),
+    items,
     total,
     catalogTotal,
-    page: safePage,
-    pageSize: safeLimit,
-    pageCount: Math.max(1, Math.ceil(total / safeLimit) || 1),
+    page: 1,
+    pageSize: total || 1,
+    pageCount: 1,
   };
 }
 

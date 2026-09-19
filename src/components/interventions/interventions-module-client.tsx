@@ -53,8 +53,6 @@ const TYPE_OPTIONS = [
 ] as const;
 
 export type InterventionsListQuery = {
-  page: number;
-  pageSize: number;
   q: string;
   type: TypeFilter;
   status: StatusFilter;
@@ -66,17 +64,14 @@ export type InterventionsListQuery = {
   dir: "asc" | "desc";
 };
 
-type InterventionsPagination = {
-  page: number;
-  pageCount: number;
+type InterventionsTotals = {
   total: number;
   catalogTotal: number;
-  pageSize: number;
 };
 
 type InterventionsModuleClientProps = {
   interventions: InterventionListVm[];
-  pagination: InterventionsPagination;
+  totals: InterventionsTotals;
   machines: MachineOption[];
   technicians: TechnicianOption[];
   sectors: string[];
@@ -86,8 +81,6 @@ type InterventionsModuleClientProps = {
 
 export function buildMaintenanceListSearch(query: InterventionsListQuery): string {
   const params = new URLSearchParams();
-  if (query.page > 1) params.set("page", String(query.page));
-  if (query.pageSize !== 50) params.set("pageSize", String(query.pageSize));
   if (query.q.trim()) params.set("q", query.q.trim());
   if (query.type !== "ALL") params.set("type", query.type);
   if (query.status !== "ALL") params.set("status", query.status);
@@ -108,7 +101,7 @@ const newInterventionAction = (
 
 export function InterventionsModuleClient({
   interventions: initialRows,
-  pagination,
+  totals,
   machines,
   technicians,
   sectors,
@@ -138,7 +131,7 @@ export function InterventionsModuleClient({
 
   const patchQuery = React.useCallback(
     (patch: Partial<InterventionsListQuery>) => {
-      pushQuery({ ...query, page: 1, ...patch });
+      pushQuery({ ...query, ...patch });
     },
     [pushQuery, query],
   );
@@ -218,13 +211,13 @@ export function InterventionsModuleClient({
   return (
     <GmaoModuleShell
       title={readOnly ? "Mes interventions" : "Liste de Maintenance"}
-      subtitle={`${pagination.catalogTotal.toLocaleString("fr-FR")} maintenances importées (préventives et correctives). « Page x/y » est le numéro de page, pas le total.`}
+      subtitle={`${totals.catalogTotal.toLocaleString("fr-FR")} maintenances importées (préventives et correctives), tableau continu sans pagination.`}
     >
       <ModuleFilterBar
         onDebouncedSearchChange={handleDebouncedSearch}
         searchPlaceholder="Recherche globale : matricule, machine, rapport, intervenant…"
         searchResetKey={`${query.type}-${query.status}-${query.sector}`}
-        resultCount={pagination.catalogTotal}
+        resultCount={totals.total}
         action={newInterventionAction}
         exportActions={readOnly ? undefined : <InterventionsExportButtons items={rows} />}
         filters={filters}
@@ -253,18 +246,9 @@ export function InterventionsModuleClient({
         serverSort={{
           sort: query.sort,
           dir: query.dir,
-          onChange: (sort, dir) => patchQuery({ sort, dir, page: pagination.page }),
+          onChange: (sort, dir) => patchQuery({ sort, dir }),
         }}
-        serverPagination={{
-          page: pagination.page,
-          pageCount: pagination.pageCount,
-          total: pagination.total,
-          catalogTotal: pagination.catalogTotal,
-          pageSize: pagination.pageSize,
-          onPrevious: () => pushQuery({ ...query, page: Math.max(1, pagination.page - 1) }),
-          onNext: () => pushQuery({ ...query, page: Math.min(pagination.pageCount, pagination.page + 1) }),
-          onPageSizeChange: (pageSize) => patchQuery({ pageSize, page: 1 }),
-        }}
+        totals={totals}
       />
 
       <InterventionDetailSheet
