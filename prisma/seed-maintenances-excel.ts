@@ -22,13 +22,15 @@ import { startOfTodayTunis, workflowStatusForLog } from "../src/lib/gmao/interve
 const prisma = new PrismaClient();
 
 const SOURCE_COMBINED = "xlsx_combinees_3437";
-const EXPECTED_USEFUL_ROWS = 3437;
+const SOURCE_PREVENTIVE = "xlsx_preventives_6844";
+const EXPECTED_COMBINED_ROWS = 3437;
+const EXPECTED_PREVENTIVE_ROWS = 6844;
 const DEFAULT_LOCATION = "Usine NutriFish";
 const UNNAMED_MACHINE = "(Sans machine — import Excel)";
 
 type ExcelRow = Record<string, string>;
 
-function loadRows(fileName: string): ExcelRow[] {
+function loadRows(fileName: string, expectedUseful: number): ExcelRow[] {
   const here = dirname(fileURLToPath(import.meta.url));
   const candidates = [
     join(here, "data", fileName),
@@ -46,10 +48,8 @@ function loadRows(fileName: string): ExcelRow[] {
   const useful = (rows as ExcelRow[]).filter((r) => Object.values(r).filter((v) => norm(String(v ?? ""))).length >= 2);
   const skipped = rows.length - useful.length;
   console.log(`[seed-maintenances] lu ${rows.length} lignes depuis ${file} (utiles=${useful.length} ignorées=${skipped})`);
-  if (useful.length !== EXPECTED_USEFUL_ROWS) {
-    throw new Error(
-      `[seed-maintenances] attendu ${EXPECTED_USEFUL_ROWS} lignes utiles, obtenu ${useful.length}`,
-    );
+  if (useful.length !== expectedUseful) {
+    throw new Error(`[seed-maintenances] ${fileName} : attendu ${expectedUseful} lignes utiles, obtenu ${useful.length}`);
   }
   return useful;
 }
@@ -364,7 +364,7 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
       durationMinutes: parseMinutes(r["Durée d'intervention"]),
       failureCause: null,
       signature: norm(r["Signature de Technicien"]) || null,
-      importSource: SOURCE_COMBINED,
+      importSource: SOURCE_PREVENTIVE,
       importMatricule: norm(r["Matricule"] || r["matricule"]) || null,
       linkedFailureCause: null,
       failureCauseLabel: null,
@@ -467,15 +467,19 @@ async function syncWorkflowStatuses() {
 
 async function main() {
   const force = process.env.SEED_MAINTENANCES_FORCE === "1";
-  const rows = loadRows("maintenances-combinees.json");
-  const expected = rows.length;
+  const combinedRows = loadRows("maintenances-combinees.json", EXPECTED_COMBINED_ROWS);
+  const preventiveRows = loadRows("maintenances-preventives.json", EXPECTED_PREVENTIVE_ROWS);
+  const expected = combinedRows.length + preventiveRows.length;
 
-  const existingCombined = await prisma.maintenanceLog.count({
-    where: { importSource: SOURCE_COMBINED },
-  });
+  const [existingCombined, existingPreventive] = await Promise.all([
+    prisma.maintenanceLog.count({ where: { importSource: SOURCE_COMBINED } }),
+    prisma.maintenanceLog.count({ where: { importSource: SOURCE_PREVENTIVE } }),
+  ]);
 
-  if (existingCombined === expected && !force) {
-    console.log(`[seed-maintenances] ${existingCombined} lignes combinées déjà en base. Ignoré.`);
+  if (existingCombined === combinedRows.length && existingPreventive === preventiveRows.length && !force) {
+    console.log(
+      `[seed-maintenances] déjà en base : combinées=${existingCombined} préventives=${existingPreventive}. Ignoré.`,
+    );
     await syncWorkflowStatuses();
     return;
   }
@@ -484,14 +488,16 @@ async function main() {
   console.log(`[seed-maintenances] suppression de ${before} interventions existantes…`);
   await prisma.maintenanceLog.deleteMany({});
 
-  console.log(`[seed-maintenances] Excel combiné : ${expected} lignes`);
+  console.log(`[seed-maintenances] Excel combiné=${combinedRows.length} préventives 2026=${preventiveRows.length}`);
 
   const machines = await loadMachineIndex();
   const techs = await loadTechnicianIndex();
-  const mapped = await importCorrective(rows, machines, techs);
-  console.log(`[seed-maintenances] à insérer : ${mapped.prepared.length}`);
+  const mappedCombined = await importCorrective(combinedRows, machines, techs);
+  const mappedPreventive = await importPreventive(preventiveRows, machines, techs);
+  const prepared = [...mappedCombined.prepared, ...mappedPreventive.prepared];
+  console.log(`[seed-maintenances] à insérer : ${prepared.length} (attendu ${expected})`);
 
-  const stats = await persistLogs(mapped.prepared);
+  const stats = await persistLogs(prepared);
   const total = await prisma.maintenanceLog.count();
   console.log(`[seed-maintenances] OK créées=${stats.created} total=${total}`);
   await syncWorkflowStatuses();
