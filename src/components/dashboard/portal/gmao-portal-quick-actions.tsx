@@ -6,7 +6,6 @@ import {
   FileBarChart,
   HardHat,
   Package,
-  Plus,
   Settings2,
   type LucideIcon,
 } from "lucide-react";
@@ -16,12 +15,11 @@ import { useSession } from "@/components/providers/session-provider";
 
 const ACTIONS: { href: string; label: string; icon: LucideIcon; managerOnly?: boolean }[] = [
   { href: "/interventions/new", label: "Créer intervention", icon: ClipboardPlus },
-  { href: "/machines", label: "Nouvelle machine", icon: Settings2, managerOnly: true },
+  { href: "/machines", label: "Liste des Machines", icon: Settings2, managerOnly: true },
   { href: "/maintenance-orders", label: "Ordre de maintenance", icon: CalendarCheck },
-  { href: "/interventions", label: "Rapport d'activité", icon: FileBarChart },
-  { href: "/technicians", label: "Techniciens", icon: HardHat, managerOnly: true },
-  { href: "/stock", label: "Liste des pièces", icon: Package, managerOnly: true },
-  { href: "/interventions/new", label: "Saisie terrain", icon: Plus },
+  { href: "/interventions", label: "Liste de Maintenance", icon: FileBarChart },
+  { href: "/technicians", label: "Liste des Techniciens", icon: HardHat, managerOnly: true },
+  { href: "/stock", label: "Stock & Pièces", icon: Package, managerOnly: true },
 ];
 
 export function GmaoPortalQuickActions() {
@@ -37,7 +35,7 @@ export function GmaoPortalQuickActions() {
             <Link
               key={`${item.href}-${item.label}`}
               href={item.href}
-              className="group flex w-[4.75rem] flex-col items-center gap-2 text-center sm:w-24"
+              className="group flex w-24 flex-col items-center gap-2 text-center sm:w-28"
             >
               <span className="flex h-12 w-12 items-center justify-center text-[#1F76FB] transition group-hover:scale-105">
                 <Icon className="h-9 w-9" strokeWidth={1.5} />

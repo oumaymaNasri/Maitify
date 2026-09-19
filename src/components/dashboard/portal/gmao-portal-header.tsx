@@ -18,11 +18,11 @@ const GlobalSearch = dynamic(
 
 const MODULES = [
   { href: "/dashboard", label: "Tableau de bord" },
-  { href: "/machines", label: "Parc" },
-  { href: "/interventions", label: "Activité" },
-  { href: "/stock", label: "Stocks" },
-  { href: "/maintenance-orders", label: "Planning" },
-  { href: "/technicians", label: "Administration" },
+  { href: "/machines", label: "Liste des Machines" },
+  { href: "/technicians", label: "Liste des Techniciens" },
+  { href: "/maintenance-orders", label: "Ordre de maintenance" },
+  { href: "/interventions", label: "Liste de Maintenance" },
+  { href: "/stock", label: "Stock & Pièces" },
 ] as const;
 
 const TECH_HIDDEN = new Set(["/stock", "/technicians"]);
@@ -50,7 +50,7 @@ export function GmaoPortalHeader() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "rounded-md px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide md:px-2.5 md:text-xs",
+                  "rounded-md px-2 py-1.5 text-[11px] font-semibold tracking-wide md:px-2.5 md:text-xs",
                   active ? "bg-white/15 text-white" : "text-sky-100/80 hover:bg-white/10 hover:text-white",
                 )}
               >
@@ -80,7 +80,7 @@ export function GmaoPortalHeader() {
           ) : null}
           <Link
             href="/interventions/new"
-            className="hidden items-center gap-1 rounded-md bg-[#1F76FB] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white hover:bg-[#1865D9] sm:inline-flex md:text-xs"
+            className="hidden items-center gap-1 rounded-md bg-[#1F76FB] px-3 py-1.5 text-[11px] font-semibold tracking-wide text-white hover:bg-[#1865D9] sm:inline-flex md:text-xs"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden />
             Intervention

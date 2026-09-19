@@ -52,6 +52,18 @@ export type FeedItem = {
   excerpt: string;
 };
 
+export type TypeMonthPoint = {
+  month: string;
+  label: string;
+  preventives: number;
+  correctives: number;
+};
+
+export type SectorSlice = {
+  sector: string;
+  count: number;
+};
+
 export type PremiumDashboardPayload = {
   machinesTotal: number;
   machinesOperational: number;
@@ -78,6 +90,12 @@ export type PremiumDashboardPayload = {
   correctivesThisMonth: number;
   omActiveCount: number;
   interventionsThisMonth: number;
+  preventivesThisMonth: number;
+  interventionsLastMonth: number;
+  preventivesLastMonth: number;
+  correctivesLastMonth: number;
+  typeMonthly: TypeMonthPoint[];
+  sectorBreakdown: SectorSlice[];
 };
 
 function dayKey(d: Date): string {
@@ -229,10 +247,59 @@ async function fetchFeaturedMachine(): Promise<FeaturedMachineVm | null> {
   };
 }
 
+async function getTypeMonthlySeries(months = 12): Promise<TypeMonthPoint[]> {
+  const since = new Date();
+  since.setDate(1);
+  since.setHours(0, 0, 0, 0);
+  since.setMonth(since.getMonth() - (months - 1));
+
+  const rows = await prisma.$queryRaw<{ month: string; preventives: number; correctives: number }[]>`
+    SELECT
+      to_char(date, 'YYYY-MM') AS month,
+      COUNT(*) FILTER (WHERE type = 'PREVENTIVE')::int AS preventives,
+      COUNT(*) FILTER (WHERE type = 'CORRECTIVE')::int AS correctives
+    FROM "Intervention"
+    WHERE date >= ${since}
+    GROUP BY to_char(date, 'YYYY-MM')
+    ORDER BY month ASC
+  `;
+
+  const byMonth = new Map(rows.map((r) => [r.month, r]));
+  const out: TypeMonthPoint[] = [];
+  const cursor = new Date(since);
+  for (let i = 0; i < months; i++) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+    const hit = byMonth.get(key);
+    out.push({
+      month: key,
+      label: monthLabel(key),
+      preventives: Number(hit?.preventives ?? 0),
+      correctives: Number(hit?.correctives ?? 0),
+    });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return out;
+}
+
+async function getSectorBreakdown(): Promise<SectorSlice[]> {
+  const rows = await prisma.$queryRaw<{ sector: string; count: number }[]>`
+    SELECT
+      COALESCE(NULLIF(TRIM("sectorMaintenance"), ''), 'Non renseigné') AS sector,
+      COUNT(*)::int AS count
+    FROM "Intervention"
+    GROUP BY 1
+    ORDER BY count DESC
+    LIMIT 8
+  `;
+  return rows.map((r) => ({ sector: r.sector, count: Number(r.count) || 0 }));
+}
+
 export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPayload> {
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
+  const lastMonthStart = new Date(monthStart);
+  lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
 
   const days14 = lastNDays(14);
   const days7 = days14.slice(-7);
@@ -260,6 +327,12 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
     correctivesThisMonth,
     omActiveCount,
     interventionsThisMonth,
+    preventivesThisMonth,
+    interventionsLastMonth,
+    preventivesLastMonth,
+    correctivesLastMonth,
+    typeMonthly,
+    sectorBreakdown,
   ] = await Promise.all([
     prisma.machine.count(),
     prisma.machine.count({ where: { assetStatus: MachineAssetStatus.OPERATIONAL } }),
@@ -304,6 +377,12 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
     }),
     prisma.maintenanceOrder.count({ where: { status: MaintenanceOrderStatus.ACTIVE } }),
     prisma.maintenanceLog.count({ where: { date: { gte: monthStart } } }),
+    prisma.maintenanceLog.count({ where: { type: "PREVENTIVE", date: { gte: monthStart } } }),
+    prisma.maintenanceLog.count({ where: { date: { gte: lastMonthStart, lt: monthStart } } }),
+    prisma.maintenanceLog.count({ where: { type: "PREVENTIVE", date: { gte: lastMonthStart, lt: monthStart } } }),
+    prisma.maintenanceLog.count({ where: { type: "CORRECTIVE", date: { gte: lastMonthStart, lt: monthStart } } }),
+    getTypeMonthlySeries(12),
+    getSectorBreakdown(),
   ]);
 
   const availabilityPct =
@@ -380,11 +459,17 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
     correctivesThisMonth,
     omActiveCount,
     interventionsThisMonth,
+    preventivesThisMonth,
+    interventionsLastMonth,
+    preventivesLastMonth,
+    correctivesLastMonth,
+    typeMonthly,
+    sectorBreakdown,
   };
 }
 
 export const getPremiumDashboardDataCached = unstable_cache(
   fetchPremiumDashboardData,
-  ["premium-dashboard-v4"],
+  ["premium-dashboard-v5"],
   { revalidate: 60, tags: [CACHE_TAGS.dashboard, CACHE_TAGS.maintenanceOrders] },
 );
