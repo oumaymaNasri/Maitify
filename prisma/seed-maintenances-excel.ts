@@ -172,6 +172,9 @@ async function resolveMachine(
 ): Promise<Machine> {
   const key = norm(name).toLowerCase();
   const loc = norm(location) || DEFAULT_LOCATION;
+  if (!cache) {
+    throw new Error("[seed-maintenances] cache machines manquant");
+  }
   const existing = cache.get(key);
   if (existing) {
     if (loc !== DEFAULT_LOCATION && (existing.location === DEFAULT_LOCATION || existing.location === "—")) {
@@ -477,7 +480,7 @@ async function main() {
 
   const machines = await loadMachineIndex();
   const techs = await loadTechnicianIndex();
-  const mapped = await importCorrective(rows);
+  const mapped = await importCorrective(rows, machines, techs);
   console.log(`[seed-maintenances] à insérer : ${mapped.prepared.length}`);
 
   const stats = await persistLogs(mapped.prepared);
