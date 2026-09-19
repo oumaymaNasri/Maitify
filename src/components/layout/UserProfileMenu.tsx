@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-export function UserProfileMenu({ tone = "light" }: { tone?: "light" | "onDark" }) {
+export function UserProfileMenu({ tone = "light", compact = false }: { tone?: "light" | "onDark"; compact?: boolean }) {
   const router = useRouter();
   const { user, isManager, roleLabel } = useSession();
 
@@ -31,6 +31,7 @@ export function UserProfileMenu({ tone = "light" }: { tone?: "light" | "onDark" 
         className={cn(
           buttonVariants({ variant: "outline", size: "sm" }),
           "h-9 gap-2 px-2 md:h-10 md:px-3",
+          compact && "h-8 gap-1.5 px-1.5 md:h-8 md:px-2",
           tone === "onDark"
             ? "border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
             : cn("border-border/80 bg-card", isManager && "border-amber-200/80 bg-amber-50/40 hover:bg-amber-50/70"),
@@ -40,6 +41,7 @@ export function UserProfileMenu({ tone = "light" }: { tone?: "light" | "onDark" 
         <span
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-md",
+            compact && "h-6 w-6",
             tone === "onDark"
               ? "bg-white/15 text-amber-200"
               : isManager
