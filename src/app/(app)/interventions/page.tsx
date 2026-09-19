@@ -97,6 +97,7 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
           page: paginated.page,
           pageCount: paginated.pageCount,
           total: paginated.total,
+          catalogTotal: paginated.catalogTotal,
           pageSize: paginated.pageSize,
         }}
         machines={machines}

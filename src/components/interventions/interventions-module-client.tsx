@@ -70,6 +70,7 @@ type InterventionsPagination = {
   page: number;
   pageCount: number;
   total: number;
+  catalogTotal: number;
   pageSize: number;
 };
 
@@ -217,13 +218,13 @@ export function InterventionsModuleClient({
   return (
     <GmaoModuleShell
       title={readOnly ? "Mes interventions" : "Liste de Maintenance"}
-      subtitle="Tableau type tableur : filtres serveur, tri, colonnes déplaçables et redimensionnables. Pagination pour 3 437 lignes Excel."
+      subtitle={`${pagination.catalogTotal.toLocaleString("fr-FR")} maintenances importées (préventives et correctives). « Page x/y » est le numéro de page, pas le total.`}
     >
       <ModuleFilterBar
         onDebouncedSearchChange={handleDebouncedSearch}
         searchPlaceholder="Recherche globale : matricule, machine, rapport, intervenant…"
         searchResetKey={`${query.type}-${query.status}-${query.sector}`}
-        resultCount={pagination.total}
+        resultCount={pagination.catalogTotal}
         action={newInterventionAction}
         exportActions={readOnly ? undefined : <InterventionsExportButtons items={rows} />}
         filters={filters}
@@ -258,6 +259,7 @@ export function InterventionsModuleClient({
           page: pagination.page,
           pageCount: pagination.pageCount,
           total: pagination.total,
+          catalogTotal: pagination.catalogTotal,
           pageSize: pagination.pageSize,
           onPrevious: () => pushQuery({ ...query, page: Math.max(1, pagination.page - 1) }),
           onNext: () => pushQuery({ ...query, page: Math.min(pagination.pageCount, pagination.page + 1) }),

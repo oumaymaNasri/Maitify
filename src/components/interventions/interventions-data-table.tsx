@@ -108,6 +108,7 @@ export type ServerPaginationProps = {
   page: number;
   pageCount: number;
   total: number;
+  catalogTotal?: number;
   pageSize: number;
   onPrevious: () => void;
   onNext: () => void;
@@ -315,7 +316,12 @@ export function InterventionsDataTable({
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <p className="text-xs text-slate-500">
-          Glissez les en-têtes pour réordonner · étirez le bord droit pour redimensionner · {serverPagination.total.toLocaleString("fr-FR")} ligne(s)
+          {(serverPagination.catalogTotal ?? serverPagination.total).toLocaleString("fr-FR")} maintenances au total
+          {serverPagination.catalogTotal != null && serverPagination.catalogTotal !== serverPagination.total
+            ? ` · ${serverPagination.total.toLocaleString("fr-FR")} affichées avec le filtre`
+            : ""}
+          {" · "}
+          page {serverPagination.page} sur {serverPagination.pageCount}
         </p>
         <div className="flex items-center gap-2">
           {!readOnly && selectedIds.size > 0 ? (
@@ -446,7 +452,7 @@ export function InterventionsDataTable({
           </select>
         </div>
         <span>
-          Page {serverPagination.page}/{serverPagination.pageCount}
+          {(serverPagination.catalogTotal ?? serverPagination.total).toLocaleString("fr-FR")} maintenances · page {serverPagination.page} / {serverPagination.pageCount}
         </span>
         <div className="flex gap-1">
           <Button type="button" variant="outline" size="sm" className="h-8" disabled={serverPagination.page <= 1} onClick={serverPagination.onPrevious}>

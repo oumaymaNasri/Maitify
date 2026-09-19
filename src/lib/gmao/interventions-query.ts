@@ -178,19 +178,25 @@ function orderBy(filters?: InterventionListFilters): Prisma.MaintenanceLogOrderB
   }
 }
 
+export type InterventionsInventoryResult = PaginatedResult<InterventionListVm> & {
+  catalogTotal: number;
+};
+
 export async function fetchInterventionsInventory(
   technicianId?: string | null,
   page = 1,
   limit = INTERVENTIONS_PAGE_SIZE,
   filters?: InterventionListFilters,
-): Promise<PaginatedResult<InterventionListVm>> {
+): Promise<InterventionsInventoryResult> {
   const where = inventoryWhere(technicianId, filters);
+  const catalogWhere = scopeWhere(technicianId);
   const safePage = Math.max(1, page);
   const safeLimit = Math.max(1, Math.min(limit, 100));
   const skip = (safePage - 1) * safeLimit;
 
-  const [total, rows] = await Promise.all([
+  const [total, catalogTotal, rows] = await Promise.all([
     prisma.maintenanceLog.count({ where }),
+    prisma.maintenanceLog.count({ where: catalogWhere }),
     prisma.maintenanceLog.findMany({
       where,
       skip,
@@ -203,6 +209,7 @@ export async function fetchInterventionsInventory(
   return {
     items: mapListRows(rows),
     total,
+    catalogTotal,
     page: safePage,
     pageSize: safeLimit,
     pageCount: Math.max(1, Math.ceil(total / safeLimit) || 1),

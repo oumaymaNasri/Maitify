@@ -21,7 +21,7 @@ import { startOfTodayTunis, workflowStatusForLog } from "../src/lib/gmao/interve
 
 const prisma = new PrismaClient();
 
-const SOURCE_COMBINED = "xlsx_combinees";
+const SOURCE_COMBINED = "xlsx_combinees_3437";
 const EXPECTED_USEFUL_ROWS = 3437;
 const DEFAULT_LOCATION = "Usine NutriFish";
 const UNNAMED_MACHINE = "(Sans machine — import Excel)";
