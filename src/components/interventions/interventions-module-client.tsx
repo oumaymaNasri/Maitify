@@ -1,6 +1,7 @@
 "use client";
 
 import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
+import { Folders, ShieldCheck, Wrench, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import * as React from "react";
@@ -305,10 +306,10 @@ export function InterventionsModuleClient({
     [rows, query, tab],
   );
 
-  const tabs: { id: TabId; label: string; count: number }[] = [
-    { id: "PREVENTIVE", label: "Maintenance Préventive", count: preventiveCount },
-    { id: "CORRECTIVE", label: "Maintenance Corrective", count: correctiveCount },
-    { id: "ALL", label: "Toutes les Maintenances", count: allCount },
+  const tabs: { id: TabId; label: string; count: number; icon: LucideIcon }[] = [
+    { id: "PREVENTIVE", label: "Maintenance Préventive", count: preventiveCount, icon: ShieldCheck },
+    { id: "CORRECTIVE", label: "Maintenance Corrective", count: correctiveCount, icon: Wrench },
+    { id: "ALL", label: "Toutes les Maintenances", count: allCount, icon: Folders },
   ];
 
   return (
@@ -318,9 +319,14 @@ export function InterventionsModuleClient({
       subtitle={`${totals.catalogTotal.toLocaleString("fr-FR")} maintenances importées — filtrer par sous-module.`}
     >
     <div className="space-y-2">
-      <div className="flex flex-nowrap gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Sous-modules de maintenance">
+      <div
+        className="flex flex-wrap items-start justify-center gap-6 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur sm:gap-10"
+        role="tablist"
+        aria-label="Sous-modules de maintenance"
+      >
         {tabs.map((item) => {
           const active = tab === item.id;
+          const Icon = item.icon;
           return (
             <button
               key={item.id}
@@ -329,13 +335,30 @@ export function InterventionsModuleClient({
               aria-selected={active}
               onClick={() => selectTab(item.id)}
               className={cn(
-                "rounded-lg px-3 py-2 text-sm font-medium transition",
-                active ? "bg-white text-[#0B2A5B] shadow-sm" : "text-slate-600 hover:text-slate-900",
+                "group flex w-28 flex-col items-center gap-2 rounded-xl px-2 py-2 text-center transition sm:w-32",
+                active
+                  ? "bg-[#E8F1FF] ring-1 ring-[#1F76FB]/25"
+                  : "hover:bg-slate-50",
               )}
             >
-              {item.label}{" "}
-              <span className={cn("tabular-nums", active ? "text-[#1F76FB]" : "text-slate-400")}>
-                ({item.count.toLocaleString("fr-FR")})
+              <span
+                className={cn(
+                  "flex h-12 w-12 items-center justify-center transition group-hover:scale-105",
+                  active ? "text-[#1F76FB]" : "text-[#1F76FB]/85",
+                )}
+              >
+                <Icon className="h-9 w-9" strokeWidth={1.5} />
+              </span>
+              <span
+                className={cn(
+                  "text-[11px] font-medium leading-tight",
+                  active ? "text-[#0B2A5B]" : "text-slate-600 group-hover:text-[#0B2A5B]",
+                )}
+              >
+                {item.label}
+                <span className={cn("mt-0.5 block tabular-nums", active ? "text-[#1F76FB]" : "text-slate-400")}>
+                  ({item.count.toLocaleString("fr-FR")})
+                </span>
               </span>
             </button>
           );
