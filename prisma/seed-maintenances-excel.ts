@@ -21,8 +21,7 @@ import { startOfTodayTunis, workflowStatusForLog } from "../src/lib/gmao/interve
 
 const prisma = new PrismaClient();
 
-const SOURCE_CORRECTIVE = "xlsx_corrective";
-const SOURCE_PREVENTIVE = "xlsx_preventive";
+const SOURCE_COMBINED = "xlsx_combinees";
 const DEFAULT_LOCATION = "Usine NutriFish";
 const UNNAMED_MACHINE = "(Sans machine — import Excel)";
 
@@ -284,7 +283,7 @@ async function importCorrective(rows: ExcelRow[], machines: Map<string, Machine>
       durationMinutes: parseMinutes(r["TEMPS D'INTERVENTION"]),
       failureCause: failureCauseFromFr(r["CAUSE LIE A LA DEFAILLANCE"], r["CAUSE DE DEFAILLANCE"]),
       signature: null,
-      importSource: SOURCE_CORRECTIVE,
+      importSource: SOURCE_COMBINED,
       importMatricule: norm(r["matricule"] || r["Matricule"]) || null,
       linkedFailureCause: norm(r["CAUSE LIE A LA DEFAILLANCE"]) || null,
       failureCauseLabel: norm(r["CAUSE DE DEFAILLANCE"]) || null,
@@ -354,7 +353,7 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
       durationMinutes: parseMinutes(r["Durée d'intervention"]),
       failureCause: null,
       signature: norm(r["Signature de Technicien"]) || null,
-      importSource: SOURCE_PREVENTIVE,
+      importSource: SOURCE_COMBINED,
       importMatricule: norm(r["Matricule"] || r["matricule"]) || null,
       linkedFailureCause: null,
       failureCauseLabel: null,
@@ -457,57 +456,33 @@ async function syncWorkflowStatuses() {
 
 async function main() {
   const force = process.env.SEED_MAINTENANCES_FORCE === "1";
-  const corrective = loadRows("maintenances-correctives.json");
-  const preventive = loadRows("maintenances-preventives.json");
-  const expected = corrective.length + preventive.length;
-  if (expected <= 0) {
-    throw new Error("[seed-maintenances] Aucune ligne Excel à importer.");
-  }
+  const rows = loadRows("maintenances-combinees.json");
+  const expected = rows.length;
 
-  const existing = await prisma.maintenanceLog.count({
-    where: { importSource: { in: [SOURCE_CORRECTIVE, SOURCE_PREVENTIVE] } },
+  const existingCombined = await prisma.maintenanceLog.count({
+    where: { importSource: SOURCE_COMBINED },
   });
 
-  const missingMatricule = await prisma.maintenanceLog.count({
-    where: { importSource: { in: [SOURCE_CORRECTIVE, SOURCE_PREVENTIVE] }, importMatricule: null },
-  });
-  const needsEnrichment = missingMatricule > 100;
-
-  if (existing >= expected && !force && !needsEnrichment) {
-    console.log(`[seed-maintenances] ${existing} lignes Excel déjà en base (attendu ${expected}).`);
+  if (existingCombined === expected && !force) {
+    console.log(`[seed-maintenances] ${existingCombined} lignes combinées déjà en base. Ignoré.`);
     await syncWorkflowStatuses();
     return;
   }
 
-  if (existing > 0) {
-    console.log(
-      `[seed-maintenances] import incomplet ou forcé (${existing}/${expected}) — suppression puis réimport…`,
-    );
-    await prisma.maintenanceLog.deleteMany({
-      where: { importSource: { in: [SOURCE_CORRECTIVE, SOURCE_PREVENTIVE] } },
-    });
-  }
+  const before = await prisma.maintenanceLog.count();
+  console.log(`[seed-maintenances] suppression de ${before} interventions existantes…`);
+  await prisma.maintenanceLog.deleteMany({});
 
-  console.log(`[seed-maintenances] Excel : ${corrective.length} correctives, ${preventive.length} préventives`);
+  console.log(`[seed-maintenances] Excel combiné : ${expected} lignes`);
 
   const machines = await loadMachineIndex();
   const techs = await loadTechnicianIndex();
+  const mapped = await importCorrective(rows);
+  console.log(`[seed-maintenances] à insérer : ${mapped.prepared.length}`);
 
-  const corr = await importCorrective(corrective, machines, techs);
-  const prev = await importPreventive(preventive, machines, techs);
-  console.log(
-    `[seed-maintenances] à insérer telles quelles : ${corr.prepared.length} corr, ${prev.prepared.length} prév`,
-  );
-
-  const corrStats = await persistLogs(corr.prepared);
-  const prevStats = await persistLogs(prev.prepared);
-
+  const stats = await persistLogs(mapped.prepared);
   const total = await prisma.maintenanceLog.count();
-  console.log(`[seed-maintenances] OK correctives créées=${corrStats.created} pièces=${corrStats.parts}`);
-  console.log(
-    `[seed-maintenances] OK préventives créées=${prevStats.created} pièces=${prevStats.parts} TH=${prevStats.waterCount}`,
-  );
-  console.log(`[seed-maintenances] total interventions en base=${total}`);
+  console.log(`[seed-maintenances] OK créées=${stats.created} total=${total}`);
   await syncWorkflowStatuses();
 }
 

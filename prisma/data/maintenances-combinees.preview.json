@@ -147,49 +147,6 @@
       "MARQUE": "",
       "REFERENCE": "",
       "QUANTITE": ""
-    },
-    {
-      "matricule": "7",
-      "Date": "46026",
-      "Secteur Maintenance": "Journalière",
-      "service": "MAINTENANCE",
-      "Intervanant": "Eq de Maintenance",
-      "Nom de la machine": "Les Elevateurs a Godet",
-      "Emplacement": "Sous Sol …5 étage",
-      "DESCRIPTION DE DYSFONCTIONNEMENT": "Controle l’état général de la machine",
-      "Opération": "NET,GR,ET Control ALIG",
-      "TYPE DE MAINTENANCE": "PREVENTIVE",
-      "CAUSE DE DEFAILLANCE": "ENTRETIEN MACHINE",
-      "CAUSE LIE A LA DEFAILLANCE": "ENTRETIEN MACHINE",
-      "TEMPS D'INTERVENTION": "Jour . M",
-      "RAPPORT D'INTERVENTION": "les fuites, pièces endommagées ou usées, les niveaux des fluides ,huile,Graisse etc.",
-      "DIFFICULTES RENCONTREES": "RIEN",
-      "PIECE DE RECHANGE ET CONSOMMABLES": "",
-      "MARQUE": "",
-      "REFERENCE": "",
-      "QUANTITE": ""
-    },
-    {
-      "matricule": "8",
-      "Date": "46026",
-      "Secteur Maintenance": "Journalière",
-      "service": "MAINTENANCE",
-      "Intervanant": "Eq de Maintenance",
-      "Nom de la machine": "Les Chaines Transporteur",
-      "Emplacement": "Sous Sol …1er et 5eme étage",
-      "DESCRIPTION DE DYSFONCTIONNEMENT": "Controle l’état général de la machine",
-      "Opération": "NET,GR,ET Control ALIG",
-      "TYPE DE MAINTENANCE": "PREVENTIVE",
-      "CAUSE DE DEFAILLANCE": "ENTRETIEN MACHINE",
-      "CAUSE LIE A LA DEFAILLANCE": "ENTRETIEN MACHINE",
-      "TEMPS D'INTERVENTION": "Jour . M",
-      "RAPPORT D'INTERVENTION": "les fuites, pièces endommagées ou usées, les niveaux des fluides ,huile,Graisse etc.",
-      "DIFFICULTES RENCONTREES": "RIEN",
-      "PIECE DE RECHANGE ET CONSOMMABLES": "",
-      "MARQUE": "",
-      "REFERENCE": "",
-      "QUANTITE": ""
     }
-  ],
-  "allCount": 5074
+  ]
 }

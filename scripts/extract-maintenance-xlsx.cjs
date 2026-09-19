@@ -37,12 +37,6 @@ function colToIndex(col) {
   return n - 1;
 }
 
-function excelSerialToIso(n) {
-  const epoch = Date.UTC(1899, 11, 30);
-  const ms = epoch + Math.round(n * 86400000);
-  return new Date(ms).toISOString();
-}
-
 function parseSheet(sheetXml, shared) {
   const rows = new Map();
   const cellRe = /<c r="([A-Z]+)(\d+)"([^>]*)>(?:<v>([^<]*)<\/v>|<is><t[^>]*>([^<]*)<\/t><\/is>)?<\/c>/g;
@@ -62,8 +56,7 @@ function parseSheet(sheetXml, shared) {
     if (!rows.has(row)) rows.set(row, []);
     rows.get(row)[col] = value;
   }
-  const ordered = [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, cells]) => cells);
-  return ordered;
+  return [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, cells]) => cells);
 }
 
 function toObjects(grid) {
@@ -80,10 +73,10 @@ function toObjects(grid) {
     });
     if (!empty) records.push(rec);
   }
-  return records;
+  return { headers, records };
 }
 
-function convertWorkbook(xlsxPath, outJson) {
+function convertWorkbook(xlsxPath, previewPath) {
   const dest = fs.mkdtempSync(path.join(os.tmpdir(), "xlsx-"));
   unzipXlsx(xlsxPath, dest);
   const sharedPath = path.join(dest, "xl", "sharedStrings.xml");
@@ -91,23 +84,22 @@ function convertWorkbook(xlsxPath, outJson) {
   const sheetPath = path.join(dest, "xl", "worksheets", "sheet1.xml");
   const sheetXml = fs.readFileSync(sheetPath, "utf8");
   const grid = parseSheet(sheetXml, shared);
-  const records = toObjects(grid);
-  fs.mkdirSync(path.dirname(outJson), { recursive: true });
-  fs.writeFileSync(outJson, JSON.stringify({ headers: grid[0] || [], count: records.length, rows: records.slice(0, 8), allCount: records.length }, null, 2));
-  fs.writeFileSync(outJson.replace(".preview.json", ".json"), JSON.stringify(records, null, 2));
-  console.log(path.basename(xlsxPath), "rows=", records.length, "headers=", grid[0]);
+  const { headers, records } = toObjects(grid);
+  fs.mkdirSync(path.dirname(previewPath), { recursive: true });
+  fs.writeFileSync(
+    previewPath,
+    JSON.stringify({ headers, count: records.length, rows: records.slice(0, 6) }, null, 2),
+  );
+  const fullPath = previewPath.replace(".preview.json", ".json");
+  fs.writeFileSync(fullPath, JSON.stringify(records));
+  console.log("file=", path.basename(xlsxPath), "rows=", records.length, "headers=", JSON.stringify(headers));
   fs.rmSync(dest, { recursive: true, force: true });
 }
 
-const files = [
-  {
-    src: "c:\\Software Projects\\Liste des maintenances correctives.xlsx",
-    out: path.join("prisma", "data", "maintenances-correctives.preview.json"),
-  },
-  {
-    src: "c:\\Software Projects\\Liste des maintenances préventifs.xlsx",
-    out: path.join("prisma", "data", "maintenances-preventives.preview.json"),
-  },
-];
-
-for (const f of files) convertWorkbook(f.src, f.out);
+const dir = "c:\\Software Projects";
+const match = fs.readdirSync(dir).find((n) => n.toLowerCase().includes("préventifs et correctifs") || n.toLowerCase().includes("preventifs et correctifs") || /maintenances.*correctifs/i.test(n));
+if (!match) {
+  console.error("xlsx not found, listing:", fs.readdirSync(dir).filter((n) => n.endsWith(".xlsx")));
+  process.exit(1);
+}
+convertWorkbook(path.join(dir, match), path.join("prisma", "data", "maintenances-combinees.preview.json"));
