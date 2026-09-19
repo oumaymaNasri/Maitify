@@ -56,40 +56,29 @@ export default async function MachineHistoryPage({ params, searchParams }: PageP
   };
 
   return (
-    <div className="space-y-6">
-      <header className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ButtonLink
               href="/machines"
               variant="outline"
               size="sm"
-              className="mb-4 h-9 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+              className="h-9 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
             >
               <ChevronLeft className="mr-1 h-4 w-4" />
               Retour à la liste
             </ButtonLink>
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">NutriFish · GMAO</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Historique de maintenance
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-700">
-              <span className="font-semibold text-slate-900">{header.name}</span>
-              <span className="text-slate-400">·</span>
-              <span className="font-mono text-xs text-slate-600">{header.code}</span>
-              <span className="text-slate-400">|</span>
-              <span>{header.location}</span>
-              <span className="text-slate-400">|</span>
-              <Badge className={cn("font-medium", machineStatusBadgeClass(header.assetStatus))}>
-                {machineAssetStatusFr(header.assetStatus)}
-              </Badge>
-            </div>
+            <span className="font-semibold text-slate-900">{header.name}</span>
+            <span className="font-mono text-xs text-slate-600">{header.code}</span>
+            <span className="text-sm text-slate-600">{header.location}</span>
+            <Badge className={cn("font-medium", machineStatusBadgeClass(header.assetStatus))}>
+              {machineAssetStatusFr(header.assetStatus)}
+            </Badge>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <MachineHistoryExportButtons header={header} rows={exportRows} />
           </div>
-        </div>
-      </header>
+      </div>
 
       {history.items.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-600">

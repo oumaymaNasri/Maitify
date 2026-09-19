@@ -70,21 +70,12 @@ export default async function NewInterventionPage() {
 
   return (
     <div className="gmao-module-page density-page-inner">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <header className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Terrain</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900 md:text-3xl">Fiche d&apos;intervention</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              {isTechnician
-                ? "Saisie terrain — votre profil technicien est verrouillé automatiquement."
-                : "Validation : mise à jour du statut machine, disponibilité technicien et déduction stock."}
-            </p>
-          </div>
+      <div className="mx-auto max-w-3xl space-y-4">
+        <div className="flex justify-end">
           <ButtonLink href="/interventions" variant="outline" size="sm" className="shrink-0">
             Retour liste
           </ButtonLink>
-        </header>
+        </div>
 
         {machines.length === 0 ? (
           <p className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">

@@ -320,7 +320,7 @@ export function InterventionsModuleClient({
     >
     <div className="space-y-2">
       <div
-        className="flex flex-wrap items-start justify-center gap-6 rounded-xl border border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur sm:gap-10"
+        className="flex flex-wrap items-center gap-2"
         role="tablist"
         aria-label="Sous-modules de maintenance"
       >
@@ -335,28 +335,16 @@ export function InterventionsModuleClient({
               aria-selected={active}
               onClick={() => selectTab(item.id)}
               className={cn(
-                "group flex w-28 flex-col items-center gap-2 rounded-xl px-2 py-2 text-center transition sm:w-32",
+                "flex flex-row items-center gap-x-2 rounded-xl border px-3 py-2 text-left transition",
                 active
-                  ? "bg-[#E8F1FF] ring-1 ring-[#1F76FB]/25"
-                  : "hover:bg-slate-50",
+                  ? "border-[#1F76FB]/30 bg-[#E8F1FF] text-[#0B2A5B]"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-[#0B2A5B]",
               )}
             >
-              <span
-                className={cn(
-                  "flex h-12 w-12 items-center justify-center transition group-hover:scale-105",
-                  active ? "text-[#1F76FB]" : "text-[#1F76FB]/85",
-                )}
-              >
-                <Icon className="h-9 w-9" strokeWidth={1.5} />
-              </span>
-              <span
-                className={cn(
-                  "text-[11px] font-medium leading-tight",
-                  active ? "text-[#0B2A5B]" : "text-slate-600 group-hover:text-[#0B2A5B]",
-                )}
-              >
-                {item.label}
-                <span className={cn("mt-0.5 block tabular-nums", active ? "text-[#1F76FB]" : "text-slate-400")}>
+              <Icon className="h-5 w-5 shrink-0 text-[#1F76FB]" strokeWidth={1.75} />
+              <span className="text-sm font-medium leading-none">
+                {item.label}{" "}
+                <span className={cn("tabular-nums", active ? "text-[#1F76FB]" : "text-slate-400")}>
                   ({item.count.toLocaleString("fr-FR")})
                 </span>
               </span>
