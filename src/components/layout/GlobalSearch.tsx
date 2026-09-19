@@ -65,7 +65,7 @@ function ResultRow({
   );
 }
 
-export function GlobalSearch({ className }: { className?: string }) {
+export function GlobalSearch({ className, tone = "light" }: { className?: string; tone?: "light" | "onDark" }) {
   const router = useRouter();
   const { isManager } = useSession();
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -159,11 +159,14 @@ export function GlobalSearch({ className }: { className?: string }) {
     <div ref={rootRef} className={cn("relative min-w-0 flex-1", className)}>
       <div
         className={cn(
-          "flex h-9 w-full items-center gap-1 rounded-lg border border-slate-200 bg-white pl-2 pr-1 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-blue-600/20 md:h-10",
-          showPanel && "rounded-b-none border-b-transparent shadow-md ring-2 ring-blue-600/20",
+          "flex h-9 w-full items-center gap-1 rounded-lg border pl-2 pr-1 shadow-sm transition-shadow focus-within:ring-2 md:h-10",
+          tone === "onDark"
+            ? "border-white/20 bg-white/10 focus-within:ring-white/25"
+            : "border-slate-200 bg-white focus-within:ring-blue-600/20",
+          showPanel && "rounded-b-none border-b-transparent shadow-md",
         )}
       >
-        <Search className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+        <Search className={cn("h-4 w-4 shrink-0", tone === "onDark" ? "text-sky-200" : "text-slate-500")} aria-hidden />
         <Input
           ref={inputRef}
           type="search"
@@ -176,14 +179,22 @@ export function GlobalSearch({ className }: { className?: string }) {
             if (q.trim().length >= 3) setOpen(true);
           }}
           placeholder="Recherche globale…"
-          className="h-8 flex-1 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0 md:h-9"
+          className={cn(
+            "h-8 flex-1 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0 md:h-9",
+            tone === "onDark" && "text-white placeholder:text-sky-200/80",
+          )}
           aria-label="Recherche globale"
           aria-expanded={showPanel}
           aria-controls="global-search-results"
           autoComplete="off"
         />
         <Select value={scope} onValueChange={(v) => setScope(v as GlobalSearchScope)}>
-          <SelectTrigger className="h-7 w-[6.5rem] shrink-0 border-0 bg-slate-100 text-xs text-slate-800 shadow-none md:h-8 md:w-[7.5rem]">
+          <SelectTrigger
+            className={cn(
+              "h-7 w-[6.5rem] shrink-0 border-0 text-xs shadow-none md:h-8 md:w-[7.5rem]",
+              tone === "onDark" ? "bg-white/15 text-white" : "bg-slate-100 text-slate-800",
+            )}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent align="end">

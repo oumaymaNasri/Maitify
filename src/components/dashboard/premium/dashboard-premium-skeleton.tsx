@@ -8,7 +8,7 @@ export function DashboardPremiumSkeleton() {
           <Skeleton key={i} className="h-16 w-16 bg-slate-100" />
         ))}
       </div>
-      <div className="grid gap-4 px-4 py-6 md:grid-cols-2 md:px-8 xl:grid-cols-4">
+      <div className="grid gap-6 px-4 py-6 md:grid-cols-2 md:px-8 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="h-[108px] w-full bg-white" />
         ))}

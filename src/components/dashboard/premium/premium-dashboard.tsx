@@ -30,7 +30,7 @@ export function PremiumDashboard({ data }: { data: PremiumDashboardPayload }) {
     <div className="-mx-3 -mt-3 bg-gradient-to-br from-slate-100 via-white to-sky-50 md:-mx-5 md:-mt-5 lg:-mx-6 lg:-mt-6">
       <GmaoPortalQuickActions />
 
-      <div className="grid gap-4 px-4 py-6 md:grid-cols-2 md:px-8 xl:grid-cols-4">
+      <div className="grid gap-6 px-4 py-6 md:grid-cols-2 md:px-8 xl:grid-cols-4">
         <GmaoKpiTile
           href="/interventions"
           value={fmt(data.preventivesToDo)}

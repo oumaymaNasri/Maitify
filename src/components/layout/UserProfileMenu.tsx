@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-export function UserProfileMenu() {
+export function UserProfileMenu({ tone = "light" }: { tone?: "light" | "onDark" }) {
   const router = useRouter();
   const { user, isManager, roleLabel } = useSession();
 
@@ -30,15 +30,21 @@ export function UserProfileMenu() {
       <DropdownMenuTrigger
         className={cn(
           buttonVariants({ variant: "outline", size: "sm" }),
-          "h-9 gap-2 border-border/80 bg-card px-2 md:h-10 md:px-3",
-          isManager && "border-amber-200/80 bg-amber-50/40 hover:bg-amber-50/70",
+          "h-9 gap-2 px-2 md:h-10 md:px-3",
+          tone === "onDark"
+            ? "border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+            : cn("border-border/80 bg-card", isManager && "border-amber-200/80 bg-amber-50/40 hover:bg-amber-50/70"),
         )}
         aria-label="Menu profil"
       >
         <span
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-md",
-            isManager ? "bg-amber-100 text-amber-800" : "bg-primary/15 text-primary",
+            tone === "onDark"
+              ? "bg-white/15 text-amber-200"
+              : isManager
+                ? "bg-amber-100 text-amber-800"
+                : "bg-primary/15 text-primary",
           )}
         >
           <ShieldCheck className="h-4 w-4" aria-hidden />
@@ -46,8 +52,12 @@ export function UserProfileMenu() {
         <Badge
           variant="outline"
           className={cn(
-            "inline-flex max-w-[7.5rem] truncate border-amber-300 bg-amber-50 px-2 py-0 text-[11px] font-semibold text-amber-900 sm:max-w-none",
-            !isManager && "border-primary/30 bg-primary/10 text-primary",
+            "inline-flex max-w-[7.5rem] truncate px-2 py-0 text-[11px] font-semibold sm:max-w-none",
+            tone === "onDark"
+              ? "border-amber-300/50 bg-amber-400/15 text-amber-100"
+              : isManager
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-primary/30 bg-primary/10 text-primary",
           )}
         >
           {roleLabel}

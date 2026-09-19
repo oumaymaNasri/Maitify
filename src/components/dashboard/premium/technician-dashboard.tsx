@@ -27,7 +27,7 @@ export function TechnicianDashboard({
           Bonjour {firstName} — vue terrain de vos interventions et ordres à réaliser.
         </p>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           <GmaoKpiTile
             href="/interventions"
             value={data.plannedTodayCount}
