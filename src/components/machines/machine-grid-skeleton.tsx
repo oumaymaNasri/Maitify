@@ -3,7 +3,7 @@ import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 
 export function MachineGridSkeleton() {
   return (
-    <GmaoModuleShell title="Liste des machines" subtitle="Chargement du parc…">
+    <GmaoModuleShell>
       <Skeleton className="h-32 w-full rounded-lg" />
       <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (

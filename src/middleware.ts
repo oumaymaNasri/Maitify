@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 import { decodeSessionCookie, SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie";
 
-const TECHNICIAN_BLOCKED_PREFIXES = ["/technicians", "/stock", "/parts"];
+const TECHNICIAN_BLOCKED_PREFIXES = ["/technicians", "/donnees-de-base/technicians", "/stock", "/parts"];
 
 export function middleware(request: NextRequest) {
   const raw = request.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -21,5 +21,14 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/technicians/:path*", "/stock/:path*", "/parts/:path*"],
+  matcher: [
+    "/technicians",
+    "/technicians/:path*",
+    "/donnees-de-base/technicians",
+    "/donnees-de-base/technicians/:path*",
+    "/stock",
+    "/stock/:path*",
+    "/parts",
+    "/parts/:path*",
+  ],
 };

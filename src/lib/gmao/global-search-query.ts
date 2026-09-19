@@ -118,7 +118,7 @@ export async function runGlobalSearch(
     kind: "machine",
     title: m.name,
     subtitle: m.location,
-    href: `/machines?detail=${encodeURIComponent(m.id)}`,
+    href: `/donnees-de-base/machines?detail=${encodeURIComponent(m.id)}`,
   }));
 
   const orderHits: GlobalSearchHit[] = maintenanceOrders.map((o) => ({

@@ -15,10 +15,10 @@ import { useSession } from "@/components/providers/session-provider";
 
 const ACTIONS: { href: string; label: string; icon: LucideIcon; managerOnly?: boolean }[] = [
   { href: "/interventions/new", label: "Créer intervention", icon: ClipboardPlus },
-  { href: "/machines", label: "Liste des Machines", icon: Settings2, managerOnly: true },
+  { href: "/donnees-de-base/machines", label: "Liste des Machines", icon: Settings2, managerOnly: true },
   { href: "/maintenance-orders", label: "Ordre de maintenance", icon: CalendarCheck },
   { href: "/interventions", label: "Liste de Maintenance", icon: FileBarChart },
-  { href: "/technicians", label: "Liste des Techniciens", icon: HardHat, managerOnly: true },
+  { href: "/donnees-de-base/technicians", label: "Liste des Techniciens", icon: HardHat, managerOnly: true },
   { href: "/stock", label: "Stock & Pièces", icon: Package, managerOnly: true },
 ];
 

@@ -10,6 +10,7 @@ import {
 import { ChevronLeft, ChevronRight, Edit2, Eye, Trash2 } from "lucide-react";
 import * as React from "react";
 
+import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import type { TechnicianRow } from "@/lib/gmao/technicians-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -257,7 +258,7 @@ export function TechniciansDataTable({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+      <div className={GMAO_TABLE_WRAP}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -265,7 +266,7 @@ export function TechniciansDataTable({
                 {hg.headers.map((h) => (
                   <TableHead
                     key={h.id}
-                    className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white first:rounded-tl-xl last:rounded-tr-xl"
+                    className={GMAO_TABLE_HEAD}
                   >
                     {flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>

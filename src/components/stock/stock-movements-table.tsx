@@ -2,6 +2,7 @@
 
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
+import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StockMovementRow } from "@/lib/gmao/stock-movements-query";
@@ -25,20 +26,15 @@ export function StockMovementsTable({ movements, isPending }: StockMovementsTabl
   }
 
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm",
-        isPending && "opacity-60",
-      )}
-    >
+    <div className={cn(GMAO_TABLE_WRAP, isPending && "opacity-60")}>
       <Table>
         <TableHeader>
-          <TableRow className="bg-slate-50 hover:bg-slate-50">
-            <TableHead>Date</TableHead>
-            <TableHead>Pièce</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Quantité</TableHead>
-            <TableHead>Motif</TableHead>
+          <TableRow className="border-0 hover:bg-transparent">
+            <TableHead className={GMAO_TABLE_HEAD}>Date</TableHead>
+            <TableHead className={GMAO_TABLE_HEAD}>Pièce</TableHead>
+            <TableHead className={GMAO_TABLE_HEAD}>Type</TableHead>
+            <TableHead className={cn(GMAO_TABLE_HEAD, "text-right")}>Quantité</TableHead>
+            <TableHead className={GMAO_TABLE_HEAD}>Motif</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

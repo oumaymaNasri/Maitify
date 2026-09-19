@@ -79,7 +79,7 @@ export function PremiumDashboard({ data }: { data: PremiumDashboardPayload }) {
               valueClassName={data.criticalStockCount > 0 ? "text-orange-500" : undefined}
             />
             <GmaoKpiTile
-              href="/machines"
+              href="/donnees-de-base/machines"
               value={`${avail} %`}
               label="Disponibilité du parc"
               accent="blue"
@@ -100,7 +100,7 @@ export function PremiumDashboard({ data }: { data: PremiumDashboardPayload }) {
               valueClassName="text-orange-500"
             />
             <GmaoKpiTile
-              href="/machines"
+              href="/donnees-de-base/machines"
               value={fmt(data.machinesDown)}
               label="Machines hors service"
               accent="rose"

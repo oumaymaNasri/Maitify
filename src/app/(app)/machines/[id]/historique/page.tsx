@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MachineHistoryExportButtons } from "@/components/machines/machine-history-export-buttons";
+import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -61,7 +62,7 @@ export default async function MachineHistoryPage({ params, searchParams }: PageP
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ButtonLink
-              href="/machines"
+              href="/donnees-de-base/machines"
               variant="outline"
               size="sm"
               className="h-9 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
@@ -87,28 +88,16 @@ export default async function MachineHistoryPage({ params, searchParams }: PageP
         </p>
       ) : (
         <>
-          <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+          <div className={GMAO_TABLE_WRAP}>
             <Table>
               <TableHeader>
                 <TableRow className="border-0 hover:bg-transparent">
-                  <TableHead className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white first:rounded-tl-xl">
-                    Date
-                  </TableHead>
-                  <TableHead className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white">
-                    Code/Réf
-                  </TableHead>
-                  <TableHead className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white">
-                    Type
-                  </TableHead>
-                  <TableHead className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white">
-                    Technicien
-                  </TableHead>
-                  <TableHead className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white">
-                    Description
-                  </TableHead>
-                  <TableHead className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white last:rounded-tr-xl">
-                    Statut
-                  </TableHead>
+                  <TableHead className={GMAO_TABLE_HEAD}>Date</TableHead>
+                  <TableHead className={GMAO_TABLE_HEAD}>Code/Réf</TableHead>
+                  <TableHead className={GMAO_TABLE_HEAD}>Type</TableHead>
+                  <TableHead className={GMAO_TABLE_HEAD}>Technicien</TableHead>
+                  <TableHead className={GMAO_TABLE_HEAD}>Description</TableHead>
+                  <TableHead className={GMAO_TABLE_HEAD}>Statut</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

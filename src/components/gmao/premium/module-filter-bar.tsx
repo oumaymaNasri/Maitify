@@ -50,9 +50,7 @@ const IsolatedModuleSearch = React.memo(function IsolatedModuleSearch({
   return (
     <div
       className={cn(
-        compact
-          ? "min-w-[14rem] flex-[1.8] shrink-0"
-          : "space-y-1.5 sm:col-span-2 lg:col-span-5",
+          compact ? "min-w-[14rem] flex-[1.8] shrink-0" : "space-y-1.5 sm:col-span-2 lg:col-span-5",
       )}
     >
       <Label htmlFor="module-search" className={cn("font-medium text-slate-700", compact ? "text-[11px]" : "text-xs")}>
@@ -97,7 +95,7 @@ function ModuleFilterBarInner({
   action,
   exportActions,
   extras,
-  layout = "grid",
+  layout = "inline",
   className,
 }: ModuleFilterBarProps) {
   const [isFiltering, setIsFiltering] = React.useState(false);
@@ -119,8 +117,9 @@ function ModuleFilterBarInner({
     >
       <div
         className={cn(
-          "flex items-center justify-between gap-2",
-          inline ? "mb-2" : "mb-4 flex-col sm:flex-row",
+          inline
+          ? "mb-2 flex min-w-0 items-center justify-between gap-2"
+          : "mb-4 flex items-center justify-between gap-2 sm:flex-row",
         )}
       >
         <div className="flex min-w-0 items-center gap-2 text-xs text-slate-600 sm:text-sm">

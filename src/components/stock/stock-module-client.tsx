@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { ArrowDownLeft, Package } from "lucide-react";
 import * as React from "react";
 
 import { deletePartAction, deletePartsBulkAction } from "@/app/actions/part";
@@ -185,33 +186,43 @@ export function StockModuleClient({ parts: initialParts, movements: initialMovem
       title="Stock & pièces de rechange"
       subtitle="Inventaire, alertes rupture, mouvements et association aux machines."
     >
-      <div className="mb-4 flex gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
+      <div className="flex flex-wrap items-center gap-2" role="tablist">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "inventory"}
           onClick={() => {
             setActiveTab("inventory");
             setMachineFilter("ALL");
             setAlertFilter("ALL");
           }}
           className={cn(
-            "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "inventory" ? "bg-white text-[#1F76FB] shadow-sm" : "text-slate-600 hover:text-slate-900",
+            "flex flex-row items-center gap-x-2 rounded-xl border px-3 py-2 text-sm font-medium transition",
+            activeTab === "inventory"
+              ? "border-[#1F76FB]/30 bg-[#E8F1FF] text-[#0B2A5B]"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-[#0B2A5B]",
           )}
         >
+          <Package className="h-5 w-5 shrink-0 text-[#1F76FB]" strokeWidth={1.75} />
           Inventaire des Pièces
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "movements"}
           onClick={() => {
             setActiveTab("movements");
             setMachineFilter("ALL");
             setAlertFilter("ALL");
           }}
           className={cn(
-            "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "movements" ? "bg-white text-[#1F76FB] shadow-sm" : "text-slate-600 hover:text-slate-900",
+            "flex flex-row items-center gap-x-2 rounded-xl border px-3 py-2 text-sm font-medium transition",
+            activeTab === "movements"
+              ? "border-[#1F76FB]/30 bg-[#E8F1FF] text-[#0B2A5B]"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-[#0B2A5B]",
           )}
         >
+          <ArrowDownLeft className="h-5 w-5 shrink-0 text-[#1F76FB]" strokeWidth={1.75} />
           Suivi des Mouvements de Stock
         </button>
       </div>

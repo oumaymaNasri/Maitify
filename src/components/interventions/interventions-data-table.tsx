@@ -10,6 +10,7 @@ import {
 import { Columns3, Edit2, Eye, GripVertical, Trash2 } from "lucide-react";
 import * as React from "react";
 
+import { GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { InterventionFicheButton } from "@/components/interventions/intervention-fiche-button";
 import { Badge } from "@/components/ui/badge";
@@ -323,7 +324,7 @@ export function InterventionsDataTable({
   }
 
   return (
-    <div className={cn(embedded ? "overflow-hidden rounded-xl border border-slate-100 bg-white" : "overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm")}>
+    <div className={cn(embedded ? "overflow-hidden rounded-xl border border-slate-100 bg-white" : GMAO_TABLE_WRAP)}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <p className="text-xs text-slate-500">
           {totals.catalogTotal.toLocaleString("fr-FR")} maintenances au total

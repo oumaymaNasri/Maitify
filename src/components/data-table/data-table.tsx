@@ -14,6 +14,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type DataTableProps<TData, TValue> = {
@@ -68,13 +69,13 @@ export function DataTable<TData, TValue>({
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card shadow-sm">
+      <div className={GMAO_TABLE_WRAP}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
+              <TableRow key={hg.id} className="border-0 hover:bg-transparent">
                 {hg.headers.map((h) => (
-                  <TableHead key={h.id} className="whitespace-nowrap">
+                  <TableHead key={h.id} className={GMAO_TABLE_HEAD}>
                     {flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}

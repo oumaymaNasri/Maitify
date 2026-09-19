@@ -161,12 +161,12 @@ export function GlobalSearch({ className, tone = "light" }: { className?: string
         className={cn(
           "flex h-9 w-full items-center gap-1 rounded-lg border pl-2 pr-1 shadow-sm transition-shadow focus-within:ring-2",
           tone === "onDark"
-            ? "border-white/20 bg-white/10 focus-within:ring-white/25"
+            ? "border-white/25 bg-white text-slate-900 focus-within:ring-white/40"
             : "border-slate-200 bg-white focus-within:ring-blue-600/20",
           showPanel && "rounded-b-none border-b-transparent shadow-md",
         )}
       >
-        <Search className={cn("h-4 w-4 shrink-0", tone === "onDark" ? "text-sky-200" : "text-slate-500")} aria-hidden />
+        <Search className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
         <Input
           ref={inputRef}
           type="search"
@@ -178,33 +178,27 @@ export function GlobalSearch({ className, tone = "light" }: { className?: string
           onFocus={() => {
             if (q.trim().length >= 3) setOpen(true);
           }}
-          placeholder="Recherche globale…"
-          className={cn(
-            "h-8 flex-1 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0",
-            tone === "onDark" && "text-white placeholder:text-sky-200/80",
-          )}
+          placeholder="Rechercher…"
+          className="h-8 flex-1 border-0 bg-transparent px-1 text-sm text-slate-900 shadow-none placeholder:text-slate-400 focus-visible:ring-0"
           aria-label="Recherche globale"
           aria-expanded={showPanel}
           aria-controls="global-search-results"
           autoComplete="off"
         />
-        <Select value={scope} onValueChange={(v) => setScope(v as GlobalSearchScope)}>
-          <SelectTrigger
-            className={cn(
-              "h-7 w-[5.5rem] shrink-0 border-0 text-xs shadow-none",
-              tone === "onDark" ? "bg-white/15 text-white" : "bg-slate-100 text-slate-800",
-            )}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="end">
-            {scopeOptions.map((s) => (
-              <SelectItem key={s.value} value={s.value} className="text-xs">
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {tone === "onDark" ? null : (
+          <Select value={scope} onValueChange={(v) => setScope(v as GlobalSearchScope)}>
+            <SelectTrigger className="h-7 min-w-[4.25rem] max-w-[5.5rem] shrink-0 border-0 bg-slate-100 px-2 text-xs text-slate-800 shadow-none [&>span]:truncate">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {scopeOptions.map((s) => (
+                <SelectItem key={s.value} value={s.value} className="text-xs">
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {showPanel ? (

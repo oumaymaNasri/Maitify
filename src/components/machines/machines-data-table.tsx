@@ -10,7 +10,7 @@ import {
 import { ChevronLeft, ChevronRight, Edit2, Eye, Trash2 } from "lucide-react";
 import * as React from "react";
 
-import type { MachineCardVm } from "@/components/machines/machine-card";
+import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -266,7 +266,7 @@ export function MachinesDataTable({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+      <div className={GMAO_TABLE_WRAP}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -274,7 +274,7 @@ export function MachinesDataTable({
                 {hg.headers.map((h) => (
                   <TableHead
                     key={h.id}
-                    className="h-11 bg-[#1F76FB] px-3 text-xs font-semibold uppercase tracking-wide text-white first:rounded-tl-xl last:rounded-tr-xl"
+                    className={GMAO_TABLE_HEAD}
                   >
                     {flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>

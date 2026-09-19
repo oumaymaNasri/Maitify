@@ -1,3 +1,4 @@
+import { GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DEFAULT_PAGE_SIZE } from "@/lib/db/pagination";
@@ -12,7 +13,7 @@ export function TablePageSkeleton({
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Chargement du tableau">
       <Skeleton className="h-10 w-full max-w-sm" />
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className={GMAO_TABLE_WRAP}>
         <Table>
           <TableHeader>
             <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50">

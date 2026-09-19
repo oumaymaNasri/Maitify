@@ -1,14 +1,15 @@
 "use client";
 
-import { ArrowDownUp, Edit2, Package, Trash2 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
+import { ArrowDownUp, ChevronLeft, ChevronRight, Edit2, Package, Trash2 } from "lucide-react";
 import * as React from "react";
 
+import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { OptimizedImage } from "@/components/ui/optimized-image";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { PartInventoryRow } from "@/lib/gmao/stock-parts-query";
-import { partImageApiUrl } from "@/lib/media/image-api";
 import { cn } from "@/lib/utils";
 
 type StockInventoryGridProps = {
@@ -23,15 +24,24 @@ type StockInventoryGridProps = {
 
 function RowCheckbox({
   checked,
+  indeterminate,
   onChange,
   ariaLabel,
 }: {
   checked: boolean;
+  indeterminate?: boolean;
   onChange: (checked: boolean) => void;
   ariaLabel: string;
 }) {
+  const ref = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (ref.current) ref.current.indeterminate = Boolean(indeterminate);
+  }, [indeterminate]);
+
   return (
     <input
+      ref={ref}
       type="checkbox"
       checked={checked}
       onChange={(e) => onChange(e.target.checked)}
@@ -41,109 +51,6 @@ function RowCheckbox({
     />
   );
 }
-
-type PartCardProps = {
-  part: PartInventoryRow;
-  selected: boolean;
-  onToggleSelect: (checked: boolean) => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onAdjust: () => void;
-};
-
-const PartInventoryCard = React.memo(function PartInventoryCard({
-  part,
-  selected,
-  onToggleSelect,
-  onEdit,
-  onDelete,
-  onAdjust,
-}: PartCardProps) {
-  const critical = part.isLowStock;
-
-  return (
-    <Card
-      className={cn(
-        "overflow-hidden border-slate-200 shadow-sm transition-shadow hover:shadow-md",
-        selected && "ring-2 ring-[#1F76FB]/40",
-        critical && "border-rose-200",
-      )}
-    >
-      <div className="relative aspect-[4/3] bg-slate-50">
-        {part.hasImage ? (
-          <OptimizedImage
-            src={partImageApiUrl(part.id)}
-            alt={part.designation}
-            fill
-            sizes="280px"
-            className="object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-slate-300">
-            <Package className="h-12 w-12" />
-          </div>
-        )}
-        <div className="absolute left-2 top-2">
-          <RowCheckbox
-            checked={selected}
-            onChange={onToggleSelect}
-            ariaLabel={`Sélectionner ${part.designation}`}
-          />
-        </div>
-        {critical ? (
-          <Badge className="absolute right-2 top-2 border border-rose-300 bg-rose-600 text-white hover:bg-rose-600">
-            Rupture / Alerte
-          </Badge>
-        ) : null}
-      </div>
-
-      <CardContent className="space-y-3 p-4">
-        <div>
-          <h3 className="font-semibold leading-tight text-slate-900">{part.designation}</h3>
-          <p className="mt-0.5 text-xs text-slate-500">
-            {[part.brand, part.reference].filter(Boolean).join(" · ") || "Sans marque / référence"}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-1">
-          {part.machines.length > 0 ? (
-            part.machines.map((m) => (
-              <Badge key={m.id} variant="secondary" className="text-[10px] font-normal">
-                {m.name}
-              </Badge>
-            ))
-          ) : (
-            <Badge variant="outline" className="text-[10px] font-normal text-slate-500">
-              Magasin général
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-end justify-between gap-2">
-          <div>
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">Stock actuel</p>
-            <p className={cn("text-2xl font-bold tabular-nums", critical ? "text-rose-600" : "text-slate-900")}>
-              {part.quantity}
-            </p>
-            <p className="text-xs text-slate-500">Seuil : {part.minStock}</p>
-          </div>
-
-          <div className="flex gap-1">
-            <Button type="button" size="icon" variant="outline" className="h-8 w-8" title="Ajuster le stock" onClick={onAdjust}>
-              <ArrowDownUp className="h-3.5 w-3.5" />
-            </Button>
-            <Button type="button" size="icon" variant="outline" className="h-8 w-8" title="Modifier" onClick={onEdit}>
-              <Edit2 className="h-3.5 w-3.5" />
-            </Button>
-            <Button type="button" size="icon" variant="outline" className="h-8 w-8 text-rose-600 hover:bg-rose-50" title="Supprimer" onClick={onDelete}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-});
 
 function StockInventoryGridInner({
   parts,
@@ -157,7 +64,7 @@ function StockInventoryGridInner({
   const visibleIds = React.useMemo(() => parts.map((p) => p.id), [parts]);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
-  const selectAllRef = React.useRef<HTMLInputElement>(null);
+  const selectedCount = selectedIds.size;
 
   const toggleAllVisible = React.useCallback(
     (checked: boolean) => {
@@ -179,11 +86,133 @@ function StockInventoryGridInner({
     [onSelectedIdsChange, selectedIds],
   );
 
-  React.useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = someVisibleSelected && !allVisibleSelected;
-    }
-  }, [someVisibleSelected, allVisibleSelected]);
+  const columns = React.useMemo<ColumnDef<PartInventoryRow>[]>(
+    () => [
+      {
+        id: "select",
+        header: () => (
+          <RowCheckbox
+            checked={allVisibleSelected}
+            indeterminate={someVisibleSelected && !allVisibleSelected}
+            onChange={toggleAllVisible}
+            ariaLabel="Sélectionner toutes les pièces visibles"
+          />
+        ),
+        cell: ({ row }) => (
+          <RowCheckbox
+            checked={selectedIds.has(row.original.id)}
+            onChange={(checked) => toggleRow(row.original.id, checked)}
+            ariaLabel={`Sélectionner ${row.original.designation}`}
+          />
+        ),
+      },
+      {
+        accessorKey: "designation",
+        header: "Pièce",
+        cell: ({ row }) => (
+          <div className="min-w-[140px]">
+            <p className="font-semibold text-slate-900">{row.original.designation}</p>
+            <p className="text-xs text-slate-500">
+              {[row.original.brand, row.original.reference].filter(Boolean).join(" · ") || "—"}
+            </p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "quantity",
+        header: "Stock",
+        cell: ({ row }) => (
+          <span
+            className={cn(
+              "tabular-nums font-semibold",
+              row.original.isLowStock ? "text-rose-600" : "text-slate-900",
+            )}
+          >
+            {row.original.quantity}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "minStock",
+        header: "Seuil",
+        cell: ({ row }) => <span className="tabular-nums text-slate-700">{row.original.minStock}</span>,
+      },
+      {
+        id: "alert",
+        header: "Alerte",
+        cell: ({ row }) =>
+          row.original.isLowStock ? (
+            <Badge className="border-0 bg-rose-100 font-medium text-rose-800 hover:bg-rose-100">Rupture / Alerte</Badge>
+          ) : (
+            <Badge className="border-0 bg-emerald-100 font-medium text-emerald-800 hover:bg-emerald-100">OK</Badge>
+          ),
+      },
+      {
+        id: "machines",
+        header: "Machines",
+        cell: ({ row }) =>
+          row.original.machines.length > 0 ? (
+            <div className="flex max-w-xs flex-wrap gap-1">
+              {row.original.machines.map((m) => (
+                <Badge key={m.id} variant="secondary" className="text-[10px] font-normal">
+                  {m.name}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <span className="text-sm text-slate-500">Magasin général</span>
+          ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-xl text-[#1F76FB] hover:bg-[#E8F1FF]"
+              title="Ajuster le stock"
+              onClick={() => onAdjust(row.original)}
+              aria-label={`Ajuster ${row.original.designation}`}
+            >
+              <ArrowDownUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-[#1F76FB]"
+              onClick={() => onEdit(row.original)}
+              aria-label={`Modifier ${row.original.designation}`}
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+              onClick={() => onDelete(row.original)}
+              aria-label={`Supprimer ${row.original.designation}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [allVisibleSelected, onAdjust, onDelete, onEdit, selectedIds, someVisibleSelected, toggleAllVisible, toggleRow],
+  );
+
+  const table = useReactTable({
+    data: parts,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 12 } },
+  });
 
   if (parts.length === 0) {
     return (
@@ -196,45 +225,90 @@ function StockInventoryGridInner({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-          <input
-            ref={selectAllRef}
-            type="checkbox"
-            checked={allVisibleSelected}
-            onChange={(e) => toggleAllVisible(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-[#1F76FB] focus:ring-[#1F76FB]"
-          />
-          Tout sélectionner ({parts.length})
-        </label>
-
-        {selectedIds.size > 0 ? (
+    <div className="space-y-3">
+      {selectedCount > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-[#1F76FB]/25 bg-[#E8F1FF] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-slate-800">
+            <span className="tabular-nums text-[#1F76FB]">{selectedCount}</span> élément
+            {selectedCount > 1 ? "s" : ""} sélectionné{selectedCount > 1 ? "s" : ""}
+          </p>
           <Button
             type="button"
             size="sm"
             variant="outline"
             onClick={onBulkDelete}
-            className="h-8 border-rose-200 text-rose-700 hover:bg-rose-50"
+            className="rounded-xl border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
           >
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            Supprimer ({selectedIds.size})
+            <Trash2 className="mr-2 h-4 w-4" />
+            Supprimer la sélection
           </Button>
-        ) : null}
+        </div>
+      ) : null}
+
+      <div className={GMAO_TABLE_WRAP}>
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((hg) => (
+              <TableRow key={hg.id} className="border-0 hover:bg-transparent">
+                {hg.headers.map((h) => (
+                  <TableHead key={h.id} className={GMAO_TABLE_HEAD}>
+                    {flexRender(h.column.columnDef.header, h.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.map((row, i) => (
+              <TableRow
+                key={row.id}
+                data-state={selectedIds.has(row.original.id) ? "selected" : undefined}
+                className={cn(
+                  "border-slate-100 transition-colors hover:bg-[#E8F1FF]/50",
+                  i % 2 === 1 && "bg-slate-50/60",
+                  selectedIds.has(row.original.id) && "bg-[#E8F1FF]/30",
+                )}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className="px-3 py-3 align-middle">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {parts.map((part) => (
-          <PartInventoryCard
-            key={part.id}
-            part={part}
-            selected={selectedIds.has(part.id)}
-            onToggleSelect={(checked) => toggleRow(part.id, checked)}
-            onEdit={() => onEdit(part)}
-            onDelete={() => onDelete(part)}
-            onAdjust={() => onAdjust(part)}
-          />
-        ))}
+      <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+        <p className="text-sm text-slate-600">
+          <span className="font-semibold tabular-nums text-slate-900">{parts.length}</span> pièce(s)
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!table.getCanPreviousPage()}
+            onClick={() => table.previousPage()}
+            className="rounded-xl border-slate-100"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm tabular-nums text-slate-600">
+            Page {table.getState().pagination.pageIndex + 1} / {Math.max(table.getPageCount(), 1)}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!table.getCanNextPage()}
+            onClick={() => table.nextPage()}
+            className="rounded-xl border-slate-100"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

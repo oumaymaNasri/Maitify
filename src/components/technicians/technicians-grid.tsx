@@ -25,10 +25,7 @@ import { cn } from "@/lib/utils";
 
 export function TechniciansGrid({ technicians }: { technicians: TechnicianRow[] }) {
   return (
-    <GmaoModuleShell
-      title="Techniciens & RH"
-      subtitle="Gestion des profils, spécialités et disponibilité atelier."
-    >
+    <GmaoModuleShell>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-sm text-slate-600">
           <span className="font-semibold text-slate-900">{technicians.length}</span> technicien(s)

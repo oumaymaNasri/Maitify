@@ -29,7 +29,7 @@ export function DashboardFeaturedMachine({ machine }: { machine: FeaturedMachine
       <DashboardCard className="flex min-h-[220px] flex-col items-center justify-center p-6 text-center lg:min-h-[280px]">
         <Factory className="h-16 w-16 text-[#1F76FB]/40" strokeWidth={1.25} aria-hidden />
         <p className="mt-4 text-sm text-slate-600">Aucune machine à mettre en avant.</p>
-        <ButtonLink href="/machines" variant="outline" size="sm" className="mt-4">
+        <ButtonLink href="/donnees-de-base/machines" variant="outline" size="sm" className="mt-4">
           Voir le parc
         </ButtonLink>
       </DashboardCard>
@@ -69,7 +69,7 @@ export function DashboardFeaturedMachine({ machine }: { machine: FeaturedMachine
             ))}
           </dl>
 
-          <ButtonLink href="/machines" size="sm" className="mt-4 hidden w-full bg-[#1F76FB] hover:bg-[#1865D9] lg:flex">
+          <ButtonLink href="/donnees-de-base/machines" size="sm" className="mt-4 hidden w-full bg-[#1F76FB] hover:bg-[#1865D9] lg:flex">
             Voir la fiche machine
           </ButtonLink>
         </div>
@@ -77,7 +77,7 @@ export function DashboardFeaturedMachine({ machine }: { machine: FeaturedMachine
         <MachineVisual />
 
         <div className="border-t border-slate-100 p-4 lg:hidden">
-          <ButtonLink href="/machines" className="w-full bg-[#1F76FB] hover:bg-[#1865D9]">
+          <ButtonLink href="/donnees-de-base/machines" className="w-full bg-[#1F76FB] hover:bg-[#1865D9]">
             Voir la fiche machine
           </ButtonLink>
         </div>

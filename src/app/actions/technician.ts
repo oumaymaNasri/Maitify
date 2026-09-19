@@ -14,6 +14,7 @@ export type TechnicianActionResult = { ok: true; id: string } | { ok: false; err
 function revalidateTechnicianPaths() {
   revalidateTag(CACHE_TAGS.technicians);
   revalidatePath("/technicians");
+  revalidatePath("/donnees-de-base/technicians");
 }
 
 function parseTechnicianForm(formData: FormData) {

@@ -10,6 +10,7 @@ import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { paginationRange } from "@/lib/db/pagination";
 
@@ -108,15 +109,13 @@ export function ServerPaginatedTable<TData, TValue>({
         {isPending ? <p className="text-xs text-slate-600">Chargement…</p> : null}
       </div>
 
-      <div
-        className={`gmao-data-table overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-opacity ${isPending ? "opacity-60" : ""}`}
-      >
+      <div className={`${GMAO_TABLE_WRAP} ${isPending ? "opacity-60" : ""}`}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id} className="border-slate-200 bg-slate-50 hover:bg-slate-50">
+              <TableRow key={hg.id} className="border-0 hover:bg-transparent">
                 {hg.headers.map((h) => (
-                  <TableHead key={h.id} className="whitespace-nowrap text-slate-800">
+                  <TableHead key={h.id} className={GMAO_TABLE_HEAD}>
                     {flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}

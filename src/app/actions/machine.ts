@@ -75,6 +75,7 @@ function toUpdateData(data: {
 function revalidateMachinePaths() {
   revalidateTag(CACHE_TAGS.machines);
   revalidatePath("/machines");
+  revalidatePath("/donnees-de-base/machines");
 }
 
 export async function createMachineAction(formData: FormData): Promise<MachineActionResult> {
