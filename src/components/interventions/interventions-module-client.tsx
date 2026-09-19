@@ -13,13 +13,13 @@ import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import type { MachineOption, TechnicianOption } from "@/components/interventions/InterventionIntelligentForm";
-import { InterventionsCollapseSection } from "@/components/interventions/interventions-collapse-section";
 import { InterventionsDataTable } from "@/components/interventions/interventions-data-table";
 import { InterventionsExportButtons } from "@/components/interventions/interventions-export-buttons";
 import { ButtonLink } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
+import { cn } from "@/lib/utils";
 import { formatDateFrMedium } from "@/lib/utils/format-date";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
@@ -38,6 +38,7 @@ const DeleteConfirmDialog = dynamic(
 
 type StatusFilter = "ALL" | MaintenanceWorkflowStatus;
 type TypeFilter = "ALL" | InterventionType;
+type TabId = "PREVENTIVE" | "CORRECTIVE" | "ALL";
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "Tous" },
@@ -45,35 +46,10 @@ const STATUS_OPTIONS = [
   { value: MaintenanceWorkflowStatus.COMPLETED, label: maintenanceWorkflowStatusFr(MaintenanceWorkflowStatus.COMPLETED) },
 ] as const;
 
-type SectionId = "preventive" | "corrective" | "all";
-
-const SECTIONS_STORAGE_KEY = "nutrifish.gmao.interventions.sections.v1";
-
-function defaultOpenSections(type: TypeFilter): Record<SectionId, boolean> {
-  if (type === InterventionType.PREVENTIVE) {
-    return { preventive: true, corrective: false, all: false };
-  }
-  if (type === InterventionType.CORRECTIVE) {
-    return { preventive: false, corrective: true, all: false };
-  }
-  return { preventive: false, corrective: false, all: true };
-}
-
-function loadOpenSections(type: TypeFilter): Record<SectionId, boolean> {
-  const fallback = defaultOpenSections(type);
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = window.localStorage.getItem(SECTIONS_STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<Record<SectionId, boolean>>;
-    return {
-      preventive: Boolean(parsed.preventive),
-      corrective: Boolean(parsed.corrective),
-      all: parsed.all == null ? true : Boolean(parsed.all),
-    };
-  } catch {
-    return fallback;
-  }
+function tabFromType(type: TypeFilter): TabId {
+  if (type === InterventionType.PREVENTIVE) return "PREVENTIVE";
+  if (type === InterventionType.CORRECTIVE) return "CORRECTIVE";
+  return "ALL";
 }
 
 export type InterventionsListQuery = {
@@ -106,6 +82,7 @@ type InterventionsModuleClientProps = {
 export function buildMaintenanceListSearch(query: InterventionsListQuery): string {
   const params = new URLSearchParams();
   if (query.q.trim()) params.set("q", query.q.trim());
+  if (query.type !== "ALL") params.set("type", query.type);
   if (query.status !== "ALL") params.set("status", query.status);
   if (query.sector && query.sector !== "ALL") params.set("sector", query.sector);
   if (query.technicianId && query.technicianId !== "ALL") params.set("technicianId", query.technicianId);
@@ -134,37 +111,25 @@ export function InterventionsModuleClient({
   const router = useRouter();
   const pathname = usePathname();
   const [rows, setRows] = React.useState(initialRows);
+  const [tab, setTab] = React.useState<TabId>(() => tabFromType(query.type));
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [viewId, setViewId] = React.useState<string | null>(null);
   const [editRow, setEditRow] = React.useState<InterventionListVm | null>(null);
   const [deleteRow, setDeleteRow] = React.useState<InterventionListVm | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
-  const [openSections, setOpenSections] = React.useState<Record<SectionId, boolean>>(() =>
-    defaultOpenSections(query.type),
-  );
-
-  const persistSections = React.useRef(false);
-
-  React.useEffect(() => {
-    setOpenSections(loadOpenSections(query.type));
-  }, [query.type]);
-
-  React.useEffect(() => {
-    if (!persistSections.current) {
-      persistSections.current = true;
-      return;
-    }
-    window.localStorage.setItem(SECTIONS_STORAGE_KEY, JSON.stringify(openSections));
-  }, [openSections]);
 
   React.useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
 
+  React.useEffect(() => {
+    setTab(tabFromType(query.type));
+  }, [query.type]);
+
   const pushQuery = React.useCallback(
     (next: InterventionsListQuery) => {
       const qs = buildMaintenanceListSearch(next);
-      router.push(qs ? `${pathname}?${qs}` : pathname);
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
     [pathname, router],
   );
@@ -174,6 +139,15 @@ export function InterventionsModuleClient({
       pushQuery({ ...query, ...patch });
     },
     [pushQuery, query],
+  );
+
+  const selectTab = React.useCallback(
+    (next: TabId) => {
+      setTab(next);
+      setSelectedIds(new Set());
+      patchQuery({ type: next });
+    },
+    [patchQuery],
   );
 
   const openDetailById = React.useCallback((id: string) => {
@@ -241,51 +215,63 @@ export function InterventionsModuleClient({
     setSelectedIds(new Set());
   }, []);
 
-  const preventiveRows = React.useMemo(
-    () => rows.filter((r) => r.type === InterventionType.PREVENTIVE),
+  const preventiveCount = React.useMemo(
+    () => rows.filter((r) => r.type === InterventionType.PREVENTIVE).length,
     [rows],
   );
-  const correctiveRows = React.useMemo(
-    () => rows.filter((r) => r.type === InterventionType.CORRECTIVE),
+  const correctiveCount = React.useMemo(
+    () => rows.filter((r) => r.type === InterventionType.CORRECTIVE).length,
     [rows],
   );
 
-  const toggleSection = React.useCallback((id: SectionId) => {
-    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
-  }, []);
+  const visibleRows = React.useMemo(() => {
+    if (tab === "PREVENTIVE") return rows.filter((r) => r.type === InterventionType.PREVENTIVE);
+    if (tab === "CORRECTIVE") return rows.filter((r) => r.type === InterventionType.CORRECTIVE);
+    return rows;
+  }, [rows, tab]);
 
-  const tableFor = (list: InterventionListVm[]) => (
-    <InterventionsDataTable
-      interventions={list}
-      selectedIds={selectedIds}
-      onSelectedIdsChange={setSelectedIds}
-      onView={(row) => setViewId(row.id)}
-      onEdit={readOnly ? () => {} : setEditRow}
-      onDelete={readOnly ? () => {} : setDeleteRow}
-      onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
-      readOnly={readOnly}
-      serverSort={{
-        sort: query.sort,
-        dir: query.dir,
-        onChange: (sort, dir) => patchQuery({ sort, dir }),
-      }}
-      totals={{ total: list.length, catalogTotal: list.length }}
-      embedded
-    />
-  );
+  const tabs: { id: TabId; label: string; count: number }[] = [
+    { id: "PREVENTIVE", label: "Maintenance Préventive", count: preventiveCount },
+    { id: "CORRECTIVE", label: "Maintenance Corrective", count: correctiveCount },
+    { id: "ALL", label: "Toutes les Maintenances", count: rows.length },
+  ];
 
   return (
     <GmaoModuleShell
       title={readOnly ? "Mes interventions" : "Liste de Maintenance"}
-      subtitle={`${totals.catalogTotal.toLocaleString("fr-FR")} maintenances importées. Trois sections repliables : préventive, corrective, et liste complète.`}
+      subtitle={`${totals.catalogTotal.toLocaleString("fr-FR")} maintenances importées — filtrer par sous-module.`}
     >
+      <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Sous-modules de maintenance">
+        {tabs.map((item) => {
+          const active = tab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => selectTab(item.id)}
+              className={cn(
+                "rounded-lg px-3 py-2 text-sm font-medium transition",
+                active ? "bg-white text-[#0B2A5B] shadow-sm" : "text-slate-600 hover:text-slate-900",
+              )}
+            >
+              {item.label}{" "}
+              <span className={cn("tabular-nums", active ? "text-[#1F76FB]" : "text-slate-400")}>
+                ({item.count.toLocaleString("fr-FR")})
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <ModuleFilterBar
         onDebouncedSearchChange={handleDebouncedSearch}
         searchPlaceholder="Recherche globale : matricule, machine, rapport, intervenant…"
-        searchResetKey={`${query.status}-${query.sector}`}
-        resultCount={totals.total}
+        searchResetKey={`${query.status}-${query.sector}-${tab}`}
+        resultCount={visibleRows.length}
         action={newInterventionAction}
-        exportActions={readOnly ? undefined : <InterventionsExportButtons items={rows} />}
+        exportActions={readOnly ? undefined : <InterventionsExportButtons items={visibleRows} />}
         filters={filters}
       />
 
@@ -300,35 +286,22 @@ export function InterventionsModuleClient({
         </div>
       </div>
 
-      <div className="space-y-3">
-        <InterventionsCollapseSection
-          id="maintenance-preventive"
-          title="Maintenance Préventive"
-          count={preventiveRows.length}
-          open={openSections.preventive}
-          onToggle={() => toggleSection("preventive")}
-        >
-          {tableFor(preventiveRows)}
-        </InterventionsCollapseSection>
-        <InterventionsCollapseSection
-          id="maintenance-corrective"
-          title="Maintenance Corrective"
-          count={correctiveRows.length}
-          open={openSections.corrective}
-          onToggle={() => toggleSection("corrective")}
-        >
-          {tableFor(correctiveRows)}
-        </InterventionsCollapseSection>
-        <InterventionsCollapseSection
-          id="maintenance-toutes"
-          title="Toutes les Maintenances"
-          count={rows.length}
-          open={openSections.all}
-          onToggle={() => toggleSection("all")}
-        >
-          {tableFor(rows)}
-        </InterventionsCollapseSection>
-      </div>
+      <InterventionsDataTable
+        interventions={visibleRows}
+        selectedIds={selectedIds}
+        onSelectedIdsChange={setSelectedIds}
+        onView={(row) => setViewId(row.id)}
+        onEdit={readOnly ? () => {} : setEditRow}
+        onDelete={readOnly ? () => {} : setDeleteRow}
+        onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
+        readOnly={readOnly}
+        serverSort={{
+          sort: query.sort,
+          dir: query.dir,
+          onChange: (sort, dir) => patchQuery({ sort, dir }),
+        }}
+        totals={{ total: visibleRows.length, catalogTotal: rows.length }}
+      />
 
       <InterventionDetailSheet
         interventionId={viewId}
