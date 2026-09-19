@@ -39,18 +39,20 @@ export function AppTopNavbar({ onOpenMobileNav }: AppTopNavbarProps) {
     ) : null;
 
   return (
-    <header className="sticky top-0 z-30 flex h-auto shrink-0 flex-col justify-center border-b border-slate-200 bg-white shadow-sm transition-colors duration-200 dark:border-slate-800 dark:bg-slate-950 sm:h-14">
+    <header className="z-30 flex h-auto w-full shrink-0 flex-col justify-center border-b border-slate-200 bg-white shadow-sm transition-colors duration-200 dark:border-slate-800 dark:bg-slate-950 sm:h-14">
       <div className="flex h-14 items-center gap-2 px-3 md:gap-3 md:px-4">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 shrink-0 md:hidden"
-          onClick={onOpenMobileNav}
-          aria-label="Ouvrir le menu"
-        >
-          <Menu className="h-5 w-5 text-slate-700 dark:text-slate-200" />
-        </Button>
+        {onOpenMobileNav ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0 md:hidden"
+            onClick={onOpenMobileNav}
+            aria-label="Ouvrir le menu"
+          >
+            <Menu className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+          </Button>
+        ) : null}
 
         <div className="min-w-0 shrink-0 md:w-[min(220px,28vw)]">
           <h1 className="truncate text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100 md:text-base">{meta.title}</h1>

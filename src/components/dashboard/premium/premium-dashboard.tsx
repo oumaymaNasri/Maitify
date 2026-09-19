@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import * as React from "react";
 
 import { GmaoCtaTile, GmaoKpiTile } from "@/components/dashboard/portal/gmao-kpi-tile";
-import { GmaoPortalHeader } from "@/components/dashboard/portal/gmao-portal-header";
 import { GmaoPortalQuickActions } from "@/components/dashboard/portal/gmao-portal-quick-actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PremiumDashboardPayload } from "@/lib/gmao/dashboard-premium-data";
@@ -29,7 +28,6 @@ export function PremiumDashboard({ data }: { data: PremiumDashboardPayload }) {
 
   return (
     <div className="-mx-3 -mt-3 bg-gradient-to-br from-slate-100 via-white to-sky-50 md:-mx-5 md:-mt-5 lg:-mx-6 lg:-mt-6">
-      <GmaoPortalHeader />
       <GmaoPortalQuickActions />
 
       <div className="grid gap-4 px-4 py-6 md:grid-cols-2 md:px-8 xl:grid-cols-4">

@@ -3,7 +3,6 @@
 import Link from "next/link";
 
 import { GmaoCtaTile, GmaoKpiTile } from "@/components/dashboard/portal/gmao-kpi-tile";
-import { GmaoPortalHeader } from "@/components/dashboard/portal/gmao-portal-header";
 import { GmaoPortalQuickActions } from "@/components/dashboard/portal/gmao-portal-quick-actions";
 import { DashboardCard } from "@/components/dashboard/premium/dashboard-card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +20,6 @@ export function TechnicianDashboard({
 
   return (
     <div className="-mx-3 -mt-3 bg-gradient-to-br from-slate-100 via-white to-sky-50 md:-mx-5 md:-mt-5 lg:-mx-6 lg:-mt-6">
-      <GmaoPortalHeader />
       <GmaoPortalQuickActions />
 
       <div className="space-y-4 px-4 py-6 md:px-8">
