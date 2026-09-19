@@ -1,4 +1,5 @@
 import type { MaintenanceOrderDetailVm } from "@/lib/gmao/maintenance-order-detail-query";
+import { formatDateFrShort } from "@/lib/utils/format-date";
 import { interventionTypeFr } from "@/lib/view/labels";
 
 function esc(s: string | null | undefined): string {
@@ -11,7 +12,7 @@ function esc(s: string | null | undefined): string {
 }
 
 function fmtDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(iso));
+  return formatDateFrShort(iso);
 }
 
 /** Valeur tâche : X si cochée, tiret centré sinon. */

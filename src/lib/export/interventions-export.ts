@@ -1,5 +1,6 @@
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
+import { formatDateFrShort } from "@/lib/utils/format-date";
 import { interventionTypeFr } from "@/lib/view/labels";
 
 function escapeCsv(value: string | number | null | undefined): string {
@@ -8,7 +9,7 @@ function escapeCsv(value: string | number | null | undefined): string {
 }
 
 function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(iso));
+  return formatDateFrShort(iso);
 }
 
 function interventionExportRows(items: InterventionListVm[]): string[][] {

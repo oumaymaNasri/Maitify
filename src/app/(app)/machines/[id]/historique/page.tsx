@@ -17,6 +17,7 @@ import {
   machineStatusBadgeClass,
   maintenanceWorkflowStatusFr,
 } from "@/lib/view/machine-labels";
+import { formatDateFrShort } from "@/lib/utils/format-date";
 import { cn } from "@/lib/utils";
 
 type PageProps = {
@@ -25,7 +26,7 @@ type PageProps = {
 };
 
 function formatHistoryDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
+  return formatDateFrShort(iso);
 }
 
 function workflowBadgeClass(status: string): string {

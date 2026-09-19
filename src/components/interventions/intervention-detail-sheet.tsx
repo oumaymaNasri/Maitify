@@ -96,7 +96,7 @@ export function InterventionDetailSheet({ interventionId, open, onOpenChange }: 
                 value={detail.failureCause ? failureCauseFr(detail.failureCause) : null}
               />
               <DetailBlock
-                label="Durée"
+                label="Temps d'intervention"
                 value={detail.durationMinutes != null ? `${detail.durationMinutes} min` : null}
               />
 

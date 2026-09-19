@@ -19,10 +19,7 @@ function formatDateFr(iso: string): string {
 
 function formatDuration(minutes: number | null): string {
   if (minutes == null) return "—";
-  if (minutes < 60) return `${minutes} mn`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h} h ${m} mn` : `${h} h`;
+  return `${Math.max(0, Math.round(minutes))} min`;
 }
 
 const OPERATIONS: OperationType[] = [

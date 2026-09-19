@@ -159,7 +159,7 @@ export function GlobalSearch({ className, tone = "light" }: { className?: string
     <div ref={rootRef} className={cn("relative min-w-0 flex-1", className)}>
       <div
         className={cn(
-          "flex h-8 w-full items-center gap-1 rounded-lg border pl-2 pr-1 shadow-sm transition-shadow focus-within:ring-2",
+          "flex h-9 w-full items-center gap-1 rounded-lg border pl-2 pr-1 shadow-sm transition-shadow focus-within:ring-2",
           tone === "onDark"
             ? "border-white/20 bg-white/10 focus-within:ring-white/25"
             : "border-slate-200 bg-white focus-within:ring-blue-600/20",
@@ -180,7 +180,7 @@ export function GlobalSearch({ className, tone = "light" }: { className?: string
           }}
           placeholder="Recherche globale…"
           className={cn(
-            "h-7 flex-1 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0 sm:text-sm",
+            "h-8 flex-1 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0",
             tone === "onDark" && "text-white placeholder:text-sky-200/80",
           )}
           aria-label="Recherche globale"
@@ -191,7 +191,7 @@ export function GlobalSearch({ className, tone = "light" }: { className?: string
         <Select value={scope} onValueChange={(v) => setScope(v as GlobalSearchScope)}>
           <SelectTrigger
             className={cn(
-              "h-6 w-[5.25rem] shrink-0 border-0 text-xs shadow-none",
+              "h-7 w-[5.5rem] shrink-0 border-0 text-xs shadow-none",
               tone === "onDark" ? "bg-white/15 text-white" : "bg-slate-100 text-slate-800",
             )}
           >

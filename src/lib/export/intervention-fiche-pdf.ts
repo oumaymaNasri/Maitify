@@ -20,15 +20,12 @@ function pdfText(value: string | null | undefined): string {
 }
 
 function fmtDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
 }
 
 function fmtDuration(minutes: number | null): string {
   if (minutes == null) return "-";
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h} h ${m} min` : `${h} h`;
+  return `${Math.max(0, Math.round(minutes))} min`;
 }
 
 const CHECKBOX_SIZE = 10;

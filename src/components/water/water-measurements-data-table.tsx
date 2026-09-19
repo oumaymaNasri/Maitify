@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { ServerPaginatedTable } from "@/components/data-table/server-paginated-table";
 import { Badge } from "@/components/ui/badge";
 import type { WaterMeasurementRow } from "@/lib/gmao/water-measurements-query";
+import { formatDateFrShort } from "@/lib/utils/format-date";
 import { waterZoneFr } from "@/lib/view/labels";
 
 function fmt(v: number | null | undefined): string {
@@ -27,9 +28,7 @@ const cols: ColumnDef<WaterMeasurementRow>[] = [
     header: "Date",
     cell: ({ row }) => (
       <span className="whitespace-nowrap text-sm">
-        {new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(
-          new Date(row.original.measuredAt),
-        )}
+        {formatDateFrShort(row.original.measuredAt)}
       </span>
     ),
   },

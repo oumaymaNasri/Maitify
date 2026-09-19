@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { authorizeApiRequest } from "@/lib/auth/session-server";
 import { fetchAllInterventionsInventory } from "@/lib/gmao/interventions-query";
+import { formatDateFrShort } from "@/lib/utils/format-date";
 import { operationTypeFr } from "@/lib/view/gmao-labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
@@ -11,7 +12,7 @@ function escapeCsv(value: string): string {
 }
 
 function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return formatDateFrShort(iso);
 }
 
 export async function GET(request: Request) {

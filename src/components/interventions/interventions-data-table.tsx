@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatDateFrShort } from "@/lib/utils/format-date";
+import { formatDateFrShort, formatDurationMinutes } from "@/lib/utils/format-date";
 import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
@@ -246,7 +246,7 @@ export function InterventionsDataTable({
         size: 120,
         cell: ({ row }) => (
           <span className="tabular-nums text-sm text-slate-700">
-            {row.original.durationMinutes != null ? `${row.original.durationMinutes} min` : "—"}
+            {formatDurationMinutes(row.original.durationMinutes)}
           </span>
         ),
       },

@@ -1,4 +1,5 @@
 import type { MachineHistoryHeader, MachineHistoryRow } from "@/lib/gmao/machine-history-query";
+import { formatDateFrShort } from "@/lib/utils/format-date";
 import { interventionTypeFr } from "@/lib/view/labels";
 import { machineAssetStatusFr, maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
@@ -8,7 +9,7 @@ function escapeCsv(value: string | number | null | undefined): string {
 }
 
 function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
+  return formatDateFrShort(iso);
 }
 
 function machineHistoryExportRows(rows: MachineHistoryRow[]): string[][] {
