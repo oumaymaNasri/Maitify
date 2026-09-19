@@ -1,5 +1,6 @@
 "use client";
 
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ColumnDef, ColumnOrderState, ColumnSizingState, VisibilityState } from "@tanstack/react-table";
 import {
   flexRender,
@@ -28,6 +29,7 @@ import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "nutrifish.gmao.interventions.table.v1";
+const ROW_HEIGHT = 40;
 
 const COLUMN_LABELS: Record<string, string> = {
   select: "Sélection",
@@ -142,6 +144,7 @@ export function InterventionsDataTable({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(persisted.columnVisibility ?? {});
   const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>(persisted.columnSizing ?? {});
   const dragCol = React.useRef<string | null>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     window.localStorage.setItem(
@@ -292,6 +295,22 @@ export function InterventionsDataTable({
     getRowId: (row) => row.id,
   });
 
+  const tableRows = table.getRowModel().rows;
+  const rowVirtualizer = useVirtualizer({
+    count: tableRows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 18,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0]!.start : 0;
+  const paddingBottom =
+    virtualRows.length > 0 ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1]!.end : 0;
+
+  React.useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [interventions]);
+
   const sortable = new Set(["date", "machineName", "type", "importMatricule", "durationMinutes", "technicianName"]);
 
   function cycleSort(id: string) {
@@ -346,7 +365,7 @@ export function InterventionsDataTable({
         </div>
       </div>
 
-      <div className="h-[75vh] max-h-[800px] overflow-x-auto overflow-y-auto">
+      <div ref={scrollRef} className="h-[75vh] max-h-[800px] overflow-x-auto overflow-y-auto">
         <table className="w-max min-w-full border-separate border-spacing-0 text-sm" style={{ tableLayout: "fixed" }}>
           <thead className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
             {table.getHeaderGroups().map((hg) => (
@@ -400,26 +419,49 @@ export function InterventionsDataTable({
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {tableRows.length === 0 ? (
               <tr>
                 <td colSpan={table.getVisibleLeafColumns().length} className="px-4 py-12 text-center text-slate-500">
                   Aucune intervention ne correspond aux filtres.
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="odd:bg-white even:bg-slate-50/60 hover:bg-[#F3F8FF]">
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      style={{ width: cell.column.getSize() }}
-                      className="border-b border-r border-slate-100 px-2 py-1.5 align-top"
+              <>
+                {paddingTop > 0 ? (
+                  <tr aria-hidden>
+                    <td colSpan={table.getVisibleLeafColumns().length} style={{ height: paddingTop, padding: 0, border: 0 }} />
+                  </tr>
+                ) : null}
+                {virtualRows.map((virtualRow) => {
+                  const row = tableRows[virtualRow.index]!;
+                  return (
+                    <tr
+                      key={row.id}
+                      data-index={virtualRow.index}
+                      className={cn(
+                        "hover:bg-[#F3F8FF]",
+                        virtualRow.index % 2 === 0 ? "bg-white" : "bg-slate-50/60",
+                      )}
+                      style={{ height: ROW_HEIGHT }}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          style={{ width: cell.column.getSize() }}
+                          className="border-b border-r border-slate-100 px-2 py-1.5 align-top"
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+                {paddingBottom > 0 ? (
+                  <tr aria-hidden>
+                    <td colSpan={table.getVisibleLeafColumns().length} style={{ height: paddingBottom, padding: 0, border: 0 }} />
+                  </tr>
+                ) : null}
+              </>
             )}
           </tbody>
         </table>

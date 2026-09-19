@@ -11,14 +11,14 @@ import { workflowStatusForLog, workflowStatusWhere } from "@/lib/gmao/interventi
 export const INTERVENTIONS_PAGE_SIZE = 50;
 export const INTERVENTIONS_LIST_CAP = 20_000;
 
+const LIST_TEXT_CLIP = 220;
+
 const listSelect = {
   id: true,
   date: true,
   operationType: true,
   type: true,
-  workflowStatus: true,
   durationMinutes: true,
-  importSource: true,
   importMatricule: true,
   linkedFailureCause: true,
   failureCauseLabel: true,
@@ -35,6 +35,13 @@ const listSelect = {
   technicianId: true,
   technician: { select: { firstName: true, lastName: true } },
 } as const;
+
+function clipText(value: string | null | undefined, max = LIST_TEXT_CLIP): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max)}…`;
+}
 
 export type InterventionListFilters = {
   q?: string | null;
@@ -56,9 +63,7 @@ function mapListRows(
     date: Date;
     operationType: OperationType;
     type: InterventionType;
-    workflowStatus: InterventionListVm["workflowStatus"];
     durationMinutes: number | null;
-    importSource: string | null;
     importMatricule: string | null;
     linkedFailureCause: string | null;
     failureCauseLabel: string | null;
@@ -87,19 +92,19 @@ function mapListRows(
     machineId: r.machineId,
     machineName: r.machine.name,
     machineLocation: r.machine.location,
-    failureDescription: r.failureDescription,
-    operation: r.operation,
+    failureDescription: clipText(r.failureDescription),
+    operation: clipText(r.operation, 120),
     operationType: r.operationType,
     type: r.type,
     workflowStatus: workflowStatusForLog(r.type, r.date),
     failureCause: r.failureCause,
-    failureCauseLabel: r.failureCauseLabel,
-    linkedFailureCause: r.linkedFailureCause,
+    failureCauseLabel: clipText(r.failureCauseLabel, 120),
+    linkedFailureCause: clipText(r.linkedFailureCause),
     durationMinutes: r.durationMinutes,
-    workPerformed: r.workPerformed,
-    difficulties: r.difficulties,
-    sparePartsLabel: r.sparePartsLabel,
-    importSource: r.importSource,
+    workPerformed: clipText(r.workPerformed) ?? "",
+    difficulties: clipText(r.difficulties),
+    sparePartsLabel: clipText(r.sparePartsLabel),
+    importSource: null,
   }));
 }
 
@@ -181,7 +186,25 @@ function orderBy(filters?: InterventionListFilters): Prisma.MaintenanceLogOrderB
 
 export type InterventionsInventoryResult = PaginatedResult<InterventionListVm> & {
   catalogTotal: number;
+  typeCounts: { preventive: number; corrective: number; all: number };
 };
+
+async function fetchTypeCounts(where: Prisma.MaintenanceLogWhereInput) {
+  const grouped = await prisma.maintenanceLog.groupBy({
+    by: ["type"],
+    where,
+    _count: { _all: true },
+  });
+  let preventive = 0;
+  let corrective = 0;
+  let all = 0;
+  for (const row of grouped) {
+    all += row._count._all;
+    if (row.type === "PREVENTIVE") preventive = row._count._all;
+    if (row.type === "CORRECTIVE") corrective = row._count._all;
+  }
+  return { preventive, corrective, all };
+}
 
 export async function fetchInterventionsInventory(
   technicianId?: string | null,
@@ -189,15 +212,17 @@ export async function fetchInterventionsInventory(
   _limit = INTERVENTIONS_PAGE_SIZE,
   filters?: InterventionListFilters,
 ): Promise<InterventionsInventoryResult> {
-  const where = inventoryWhere(technicianId, filters);
+  const listFilters: InterventionListFilters = { ...filters, type: "ALL" };
+  const where = inventoryWhere(technicianId, listFilters);
   const catalogWhere = scopeWhere(technicianId);
 
-  const [catalogTotal, rows] = await Promise.all([
+  const [catalogTotal, typeCounts, rows] = await Promise.all([
     prisma.maintenanceLog.count({ where: catalogWhere }),
+    fetchTypeCounts(catalogWhere),
     prisma.maintenanceLog.findMany({
       where,
       take: INTERVENTIONS_LIST_CAP,
-      orderBy: orderBy(filters),
+      orderBy: orderBy(listFilters),
       select: listSelect,
     }),
   ]);
@@ -208,6 +233,7 @@ export async function fetchInterventionsInventory(
     items,
     total,
     catalogTotal,
+    typeCounts,
     page: 1,
     pageSize: total || 1,
     pageCount: 1,
@@ -239,16 +265,38 @@ export async function fetchInterventionSectors(): Promise<string[]> {
   return rows.map((r) => r.sectorMaintenance).filter((s): s is string => Boolean(s?.trim()));
 }
 
+export function getInterventionSectorsCached() {
+  return unstable_cache(
+    () => fetchInterventionSectors(),
+    [CACHE_TAGS.interventions, "sectors-v1"],
+    { revalidate: 120, tags: [CACHE_TAGS.interventions] },
+  )();
+}
+
+function catalogCacheKey(technicianId?: string | null, filters?: InterventionListFilters) {
+  return JSON.stringify({
+    scope: technicianId ?? "all",
+    q: filters?.q ?? "",
+    status: filters?.status ?? "ALL",
+    sector: filters?.sector ?? "ALL",
+    technicianId: filters?.technicianId ?? "ALL",
+    dateFrom: filters?.dateFrom ?? "",
+    dateTo: filters?.dateTo ?? "",
+    sort: filters?.sort ?? "date",
+    dir: filters?.dir ?? "desc",
+  });
+}
+
 export function getInterventionsInventoryCached(
   technicianId?: string | null,
   page = 1,
   limit = INTERVENTIONS_PAGE_SIZE,
+  filters?: InterventionListFilters,
 ) {
-  const scope = technicianId ?? "all";
   return unstable_cache(
-    () => fetchInterventionsInventory(technicianId, page, limit),
-    [CACHE_TAGS.interventions, scope, String(page), String(limit)],
-    { revalidate: 30, tags: [CACHE_TAGS.interventions] },
+    () => fetchInterventionsInventory(technicianId, page, limit, filters),
+    [CACHE_TAGS.interventions, "catalog-v2", catalogCacheKey(technicianId, filters)],
+    { revalidate: 60, tags: [CACHE_TAGS.interventions] },
   )();
 }
 

@@ -2,8 +2,8 @@ import { DbErrorHint } from "@/components/layout/DbError";
 import { InterventionsModuleClient } from "@/components/interventions/interventions-module-client";
 import type { MachineOption, TechnicianOption } from "@/components/interventions/InterventionIntelligentForm";
 import {
-  fetchInterventionSectors,
-  fetchInterventionsInventory,
+  getInterventionSectorsCached,
+  getInterventionsInventoryCached,
   getInterventionMachineOptionsCached,
   getInterventionTechnicianOptionsCached,
   type InterventionSortKey,
@@ -62,20 +62,10 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const dateTo = searchParams?.dateTo ?? "";
 
     const [inventory, machineRows, techRows, sectors] = await Promise.all([
-      fetchInterventionsInventory(technicianScopeId, 1, 0, {
-        q,
-        type: "ALL",
-        status,
-        sector,
-        technicianId,
-        dateFrom,
-        dateTo,
-        sort,
-        dir,
-      }),
+      getInterventionsInventoryCached(technicianScopeId),
       getInterventionMachineOptionsCached(),
       getInterventionTechnicianOptionsCached(),
-      fetchInterventionSectors(),
+      getInterventionSectorsCached(),
     ]);
 
     const machines: MachineOption[] = machineRows;
@@ -91,6 +81,8 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
         totals={{
           total: inventory.total,
           catalogTotal: inventory.catalogTotal,
+          preventive: inventory.typeCounts.preventive,
+          corrective: inventory.typeCounts.corrective,
         }}
         machines={machines}
         technicians={technicians}

@@ -2,7 +2,7 @@
 
 import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
 import dynamic from "next/dynamic";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import {
@@ -67,7 +67,86 @@ export type InterventionsListQuery = {
 type InterventionsTotals = {
   total: number;
   catalogTotal: number;
+  preventive: number;
+  corrective: number;
 };
+
+function rowMatchesQuery(row: InterventionListVm, query: InterventionsListQuery, q: string) {
+  if (query.status !== "ALL" && row.workflowStatus !== query.status) return false;
+  if (query.sector && query.sector !== "ALL") {
+    if ((row.sectorMaintenance ?? "").toLowerCase() !== query.sector.toLowerCase()) return false;
+  }
+  if (query.technicianId && query.technicianId !== "ALL" && row.technicianId !== query.technicianId) {
+    return false;
+  }
+  if (query.dateFrom) {
+    const from = Date.parse(`${query.dateFrom}T00:00:00.000Z`);
+    if (!Number.isNaN(from) && Date.parse(row.date) < from) return false;
+  }
+  if (query.dateTo) {
+    const to = Date.parse(`${query.dateTo}T23:59:59.999Z`);
+    if (!Number.isNaN(to) && Date.parse(row.date) > to) return false;
+  }
+  if (q) {
+    const blob = [
+      row.importMatricule,
+      row.machineName,
+      row.machineLocation,
+      row.technicianName,
+      row.operation,
+      row.failureDescription,
+      row.workPerformed,
+      row.sectorMaintenance,
+      row.service,
+      row.linkedFailureCause,
+      row.sparePartsLabel,
+    ]
+      .join(" ")
+      .toLowerCase();
+    if (!blob.includes(q)) return false;
+  }
+  return true;
+}
+
+function compareRows(a: InterventionListVm, b: InterventionListVm, sort: string, dir: 1 | -1) {
+  let cmp = 0;
+  switch (sort) {
+    case "machineName":
+      cmp = a.machineName.localeCompare(b.machineName, "fr");
+      break;
+    case "type":
+      cmp = a.type.localeCompare(b.type);
+      break;
+    case "importMatricule":
+      cmp = (a.importMatricule ?? "").localeCompare(b.importMatricule ?? "", "fr", { numeric: true });
+      break;
+    case "durationMinutes":
+      cmp = (a.durationMinutes ?? -1) - (b.durationMinutes ?? -1);
+      break;
+    case "technicianName":
+      cmp = (a.technicianName ?? "").localeCompare(b.technicianName ?? "", "fr");
+      break;
+    default:
+      cmp = a.date.localeCompare(b.date);
+  }
+  return cmp * dir || a.id.localeCompare(b.id) * dir;
+}
+
+function filterAndSortInterventions(rows: InterventionListVm[], query: InterventionsListQuery, tab: TabId) {
+  const q = query.q.trim().toLowerCase();
+  const base = rows.filter((row) => rowMatchesQuery(row, query, q));
+  const preventiveCount = base.filter((r) => r.type === InterventionType.PREVENTIVE).length;
+  const correctiveCount = base.filter((r) => r.type === InterventionType.CORRECTIVE).length;
+  const typed =
+    tab === "PREVENTIVE"
+      ? base.filter((r) => r.type === InterventionType.PREVENTIVE)
+      : tab === "CORRECTIVE"
+        ? base.filter((r) => r.type === InterventionType.CORRECTIVE)
+        : base;
+  const dir: 1 | -1 = query.dir === "asc" ? 1 : -1;
+  const visibleRows = [...typed].sort((a, b) => compareRows(a, b, query.sort, dir));
+  return { visibleRows, preventiveCount, correctiveCount, allCount: base.length };
+}
 
 type InterventionsModuleClientProps = {
   interventions: InterventionListVm[];
@@ -106,12 +185,12 @@ export function InterventionsModuleClient({
   technicians,
   sectors,
   readOnly = false,
-  query,
+  query: initialQuery,
 }: InterventionsModuleClientProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const [rows, setRows] = React.useState(initialRows);
-  const [tab, setTab] = React.useState<TabId>(() => tabFromType(query.type));
+  const [query, setQuery] = React.useState(initialQuery);
+  const [tab, setTab] = React.useState<TabId>(() => tabFromType(initialQuery.type));
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [viewId, setViewId] = React.useState<string | null>(null);
   const [editRow, setEditRow] = React.useState<InterventionListVm | null>(null);
@@ -122,23 +201,18 @@ export function InterventionsModuleClient({
     setRows(initialRows);
   }, [initialRows]);
 
-  React.useEffect(() => {
-    setTab(tabFromType(query.type));
-  }, [query.type]);
-
-  const pushQuery = React.useCallback(
-    (next: InterventionsListQuery) => {
-      const qs = buildMaintenanceListSearch(next);
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    },
-    [pathname, router],
-  );
-
   const patchQuery = React.useCallback(
     (patch: Partial<InterventionsListQuery>) => {
-      pushQuery({ ...query, ...patch });
+      setQuery((prev) => {
+        const next = { ...prev, ...patch };
+        const qs = buildMaintenanceListSearch(next);
+        if (typeof window !== "undefined") {
+          window.history.replaceState(window.history.state, "", qs ? `${pathname}?${qs}` : pathname);
+        }
+        return next;
+      });
     },
-    [pushQuery, query],
+    [pathname],
   );
 
   const selectTab = React.useCallback(
@@ -215,25 +289,15 @@ export function InterventionsModuleClient({
     setSelectedIds(new Set());
   }, []);
 
-  const preventiveCount = React.useMemo(
-    () => rows.filter((r) => r.type === InterventionType.PREVENTIVE).length,
-    [rows],
+  const { visibleRows, preventiveCount, correctiveCount, allCount } = React.useMemo(
+    () => filterAndSortInterventions(rows, query, tab),
+    [rows, query, tab],
   );
-  const correctiveCount = React.useMemo(
-    () => rows.filter((r) => r.type === InterventionType.CORRECTIVE).length,
-    [rows],
-  );
-
-  const visibleRows = React.useMemo(() => {
-    if (tab === "PREVENTIVE") return rows.filter((r) => r.type === InterventionType.PREVENTIVE);
-    if (tab === "CORRECTIVE") return rows.filter((r) => r.type === InterventionType.CORRECTIVE);
-    return rows;
-  }, [rows, tab]);
 
   const tabs: { id: TabId; label: string; count: number }[] = [
     { id: "PREVENTIVE", label: "Maintenance Préventive", count: preventiveCount },
     { id: "CORRECTIVE", label: "Maintenance Corrective", count: correctiveCount },
-    { id: "ALL", label: "Toutes les Maintenances", count: rows.length },
+    { id: "ALL", label: "Toutes les Maintenances", count: allCount },
   ];
 
   return (
@@ -300,7 +364,7 @@ export function InterventionsModuleClient({
           dir: query.dir,
           onChange: (sort, dir) => patchQuery({ sort, dir }),
         }}
-        totals={{ total: visibleRows.length, catalogTotal: rows.length }}
+        totals={{ total: visibleRows.length, catalogTotal: totals.catalogTotal }}
       />
 
       <InterventionDetailSheet
