@@ -246,6 +246,17 @@ export function InterventionsModuleClient({
   const filters = React.useMemo(
     () => [
       {
+        id: "type",
+        label: "Type de maintenance",
+        value: query.type === "PREVENTIVE" || query.type === "CORRECTIVE" ? query.type : "ALL",
+        onChange: (v: string) => selectTab(v as TabId),
+        options: [
+          { value: "PREVENTIVE", label: "Préventive" },
+          { value: "CORRECTIVE", label: "Corrective" },
+          { value: "ALL", label: "Toutes" },
+        ],
+      },
+      {
         id: "status",
         label: "Statut",
         value: query.status,
@@ -270,7 +281,7 @@ export function InterventionsModuleClient({
         ],
       },
     ],
-    [query.status, query.sector, query.technicianId, sectors, technicians, patchQuery],
+    [query.type, query.status, query.sector, query.technicianId, sectors, technicians, patchQuery, selectTab],
   );
 
   const handleDeleted = React.useCallback((id: string) => {
@@ -302,10 +313,12 @@ export function InterventionsModuleClient({
 
   return (
     <GmaoModuleShell
+      className="space-y-3"
       title={readOnly ? "Mes interventions" : "Liste de Maintenance"}
       subtitle={`${totals.catalogTotal.toLocaleString("fr-FR")} maintenances importées — filtrer par sous-module.`}
     >
-      <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Sous-modules de maintenance">
+    <div className="space-y-2">
+      <div className="flex flex-nowrap gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Sous-modules de maintenance">
         {tabs.map((item) => {
           const active = tab === item.id;
           return (
@@ -330,25 +343,44 @@ export function InterventionsModuleClient({
       </div>
 
       <ModuleFilterBar
+        layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
-        searchPlaceholder="Recherche globale : matricule, machine, rapport, intervenant…"
+        searchPlaceholder="Matricule, machine, rapport, intervenant…"
         searchResetKey={`${query.status}-${query.sector}-${tab}`}
         resultCount={visibleRows.length}
         action={newInterventionAction}
         exportActions={readOnly ? undefined : <InterventionsExportButtons items={visibleRows} />}
         filters={filters}
+        extras={
+          <>
+            <div className="w-[10.25rem] min-w-[10.25rem] shrink-0">
+              <Label htmlFor="date-from" className="text-[11px] font-medium text-slate-700">
+                Date du
+              </Label>
+              <Input
+                id="date-from"
+                type="date"
+                value={query.dateFrom}
+                onChange={(e) => patchQuery({ dateFrom: e.target.value })}
+                className="mt-0.5 h-9 border-slate-200 bg-white"
+              />
+            </div>
+            <div className="w-[10.25rem] min-w-[10.25rem] shrink-0">
+              <Label htmlFor="date-to" className="text-[11px] font-medium text-slate-700">
+                Date au
+              </Label>
+              <Input
+                id="date-to"
+                type="date"
+                value={query.dateTo}
+                onChange={(e) => patchQuery({ dateTo: e.target.value })}
+                className="mt-0.5 h-9 border-slate-200 bg-white"
+              />
+            </div>
+          </>
+        }
       />
-
-      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1">
-          <Label className="text-xs text-slate-600">Date du</Label>
-          <Input type="date" value={query.dateFrom} onChange={(e) => patchQuery({ dateFrom: e.target.value })} className="h-9" />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-slate-600">Date au</Label>
-          <Input type="date" value={query.dateTo} onChange={(e) => patchQuery({ dateTo: e.target.value })} className="h-9" />
-        </div>
-      </div>
+    </div>
 
       <InterventionsDataTable
         interventions={visibleRows}

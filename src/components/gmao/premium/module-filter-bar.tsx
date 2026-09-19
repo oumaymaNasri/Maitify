@@ -22,6 +22,7 @@ type IsolatedModuleSearchProps = {
   resetKey?: string | number;
   onDebouncedChange: (value: string) => void;
   onFilteringChange?: (isFiltering: boolean) => void;
+  compact?: boolean;
 };
 
 const IsolatedModuleSearch = React.memo(function IsolatedModuleSearch({
@@ -29,6 +30,7 @@ const IsolatedModuleSearch = React.memo(function IsolatedModuleSearch({
   resetKey,
   onDebouncedChange,
   onFilteringChange,
+  compact = false,
 }: IsolatedModuleSearchProps) {
   const [localQ, setLocalQ] = React.useState("");
   const debouncedQ = useDebouncedValue(localQ, 150);
@@ -46,18 +48,27 @@ const IsolatedModuleSearch = React.memo(function IsolatedModuleSearch({
   }, [localQ, debouncedQ, onFilteringChange]);
 
   return (
-    <div className="space-y-1.5 sm:col-span-2 lg:col-span-5">
-      <Label htmlFor="module-search" className="text-xs font-medium text-slate-700">
+    <div
+      className={cn(
+        compact
+          ? "min-w-[14rem] flex-[1.8] shrink-0"
+          : "space-y-1.5 sm:col-span-2 lg:col-span-5",
+      )}
+    >
+      <Label htmlFor="module-search" className={cn("font-medium text-slate-700", compact ? "text-[11px]" : "text-xs")}>
         Recherche
       </Label>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <div className={cn("relative", compact && "mt-0.5")}>
+        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
         <Input
           id="module-search"
           value={localQ}
           onChange={(e) => setLocalQ(e.target.value)}
           placeholder={placeholder}
-          className="h-10 border-slate-200 bg-white pl-9 text-slate-900 placeholder:text-slate-400 focus-visible:ring-[#1F76FB]"
+          className={cn(
+            "border-slate-200 bg-white pl-8 text-slate-900 placeholder:text-slate-400 focus-visible:ring-[#1F76FB]",
+            compact ? "h-9 text-sm" : "h-10",
+          )}
         />
       </div>
     </div>
@@ -72,6 +83,8 @@ type ModuleFilterBarProps = {
   resultCount?: number;
   action?: React.ReactNode;
   exportActions?: React.ReactNode;
+  extras?: React.ReactNode;
+  layout?: "grid" | "inline";
   className?: string;
 };
 
@@ -83,6 +96,8 @@ function ModuleFilterBarInner({
   resultCount,
   action,
   exportActions,
+  extras,
+  layout = "grid",
   className,
 }: ModuleFilterBarProps) {
   const [isFiltering, setIsFiltering] = React.useState(false);
@@ -92,16 +107,23 @@ function ModuleFilterBarInner({
     },
     [onDebouncedSearchChange],
   );
+  const inline = layout === "inline";
 
   return (
     <div
       className={cn(
-        "rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-all duration-300",
+        "rounded-lg border border-slate-200 bg-white shadow-sm transition-all duration-300",
+        inline ? "px-3 py-2" : "p-4",
         className,
       )}
     >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-600">
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2",
+          inline ? "mb-2" : "mb-4 flex-col sm:flex-row",
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-2 text-xs text-slate-600 sm:text-sm">
           {resultCount != null ? (
             <>
               <span className="font-semibold tabular-nums text-slate-900">{resultCount}</span>
@@ -110,38 +132,68 @@ function ModuleFilterBarInner({
           ) : null}
           {isFiltering ? <span className="text-xs text-[#1F76FB]">Filtrage…</span> : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-nowrap items-center gap-2">
           {exportActions}
           {action}
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-        <IsolatedModuleSearch
-          placeholder={searchPlaceholder}
-          resetKey={searchResetKey}
-          onDebouncedChange={handleDebouncedChange}
-          onFilteringChange={setIsFiltering}
-        />
-
-        {filters.map((f) => (
-          <div key={f.id} className="space-y-1.5 lg:col-span-2">
-            <Label className="text-xs font-medium text-slate-700">{f.label}</Label>
-            <Select value={f.value} onValueChange={f.onChange}>
-              <SelectTrigger className="h-10 border-slate-200 bg-white text-slate-900">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {f.options.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ))}
-      </div>
+      {inline ? (
+        <div className="flex flex-nowrap items-end gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
+          <IsolatedModuleSearch
+            placeholder={searchPlaceholder}
+            resetKey={searchResetKey}
+            onDebouncedChange={handleDebouncedChange}
+            onFilteringChange={setIsFiltering}
+            compact
+          />
+          {filters.map((f) => (
+            <div key={f.id} className="min-w-[8.5rem] flex-1 shrink-0">
+              <Label className="text-[11px] font-medium text-slate-700">{f.label}</Label>
+              <Select value={f.value} onValueChange={f.onChange}>
+                <SelectTrigger className="mt-0.5 h-9 border-slate-200 bg-white text-slate-900">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {f.options.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+          {extras}
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+          <IsolatedModuleSearch
+            placeholder={searchPlaceholder}
+            resetKey={searchResetKey}
+            onDebouncedChange={handleDebouncedChange}
+            onFilteringChange={setIsFiltering}
+          />
+          {filters.map((f) => (
+            <div key={f.id} className="space-y-1.5 lg:col-span-2">
+              <Label className="text-xs font-medium text-slate-700">{f.label}</Label>
+              <Select value={f.value} onValueChange={f.onChange}>
+                <SelectTrigger className="h-10 border-slate-200 bg-white text-slate-900">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {f.options.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+          {extras}
+        </div>
+      )}
     </div>
   );
 }
