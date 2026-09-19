@@ -13,6 +13,7 @@ import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import type { MachineOption, TechnicianOption } from "@/components/interventions/InterventionIntelligentForm";
+import { InterventionsCollapseSection } from "@/components/interventions/interventions-collapse-section";
 import { InterventionsDataTable } from "@/components/interventions/interventions-data-table";
 import { InterventionsExportButtons } from "@/components/interventions/interventions-export-buttons";
 import { ButtonLink } from "@/components/ui/button";
@@ -20,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { formatDateFrMedium } from "@/lib/utils/format-date";
-import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
 const InterventionDetailSheet = dynamic(
@@ -45,12 +45,36 @@ const STATUS_OPTIONS = [
   { value: MaintenanceWorkflowStatus.COMPLETED, label: maintenanceWorkflowStatusFr(MaintenanceWorkflowStatus.COMPLETED) },
 ] as const;
 
-const TYPE_OPTIONS = [
-  { value: "ALL", label: "Tous" },
-  { value: InterventionType.PREVENTIVE, label: interventionTypeFr(InterventionType.PREVENTIVE) },
-  { value: InterventionType.CORRECTIVE, label: interventionTypeFr(InterventionType.CORRECTIVE) },
-  { value: InterventionType.AMELIORATION, label: interventionTypeFr(InterventionType.AMELIORATION) },
-] as const;
+type SectionId = "preventive" | "corrective" | "all";
+
+const SECTIONS_STORAGE_KEY = "nutrifish.gmao.interventions.sections.v1";
+
+function defaultOpenSections(type: TypeFilter): Record<SectionId, boolean> {
+  if (type === InterventionType.PREVENTIVE) {
+    return { preventive: true, corrective: false, all: false };
+  }
+  if (type === InterventionType.CORRECTIVE) {
+    return { preventive: false, corrective: true, all: false };
+  }
+  return { preventive: false, corrective: false, all: true };
+}
+
+function loadOpenSections(type: TypeFilter): Record<SectionId, boolean> {
+  const fallback = defaultOpenSections(type);
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(SECTIONS_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<Record<SectionId, boolean>>;
+    return {
+      preventive: Boolean(parsed.preventive),
+      corrective: Boolean(parsed.corrective),
+      all: parsed.all == null ? true : Boolean(parsed.all),
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 export type InterventionsListQuery = {
   q: string;
@@ -82,7 +106,6 @@ type InterventionsModuleClientProps = {
 export function buildMaintenanceListSearch(query: InterventionsListQuery): string {
   const params = new URLSearchParams();
   if (query.q.trim()) params.set("q", query.q.trim());
-  if (query.type !== "ALL") params.set("type", query.type);
   if (query.status !== "ALL") params.set("status", query.status);
   if (query.sector && query.sector !== "ALL") params.set("sector", query.sector);
   if (query.technicianId && query.technicianId !== "ALL") params.set("technicianId", query.technicianId);
@@ -116,6 +139,23 @@ export function InterventionsModuleClient({
   const [editRow, setEditRow] = React.useState<InterventionListVm | null>(null);
   const [deleteRow, setDeleteRow] = React.useState<InterventionListVm | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [openSections, setOpenSections] = React.useState<Record<SectionId, boolean>>(() =>
+    defaultOpenSections(query.type),
+  );
+
+  const persistSections = React.useRef(false);
+
+  React.useEffect(() => {
+    setOpenSections(loadOpenSections(query.type));
+  }, [query.type]);
+
+  React.useEffect(() => {
+    if (!persistSections.current) {
+      persistSections.current = true;
+      return;
+    }
+    window.localStorage.setItem(SECTIONS_STORAGE_KEY, JSON.stringify(openSections));
+  }, [openSections]);
 
   React.useEffect(() => {
     setRows(initialRows);
@@ -158,13 +198,6 @@ export function InterventionsModuleClient({
   const filters = React.useMemo(
     () => [
       {
-        id: "type",
-        label: "Type de maintenance",
-        value: query.type,
-        onChange: (v: string) => patchQuery({ type: v as TypeFilter }),
-        options: [...TYPE_OPTIONS],
-      },
-      {
         id: "status",
         label: "Statut",
         value: query.status,
@@ -189,7 +222,7 @@ export function InterventionsModuleClient({
         ],
       },
     ],
-    [query.type, query.status, query.sector, query.technicianId, sectors, technicians, patchQuery],
+    [query.status, query.sector, query.technicianId, sectors, technicians, patchQuery],
   );
 
   const handleDeleted = React.useCallback((id: string) => {
@@ -208,15 +241,48 @@ export function InterventionsModuleClient({
     setSelectedIds(new Set());
   }, []);
 
+  const preventiveRows = React.useMemo(
+    () => rows.filter((r) => r.type === InterventionType.PREVENTIVE),
+    [rows],
+  );
+  const correctiveRows = React.useMemo(
+    () => rows.filter((r) => r.type === InterventionType.CORRECTIVE),
+    [rows],
+  );
+
+  const toggleSection = React.useCallback((id: SectionId) => {
+    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const tableFor = (list: InterventionListVm[]) => (
+    <InterventionsDataTable
+      interventions={list}
+      selectedIds={selectedIds}
+      onSelectedIdsChange={setSelectedIds}
+      onView={(row) => setViewId(row.id)}
+      onEdit={readOnly ? () => {} : setEditRow}
+      onDelete={readOnly ? () => {} : setDeleteRow}
+      onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
+      readOnly={readOnly}
+      serverSort={{
+        sort: query.sort,
+        dir: query.dir,
+        onChange: (sort, dir) => patchQuery({ sort, dir }),
+      }}
+      totals={{ total: list.length, catalogTotal: list.length }}
+      embedded
+    />
+  );
+
   return (
     <GmaoModuleShell
       title={readOnly ? "Mes interventions" : "Liste de Maintenance"}
-      subtitle={`${totals.catalogTotal.toLocaleString("fr-FR")} maintenances importées (préventives et correctives), tableau continu sans pagination.`}
+      subtitle={`${totals.catalogTotal.toLocaleString("fr-FR")} maintenances importées. Trois sections repliables : préventive, corrective, et liste complète.`}
     >
       <ModuleFilterBar
         onDebouncedSearchChange={handleDebouncedSearch}
         searchPlaceholder="Recherche globale : matricule, machine, rapport, intervenant…"
-        searchResetKey={`${query.type}-${query.status}-${query.sector}`}
+        searchResetKey={`${query.status}-${query.sector}`}
         resultCount={totals.total}
         action={newInterventionAction}
         exportActions={readOnly ? undefined : <InterventionsExportButtons items={rows} />}
@@ -234,22 +300,35 @@ export function InterventionsModuleClient({
         </div>
       </div>
 
-      <InterventionsDataTable
-        interventions={rows}
-        selectedIds={selectedIds}
-        onSelectedIdsChange={setSelectedIds}
-        onView={(row) => setViewId(row.id)}
-        onEdit={readOnly ? () => {} : setEditRow}
-        onDelete={readOnly ? () => {} : setDeleteRow}
-        onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
-        readOnly={readOnly}
-        serverSort={{
-          sort: query.sort,
-          dir: query.dir,
-          onChange: (sort, dir) => patchQuery({ sort, dir }),
-        }}
-        totals={totals}
-      />
+      <div className="space-y-3">
+        <InterventionsCollapseSection
+          id="maintenance-preventive"
+          title="Maintenance Préventive"
+          count={preventiveRows.length}
+          open={openSections.preventive}
+          onToggle={() => toggleSection("preventive")}
+        >
+          {tableFor(preventiveRows)}
+        </InterventionsCollapseSection>
+        <InterventionsCollapseSection
+          id="maintenance-corrective"
+          title="Maintenance Corrective"
+          count={correctiveRows.length}
+          open={openSections.corrective}
+          onToggle={() => toggleSection("corrective")}
+        >
+          {tableFor(correctiveRows)}
+        </InterventionsCollapseSection>
+        <InterventionsCollapseSection
+          id="maintenance-toutes"
+          title="Toutes les Maintenances"
+          count={rows.length}
+          open={openSections.all}
+          onToggle={() => toggleSection("all")}
+        >
+          {tableFor(rows)}
+        </InterventionsCollapseSection>
+      </div>
 
       <InterventionDetailSheet
         interventionId={viewId}

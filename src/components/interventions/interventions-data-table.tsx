@@ -121,6 +121,7 @@ type InterventionsDataTableProps = {
   readOnly?: boolean;
   totals: { total: number; catalogTotal: number };
   serverSort: ServerSortProps;
+  embedded?: boolean;
 };
 
 export function InterventionsDataTable({
@@ -134,6 +135,7 @@ export function InterventionsDataTable({
   readOnly = false,
   totals,
   serverSort,
+  embedded = false,
 }: InterventionsDataTableProps) {
   const persisted = React.useMemo(() => loadTableState(), []);
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(persisted.columnOrder ?? DEFAULT_ORDER);
@@ -302,7 +304,7 @@ export function InterventionsDataTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className={cn(embedded ? "overflow-hidden rounded-xl border border-slate-100 bg-white" : "overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm")}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <p className="text-xs text-slate-500">
           {totals.catalogTotal.toLocaleString("fr-FR")} maintenances au total

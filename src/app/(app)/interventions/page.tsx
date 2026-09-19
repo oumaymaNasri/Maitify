@@ -64,7 +64,7 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const [inventory, machineRows, techRows, sectors] = await Promise.all([
       fetchInterventionsInventory(technicianScopeId, 1, 0, {
         q,
-        type,
+        type: "ALL",
         status,
         sector,
         technicianId,
