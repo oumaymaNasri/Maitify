@@ -1,4 +1,4 @@
-import { MachineAssetStatus, MaintenanceOrderStatus } from "@prisma/client";
+import { MachineAssetStatus, MaintenanceOrderStatus, MaintenanceWorkflowStatus } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
 import type { LiveAlertVm } from "@/components/dashboard/dashboard-live-alerts";
@@ -72,6 +72,12 @@ export type PremiumDashboardPayload = {
   featuredMachine: FeaturedMachineVm | null;
   mttrMonthly: MttrSparkPoint[];
   alertsCriticalCount: number;
+  preventivesToDo: number;
+  preventivesOverdue: number;
+  machinesDown: number;
+  correctivesThisMonth: number;
+  omActiveCount: number;
+  interventionsThisMonth: number;
 };
 
 function dayKey(d: Date): string {
@@ -240,6 +246,7 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
   const [
     machinesTotal,
     machinesOperational,
+    machinesDown,
     criticalStockCount,
     openInterventions,
     hoursAgg,
@@ -249,9 +256,14 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
     omTracking,
     featuredMachine,
     mttrRaw,
+    preventivesOverdue,
+    correctivesThisMonth,
+    omActiveCount,
+    interventionsThisMonth,
   ] = await Promise.all([
     prisma.machine.count(),
     prisma.machine.count({ where: { assetStatus: MachineAssetStatus.OPERATIONAL } }),
+    prisma.machine.count({ where: { assetStatus: { not: MachineAssetStatus.OPERATIONAL } } }),
     prisma.$queryRaw<[{ count: number }]>`SELECT COUNT(*)::int AS count FROM "Part" WHERE quantity <= min_stock`.then(
       (r) => Number(r[0]?.count ?? 0),
     ),
@@ -284,6 +296,14 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
     buildOmTrackingSeries(since30),
     fetchFeaturedMachine(),
     getMttrMonthlySeries(12),
+    prisma.maintenanceLog.count({
+      where: { type: "PREVENTIVE", workflowStatus: MaintenanceWorkflowStatus.OPEN, date: { lte: startOfTodayTunis() } },
+    }),
+    prisma.maintenanceLog.count({
+      where: { type: "CORRECTIVE", date: { gte: monthStart } },
+    }),
+    prisma.maintenanceOrder.count({ where: { status: MaintenanceOrderStatus.ACTIVE } }),
+    prisma.maintenanceLog.count({ where: { date: { gte: monthStart } } }),
   ]);
 
   const availabilityPct =
@@ -354,11 +374,17 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
     featuredMachine,
     mttrMonthly,
     alertsCriticalCount,
+    preventivesToDo: openInterventions,
+    preventivesOverdue,
+    machinesDown,
+    correctivesThisMonth,
+    omActiveCount,
+    interventionsThisMonth,
   };
 }
 
 export const getPremiumDashboardDataCached = unstable_cache(
   fetchPremiumDashboardData,
-  ["premium-dashboard-v3"],
+  ["premium-dashboard-v4"],
   { revalidate: 60, tags: [CACHE_TAGS.dashboard, CACHE_TAGS.maintenanceOrders] },
 );
