@@ -17,7 +17,7 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import { requireManageAction, requireSessionAction } from "@/lib/auth/session-server";
 import { createStockMovementFromIntervention } from "@/lib/gmao/stock-movement-helper";
 import { prisma } from "@/lib/db/prisma";
-import { fetchInterventionDetail } from "@/lib/gmao/intervention-detail-query";
+import { attachLogToDailyOrder, type DailyOrderLink } from "@/lib/gmao/maintenance-order-from-logs";
 import { completeMaintenanceOrderLine } from "@/app/actions/maintenance-order";
 import {
   maintenanceLogEditSchema,
@@ -26,7 +26,7 @@ import {
 } from "@/lib/validations/maintenance-log";
 
 export type CreateMaintenanceLogResult =
-  | { ok: true; id: string }
+  | { ok: true; id: string; om?: DailyOrderLink }
   | { ok: false; error: string };
 
 export type MaintenanceLogActionResult = { ok: true; id: string } | { ok: false; error: string };
@@ -37,6 +37,7 @@ function revalidateMaintenancePaths() {
   revalidateTag(CACHE_TAGS.stock);
   revalidateTag(CACHE_TAGS.machines);
   revalidateTag(CACHE_TAGS.maintenanceOrders);
+  revalidateTag(CACHE_TAGS.dashboard);
   revalidatePath("/interventions");
   revalidatePath("/maintenance-orders");
   revalidatePath("/stock");
@@ -158,7 +159,7 @@ export async function createMaintenanceLogWithParts(formData: FormData): Promise
   const isCompleted = data.workflowStatus === MaintenanceWorkflowStatus.COMPLETED;
 
   try {
-    const id = await prisma.$transaction(async (tx) => {
+    const created = await prisma.$transaction(async (tx) => {
       if (data.lines.length > 0 && isCompleted) {
         for (const line of data.lines) {
           const part = await tx.sparePart.findUnique({ where: { id: line.sparePartId } });
@@ -258,15 +259,29 @@ export async function createMaintenanceLogWithParts(formData: FormData): Promise
         }
       }
 
-      return log.id;
+      const om = await attachLogToDailyOrder(tx, {
+        logId: log.id,
+        date: data.date,
+        type: mapOperationToLegacyType(data.operationType),
+        machineId: data.machineId,
+        existingLineId: data.maintenanceOrderLineId?.trim() || null,
+        preventiveCleaning: data.preventiveCleaning,
+        preventiveLubrication: data.preventiveLubrication,
+        preventiveOil: data.preventiveOil,
+        preventiveControl: data.preventiveControl,
+        preventiveNonConforme: data.preventiveNonConforme,
+        notify: true,
+      });
+
+      return { id: log.id, om };
     });
 
     if (data.maintenanceOrderLineId?.trim() && isCompleted) {
-      await completeMaintenanceOrderLine(data.maintenanceOrderLineId.trim(), id);
+      await completeMaintenanceOrderLine(data.maintenanceOrderLineId.trim(), created.id);
     }
 
     revalidateMaintenancePaths();
-    return { ok: true, id };
+    return { ok: true, id: created.id, om: created.om };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Échec de l'enregistrement." };
   }

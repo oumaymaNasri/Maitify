@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { createMaintenanceLogWithParts } from "@/app/actions/maintenance-log";
-import { InterventionFicheButton } from "@/components/interventions/intervention-fiche-button";
+import { dispatchOmNotice } from "@/components/gmao/om-notice-host";
 import { SparePartSearchSelect } from "@/components/interventions/spare-part-search-select";
 import { TouchSignaturePad } from "@/components/interventions/TouchSignaturePad";
 import { Badge } from "@/components/ui/badge";
@@ -164,9 +164,20 @@ export function InterventionIntelligentForm({
       const result = await createMaintenanceLogWithParts(formData);
       if (result.ok) {
         setCreatedId(result.id);
+        if (result.om) {
+          dispatchOmNotice({
+            created: result.om.created,
+            reference: result.om.reference,
+            dayKey: result.om.dayKey,
+          });
+        }
         setMessage({
           kind: "ok",
-          text: `Intervention enregistrée.${maintenanceOrderLineId ? " L'ordre de maintenance associé a été clôturé si toutes les lignes sont réalisées." : ""} Stock mis à jour si pièces consommées.`,
+          text: result.om
+            ? result.om.created
+              ? `Intervention enregistrée. Ordre ${result.om.reference} créé pour cette date.`
+              : `Intervention enregistrée et rattachée à l'ordre ${result.om.reference}.`
+            : `Intervention enregistrée.${maintenanceOrderLineId ? " L'ordre de maintenance associé a été clôturé si toutes les lignes sont réalisées." : ""}`,
         });
         setSignatureDataUrl("");
         setSigReset((k) => k + 1);

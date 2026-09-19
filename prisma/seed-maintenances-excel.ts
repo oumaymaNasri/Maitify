@@ -18,6 +18,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { startOfTodayTunis, workflowStatusForLog } from "../src/lib/gmao/intervention-status";
+import { syncDailyMaintenanceOrders } from "../src/lib/gmao/maintenance-order-from-logs";
 
 const prisma = new PrismaClient();
 
@@ -599,6 +600,8 @@ async function main() {
     const techs = await loadTechnicianIndex();
     await repairImportedMetadata(techs);
     await syncWorkflowStatuses();
+    const om = await syncDailyMaintenanceOrders(prisma);
+    console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
     return;
   }
 
@@ -620,6 +623,8 @@ async function main() {
   console.log(`[seed-maintenances] OK créées=${stats.created} total=${total} (attendu ${expected})`);
   await repairImportedMetadata(techs);
   await syncWorkflowStatuses();
+  const om = await syncDailyMaintenanceOrders(prisma);
+  console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
 }
 
 main()
