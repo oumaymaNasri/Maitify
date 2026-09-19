@@ -284,9 +284,10 @@ async function getTypeMonthlySeries(months = 12): Promise<TypeMonthPoint[]> {
 async function getSectorBreakdown(): Promise<SectorSlice[]> {
   const rows = await prisma.$queryRaw<{ sector: string; count: number }[]>`
     SELECT
-      COALESCE(NULLIF(TRIM("sectorMaintenance"), ''), 'Non renseigné') AS sector,
+      TRIM("sectorMaintenance") AS sector,
       COUNT(*)::int AS count
     FROM "Intervention"
+    WHERE NULLIF(TRIM("sectorMaintenance"), '') IS NOT NULL
     GROUP BY 1
     ORDER BY count DESC
     LIMIT 8
@@ -470,6 +471,6 @@ export async function fetchPremiumDashboardData(): Promise<PremiumDashboardPaylo
 
 export const getPremiumDashboardDataCached = unstable_cache(
   fetchPremiumDashboardData,
-  ["premium-dashboard-v5"],
+  ["premium-dashboard-v6"],
   { revalidate: 60, tags: [CACHE_TAGS.dashboard, CACHE_TAGS.maintenanceOrders] },
 );

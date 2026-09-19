@@ -109,15 +109,61 @@ function isOui(v: string | undefined): boolean | null {
   return null;
 }
 
-function interventionTypeFromFr(value: string | undefined, fallback: InterventionType): InterventionType {
-  const u = norm(value)
+function foldKey(value: string | undefined): string {
+  return norm(value)
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function interventionTypeFromFr(value: string | undefined, fallback: InterventionType): InterventionType {
+  const u = foldKey(value);
   if (u.includes("prevent")) return InterventionType.PREVENTIVE;
   if (u.includes("amel")) return InterventionType.AMELIORATION;
   if (u.includes("correct")) return InterventionType.CORRECTIVE;
   return fallback;
+}
+
+function combinedInterventionType(value: string | undefined): InterventionType {
+  const u = foldKey(value);
+  if (!u || u.includes("eid")) return InterventionType.PREVENTIVE;
+  return interventionTypeFromFr(value, InterventionType.PREVENTIVE);
+}
+
+/** Atelier / fréquence Excel → libellé filtre / graphique. */
+function normalizeSector(raw: string | undefined): string | null {
+  const s = norm(raw);
+  if (!s) return null;
+  const f = foldKey(s);
+  if (!f) return null;
+  if (f.includes("eid") || f.includes("jour")) return "Journalière";
+  if (f.includes("poste")) return "Par Poste";
+  if (f.includes("prod")) return "C. Production";
+  return s;
+}
+
+function normalizeService(raw: string | undefined, sector: string | null): string | null {
+  const f = foldKey(raw);
+  if (f && !f.includes("eid")) {
+    if (f.includes("prod")) return "PRODUCTION";
+    if (f.includes("maint")) return "MAINTENANCE";
+    return norm(raw);
+  }
+  if (sector === "C. Production") return "PRODUCTION";
+  if (sector) return "MAINTENANCE";
+  return null;
+}
+
+const DEFAULT_TECHNICIAN_LABEL = "Équipe de Maintenance";
+
+function normalizeTechnicianLabel(raw: string | undefined): string {
+  const s = norm(raw);
+  const f = foldKey(s);
+  if (!s || f.includes("eid")) return DEFAULT_TECHNICIAN_LABEL;
+  if ((f.includes("eq") || f.includes("equipe")) && f.includes("maint")) return DEFAULT_TECHNICIAN_LABEL;
+  return s;
 }
 
 function operationTypeFromFr(value: string | undefined, type: InterventionType): OperationType {
@@ -270,10 +316,11 @@ async function importCorrective(rows: ExcelRow[], machines: Map<string, Machine>
   for (const r of rows) {
     const machineName = norm(r["Nom de la machine"]) || UNNAMED_MACHINE;
     const machine = await resolveMachine(machineName, r["Emplacement"], machines);
-    const type = interventionTypeFromFr(r["TYPE DE MAINTENANCE"], InterventionType.CORRECTIVE);
+    const type = combinedInterventionType(r["TYPE DE MAINTENANCE"]);
+    const sector = normalizeSector(r["Secteur Maintenance"]);
     const failureDescription = norm(r["DESCRIPTION DE DYSFONCTIONNEMENT"]) || null;
     const rapport = norm(r["RAPPORT D'INTERVENTION"]);
-    const tech = await resolveTechnician(r["Intervanant"] || r["Intervenant"], techs);
+    const tech = await resolveTechnician(normalizeTechnicianLabel(r["Intervanant"] || r["Intervenant"]), techs);
     const desig = norm(r["PIECE DE RECHANGE ET CONSOMMABLES"]);
     const ref = norm(r["REFERENCE"]);
     const brand = norm(r["MARQUE"]);
@@ -299,8 +346,8 @@ async function importCorrective(rows: ExcelRow[], machines: Map<string, Machine>
       linkedFailureCause: norm(r["CAUSE LIE A LA DEFAILLANCE"]) || null,
       failureCauseLabel: norm(r["CAUSE DE DEFAILLANCE"]) || null,
       sparePartsLabel: sparePartsLabel || null,
-      sectorMaintenance: norm(r["Secteur Maintenance"]) || null,
-      service: norm(r["service"]) || null,
+      sectorMaintenance: sector,
+      service: normalizeService(r["service"], sector),
       operation: norm(r["Opération"]) || null,
       difficulties: norm(r["DIFFICULTES RENCONTREES"]) || null,
       preventiveCleaning: null,
@@ -323,9 +370,10 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
   const prepared: PreparedLog[] = [];
   for (const r of rows) {
     const machineName = norm(r["Nom de la machine"]) || UNNAMED_MACHINE;
-    const machine = await resolveMachine(machineName, "", machines);
-    const type = interventionTypeFromFr(r["Type d'intervention"], InterventionType.PREVENTIVE);
-    const date = parseExcelDate(r["Date"]);
+    const machine = await resolveMachine(machineName, DEFAULT_LOCATION, machines);
+    const type = InterventionType.PREVENTIVE;
+    const date = parseExcelDate(r["Date"] || r["date"]);
+    const sector = normalizeSector(r["Durée d'intervention"] || r["Secteur Maintenance"] || r["secteur"]);
     const workParts = [
       isOui(r["Nettoyage"]) ? "Nettoyage: OUI" : norm(r["Nettoyage"]) && `Nettoyage: ${norm(r["Nettoyage"])}`,
       isOui(r["Graissage"]) ? "Graissage: OUI" : norm(r["Graissage"]) && `Graissage: ${norm(r["Graissage"])}`,
@@ -334,7 +382,10 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
       norm(r["Qtite"]) && `Quantité: ${norm(r["Qtite"])}`,
       norm(r["Durée d'intervention"]) && `Durée / atelier: ${norm(r["Durée d'intervention"])}`,
     ].filter(Boolean) as string[];
-    const tech = await resolveTechnician(r["Nom de Technicien"], techs);
+    const tech = await resolveTechnician(
+      normalizeTechnicianLabel(r["Nom de Technicien"] || r["Intervenant"] || r["Intervanant"]),
+      techs,
+    );
     const water: PreparedLog["water"] = [];
     for (const [column, raw] of Object.entries(r)) {
       const zone = zoneFromThColumn(column);
@@ -369,9 +420,9 @@ async function importPreventive(rows: ExcelRow[], machines: Map<string, Machine>
       linkedFailureCause: null,
       failureCauseLabel: null,
       sparePartsLabel: sparePartsLabel || null,
-      sectorMaintenance: null,
-      service: null,
-      operation: norm(r["Type d'intervention"]) || null,
+      sectorMaintenance: sector,
+      service: normalizeService(r["service"], sector),
+      operation: norm(r["Type d'intervention"]) || "Préventive",
       difficulties: null,
       preventiveCleaning: isOui(r["Nettoyage"]),
       preventiveLubrication: isOui(r["Graissage"]),
@@ -446,6 +497,71 @@ async function persistLogs(rows: PreparedLog[]) {
   return { created, parts, waterCount };
 }
 
+async function repairImportedMetadata(techs: Map<string, Technician>) {
+  const defaultTech = await resolveTechnician(DEFAULT_TECHNICIAN_LABEL, techs);
+  const jour = await prisma.maintenanceLog.updateMany({
+    where: {
+      importSource: SOURCE_PREVENTIVE,
+      workPerformed: { contains: "Jour.M" },
+      OR: [{ sectorMaintenance: null }, { sectorMaintenance: "" }],
+    },
+    data: {
+      type: InterventionType.PREVENTIVE,
+      sectorMaintenance: "Journalière",
+      service: "MAINTENANCE",
+      technicianId: defaultTech.id,
+    },
+  });
+  const prod = await prisma.maintenanceLog.updateMany({
+    where: {
+      importSource: SOURCE_PREVENTIVE,
+      workPerformed: { contains: "C . Production" },
+      OR: [{ sectorMaintenance: null }, { sectorMaintenance: "" }],
+    },
+    data: {
+      type: InterventionType.PREVENTIVE,
+      sectorMaintenance: "C. Production",
+      service: "PRODUCTION",
+      technicianId: defaultTech.id,
+    },
+  });
+  const typed = await prisma.maintenanceLog.updateMany({
+    where: { importSource: SOURCE_PREVENTIVE, NOT: { type: InterventionType.PREVENTIVE } },
+    data: { type: InterventionType.PREVENTIVE },
+  });
+  const techsMissing = await prisma.maintenanceLog.updateMany({
+    where: { importSource: SOURCE_PREVENTIVE, technicianId: null },
+    data: { technicianId: defaultTech.id },
+  });
+  const holiday = await prisma.maintenanceLog.updateMany({
+    where: {
+      importSource: SOURCE_COMBINED,
+      OR: [{ sectorMaintenance: { contains: "Eid" } }, { operation: { contains: "Eid" } }],
+    },
+    data: {
+      type: InterventionType.PREVENTIVE,
+      sectorMaintenance: "Journalière",
+      service: "MAINTENANCE",
+      technicianId: defaultTech.id,
+    },
+  });
+  const emptyCombined = await prisma.maintenanceLog.updateMany({
+    where: {
+      importSource: SOURCE_COMBINED,
+      OR: [{ sectorMaintenance: null }, { sectorMaintenance: "" }],
+    },
+    data: {
+      type: InterventionType.PREVENTIVE,
+      sectorMaintenance: "Journalière",
+      service: "MAINTENANCE",
+      technicianId: defaultTech.id,
+    },
+  });
+  console.log(
+    `[seed-maintenances] métadonnées : prév Jour.M=${jour.count} prév Production=${prod.count} type prév=${typed.count} tech prév=${techsMissing.count} eid=${holiday.count} combinées vides=${emptyCombined.count}`,
+  );
+}
+
 async function syncWorkflowStatuses() {
   const start = startOfTodayTunis();
   const closedOthers = await prisma.maintenanceLog.updateMany({
@@ -478,8 +594,10 @@ async function main() {
 
   if (existingCombined === combinedRows.length && existingPreventive === preventiveRows.length && !force) {
     console.log(
-      `[seed-maintenances] déjà en base : combinées=${existingCombined} préventives=${existingPreventive}. Ignoré.`,
+      `[seed-maintenances] déjà en base : combinées=${existingCombined} préventives=${existingPreventive} total=${existingCombined + existingPreventive}. Conservé.`,
     );
+    const techs = await loadTechnicianIndex();
+    await repairImportedMetadata(techs);
     await syncWorkflowStatuses();
     return;
   }
@@ -499,7 +617,8 @@ async function main() {
 
   const stats = await persistLogs(prepared);
   const total = await prisma.maintenanceLog.count();
-  console.log(`[seed-maintenances] OK créées=${stats.created} total=${total}`);
+  console.log(`[seed-maintenances] OK créées=${stats.created} total=${total} (attendu ${expected})`);
+  await repairImportedMetadata(techs);
   await syncWorkflowStatuses();
 }
 
