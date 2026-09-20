@@ -63,7 +63,7 @@ export function TechnicianDashboard({
                   <div>
                     <p className="text-sm font-medium text-slate-900">{om.reference}</p>
                     <p className="text-xs text-slate-500">
-                      {om.machineNames} · {om.interventionType} · {om.plannedDateLabel}
+                      {om.machineNames} · {om.plannedDateLabel}
                     </p>
                   </div>
                   <Badge variant="secondary">{om.statusLabel}</Badge>

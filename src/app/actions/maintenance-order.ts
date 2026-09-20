@@ -7,6 +7,7 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import { requireManageAction } from "@/lib/auth/session-server";
 import { fetchMaintenanceOrderDetail } from "@/lib/gmao/maintenance-order-detail-query";
 import { fetchMaintenanceOrders } from "@/lib/gmao/maintenance-orders-query";
+import { calendarDayKey } from "@/lib/gmao/intervention-status";
 import { prisma } from "@/lib/db/prisma";
 import {
   buildOrderLinesFromInput,
@@ -21,18 +22,6 @@ function revalidateMaintenanceOrderPaths() {
   revalidateTag(CACHE_TAGS.maintenanceOrders);
 }
 
-async function generateReference(): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `OM-${year}-`;
-  const last = await prisma.maintenanceOrder.findFirst({
-    where: { reference: { startsWith: prefix } },
-    orderBy: { reference: "desc" },
-    select: { reference: true },
-  });
-  const nextNum = last ? Number.parseInt(last.reference.slice(prefix.length), 10) + 1 : 1;
-  return `${prefix}${String(nextNum).padStart(4, "0")}`;
-}
-
 function parseOrderForm(formData: FormData) {
   const machineIdsRaw = formData.get("machineIds")?.toString() ?? "";
   const machineIds = machineIdsRaw
@@ -42,7 +31,6 @@ function parseOrderForm(formData: FormData) {
 
   return {
     plannedDate: formData.get("plannedDate")?.toString() ?? "",
-    interventionType: formData.get("interventionType")?.toString() ?? "PREVENTIVE",
     observationComment: formData.get("observationComment")?.toString().trim() || null,
     managerApproval: formData.get("managerApproval")?.toString().trim() || null,
     machineIds,
@@ -63,14 +51,52 @@ export async function createMaintenanceOrderAction(formData: FormData): Promise<
   }
 
   try {
-    const reference = await generateReference();
+    const dayKey = calendarDayKey(parsed.data.plannedDate);
+    const reference = `OM-${dayKey}`;
     const lines = buildOrderLinesFromInput(parsed.data);
+
+    const existing = await prisma.maintenanceOrder.findFirst({
+      where: { OR: [{ dayKey }, { reference }] },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.$transaction(async (tx) => {
+        for (const line of lines) {
+          await tx.maintenanceOrderLine.upsert({
+            where: {
+              maintenanceOrderId_machineId: {
+                maintenanceOrderId: existing.id,
+                machineId: line.machineId,
+              },
+            },
+            create: {
+              maintenanceOrderId: existing.id,
+              machineId: line.machineId,
+              taskNettoyage: line.taskNettoyage,
+              taskGraissage: line.taskGraissage,
+              taskHuile: line.taskHuile,
+              taskControl: line.taskControl,
+              taskNonConforme: line.taskNonConforme,
+            },
+            update: {
+              taskNettoyage: line.taskNettoyage,
+              taskGraissage: line.taskGraissage,
+              taskHuile: line.taskHuile,
+              taskControl: line.taskControl,
+              taskNonConforme: line.taskNonConforme,
+            },
+          });
+        }
+      });
+      revalidateMaintenanceOrderPaths();
+      return { ok: true, id: existing.id };
+    }
 
     const order = await prisma.maintenanceOrder.create({
       data: {
         reference,
         plannedDate: parsed.data.plannedDate,
-        interventionType: parsed.data.interventionType,
+        dayKey,
         observationComment: parsed.data.observationComment ?? null,
         managerApproval: parsed.data.managerApproval ?? null,
         lines: {
@@ -158,7 +184,8 @@ export async function updateMaintenanceOrderAction(formData: FormData): Promise<
         where: { id: parsed.data.id },
         data: {
           plannedDate: parsed.data.plannedDate,
-          interventionType: parsed.data.interventionType,
+          dayKey: calendarDayKey(parsed.data.plannedDate),
+          reference: `OM-${calendarDayKey(parsed.data.plannedDate)}`,
           observationComment: parsed.data.observationComment ?? null,
           managerApproval: parsed.data.managerApproval ?? null,
           ...(parsed.data.status ? { status: parsed.data.status } : {}),

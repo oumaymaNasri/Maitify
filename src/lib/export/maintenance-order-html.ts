@@ -24,7 +24,6 @@ function taskMark(checked: boolean): string {
 }
 
 function machineRows(detail: MaintenanceOrderDetailVm): string {
-  const typeLabel = interventionTypeFr(detail.interventionType);
   if (detail.lines.length === 0) {
     return `<tr><td colspan="7" class="empty-row">Aucune machine planifiée</td></tr>`;
   }
@@ -32,7 +31,7 @@ function machineRows(detail: MaintenanceOrderDetailVm): string {
     .map(
       (line) => `<tr>
         <td class="col-machine">${esc(line.machineName)}</td>
-        <td class="col-center">${esc(typeLabel)}</td>
+        <td class="col-center">Préventive</td>
         <td class="col-center">${taskMark(line.taskNettoyage)}</td>
         <td class="col-center">${taskMark(line.taskGraissage)}</td>
         <td class="col-center">${taskMark(line.taskHuile)}</td>
@@ -75,7 +74,7 @@ export function buildMaintenanceOrderHtml(detail: MaintenanceOrderDetailVm): str
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Ordre de maintenance — ${esc(detail.reference)}</title>
+  <title>Ordre de maintenance journalier — ${esc(detail.reference)}</title>
   <style>
     @page {
       size: A4 portrait;
@@ -305,7 +304,7 @@ export function buildMaintenanceOrderHtml(detail: MaintenanceOrderDetailVm): str
     <table class="header-cartouche" role="presentation">
       <tr>
         <td class="header-brand">NutriFish</td>
-        <td class="header-title">Ordre de maintenance</td>
+        <td class="header-title">Ordre de maintenance journalier</td>
         <td class="header-meta">
           <table class="meta-table" role="presentation">
             <tr>

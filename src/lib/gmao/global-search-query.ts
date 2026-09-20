@@ -4,7 +4,7 @@ import type { SessionUser } from "@/lib/auth/session";
 import { canManage } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import type { GlobalSearchHit, GlobalSearchResponse, GlobalSearchScope } from "@/lib/gmao/global-search-types";
-import { interventionTypeFr } from "@/lib/view/labels";
+import { formatDateFrShort } from "@/lib/utils/format-date";
 import { operationTypeFr } from "@/lib/view/gmao-labels";
 
 const RESULT_LIMIT = 5;
@@ -59,7 +59,7 @@ export async function runGlobalSearch(
           },
           take: RESULT_LIMIT,
           orderBy: { plannedDate: "desc" },
-          select: { id: true, reference: true, interventionType: true },
+          select: { id: true, reference: true, plannedDate: true },
         })
       : Promise.resolve([]),
     showMaintenance
@@ -125,7 +125,7 @@ export async function runGlobalSearch(
     id: o.id,
     kind: "maintenance_order",
     title: o.reference,
-    subtitle: interventionTypeFr(o.interventionType),
+    subtitle: `Ordre journalier · ${formatDateFrShort(o.plannedDate.toISOString())}`,
     href: `/maintenance-orders?detail=${encodeURIComponent(o.id)}`,
   }));
 

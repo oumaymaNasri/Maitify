@@ -1,4 +1,4 @@
-import type { InterventionType, MaintenanceOrderStatus, Prisma } from "@prisma/client";
+import type { MaintenanceOrderStatus, Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
@@ -9,7 +9,6 @@ export type MaintenanceOrderRow = {
   id: string;
   reference: string;
   plannedDate: string;
-  interventionType: InterventionType;
   status: MaintenanceOrderStatus;
   observationComment: string | null;
   managerApproval: string | null;
@@ -27,7 +26,6 @@ const orderListSelect = {
   id: true,
   reference: true,
   plannedDate: true,
-  interventionType: true,
   status: true,
   observationComment: true,
   managerApproval: true,
@@ -47,7 +45,6 @@ type OrderListRow = {
   id: string;
   reference: string;
   plannedDate: Date;
-  interventionType: InterventionType;
   status: MaintenanceOrderStatus;
   observationComment: string | null;
   managerApproval: string | null;
@@ -64,7 +61,6 @@ function mapOrderRows(rows: OrderListRow[]): MaintenanceOrderRow[] {
       id: o.id,
       reference: o.reference,
       plannedDate: o.plannedDate.toISOString(),
-      interventionType: o.interventionType,
       status: o.status,
       observationComment: o.observationComment,
       managerApproval: o.managerApproval,
@@ -81,7 +77,6 @@ function mapOrderRows(rows: OrderListRow[]): MaintenanceOrderRow[] {
 function buildOrdersWhere(filters?: {
   q?: string;
   status?: string;
-  type?: string;
   machineId?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -98,9 +93,6 @@ function buildOrdersWhere(filters?: {
   }
   if (filters?.status && filters.status !== "ALL") {
     and.push({ status: filters.status as MaintenanceOrderStatus });
-  }
-  if (filters?.type && filters.type !== "ALL") {
-    and.push({ interventionType: filters.type as InterventionType });
   }
   if (filters?.machineId && filters.machineId !== "ALL") {
     and.push({
@@ -122,7 +114,6 @@ function buildOrdersWhere(filters?: {
 export type MaintenanceOrderListFilters = {
   q?: string;
   status?: string;
-  type?: string;
   machineId?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -171,13 +162,12 @@ export function getMaintenanceOrdersCached(
 ) {
   const q = filters?.q ?? "";
   const status = filters?.status ?? "ALL";
-  const type = filters?.type ?? "ALL";
   const machineId = filters?.machineId ?? "ALL";
   const dateFrom = filters?.dateFrom ?? "";
   const dateTo = filters?.dateTo ?? "";
   return unstable_cache(
     () => fetchMaintenanceOrdersPage(page, pageSize, filters),
-    [CACHE_TAGS.maintenanceOrders, "v4", String(page), String(pageSize), q, status, type, machineId, dateFrom, dateTo],
+    [CACHE_TAGS.maintenanceOrders, "v5", String(page), String(pageSize), q, status, machineId, dateFrom, dateTo],
     { revalidate: 60, tags: [CACHE_TAGS.maintenanceOrders] },
   )();
 }
@@ -186,7 +176,6 @@ export type ActiveMaintenanceOrderOption = {
   id: string;
   reference: string;
   plannedDate: string;
-  interventionType: InterventionType;
   lines: {
     lineId: string;
     machineId: string;
@@ -208,7 +197,6 @@ export async function fetchActiveMaintenanceOrders(): Promise<ActiveMaintenanceO
       id: true,
       reference: true,
       plannedDate: true,
-      interventionType: true,
       lines: {
         where: { maintenanceLog: { is: null } },
         select: {
@@ -231,7 +219,6 @@ export async function fetchActiveMaintenanceOrders(): Promise<ActiveMaintenanceO
       id: o.id,
       reference: o.reference,
       plannedDate: o.plannedDate.toISOString(),
-      interventionType: o.interventionType,
       lines: o.lines.map((l) => ({
         lineId: l.id,
         machineId: l.machineId,

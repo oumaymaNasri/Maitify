@@ -103,8 +103,8 @@ export function MaintenanceOrderDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col border-slate-200 bg-white sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle className="text-slate-900">{orderReference || "Ordre de maintenance"}</SheetTitle>
-          <SheetDescription className="text-slate-600">FOR-MNT-02 · planification Directeur</SheetDescription>
+          <SheetTitle className="text-slate-900">{orderReference || "Ordre de maintenance journalier"}</SheetTitle>
+          <SheetDescription className="text-slate-600">Bon de travail du jour — FOR-MNT-02</SheetDescription>
         </SheetHeader>
 
         {loading ? (
@@ -117,7 +117,7 @@ export function MaintenanceOrderDetailSheet({
           <ScrollArea className="flex-1 pr-3">
             <div className="space-y-5 pb-8">
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">{interventionTypeFr(detail.interventionType)}</Badge>
+                <Badge variant="secondary">Ordre journalier</Badge>
                 <Badge variant="outline">{maintenanceOrderStatusFr(detail.status)}</Badge>
                 <Badge variant="outline">{detail.preventiveCount} préventive(s)</Badge>
                 <Badge variant="outline">{detail.correctiveCount} corrective(s)</Badge>

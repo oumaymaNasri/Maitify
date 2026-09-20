@@ -1,4 +1,4 @@
-import { InterventionType, MaintenanceOrderStatus } from "@prisma/client";
+import { MaintenanceOrderStatus } from "@prisma/client";
 import { z } from "zod";
 
 const orderLineSchema = z.object({
@@ -12,7 +12,6 @@ const orderLineSchema = z.object({
 
 export const maintenanceOrderSchema = z.object({
   plannedDate: z.coerce.date(),
-  interventionType: z.nativeEnum(InterventionType).default(InterventionType.PREVENTIVE),
   observationComment: z.string().nullable().optional(),
   managerApproval: z.string().nullable().optional(),
   machineIds: z.array(z.string().min(1)).min(1, "Sélectionnez au moins une machine"),
@@ -40,15 +39,4 @@ export function buildOrderLinesFromInput(data: MaintenanceOrderInput): z.infer<t
     taskControl: data.taskControl,
     taskNonConforme: data.taskNonConforme,
   }));
-}
-
-export function interventionTypeToOperationType(type: InterventionType): "CONTROLE" | "DIAGNOSTIC" | "AMELIORATION" {
-  switch (type) {
-    case InterventionType.PREVENTIVE:
-      return "CONTROLE";
-    case InterventionType.AMELIORATION:
-      return "AMELIORATION";
-    default:
-      return "DIAGNOSTIC";
-  }
 }

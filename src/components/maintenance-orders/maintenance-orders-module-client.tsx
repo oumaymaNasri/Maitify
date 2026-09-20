@@ -1,6 +1,6 @@
 "use client";
 
-import { InterventionType, MaintenanceOrderStatus } from "@prisma/client";
+import { MaintenanceOrderStatus } from "@prisma/client";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import type { MaintenanceOrderRow } from "@/lib/gmao/maintenance-orders-query";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
-import { interventionTypeFr } from "@/lib/view/labels";
 
 const AddMaintenanceOrderSheet = dynamic(
   () =>
@@ -43,9 +42,6 @@ const DeleteConfirmDialog = dynamic(
   { ssr: false },
 );
 
-type StatusFilter = "ALL" | MaintenanceOrderStatus;
-type TypeFilter = "ALL" | InterventionType;
-
 type OrdersPagination = {
   page: number;
   pageCount: number;
@@ -61,14 +57,6 @@ const STATUS_OPTIONS = [
   })),
 ];
 
-const TYPE_OPTIONS = [
-  { value: "ALL", label: "Tous" },
-  ...Object.values(InterventionType).map((t) => ({
-    value: t,
-    label: interventionTypeFr(t),
-  })),
-];
-
 export function MaintenanceOrdersModuleClient({
   orders: initialRows,
   pagination,
@@ -78,7 +66,7 @@ export function MaintenanceOrdersModuleClient({
 }: {
   orders: MaintenanceOrderRow[];
   pagination: OrdersPagination;
-  initialFilters: { q: string; status: string; type: string; machineId: string; dateFrom: string; dateTo: string };
+  initialFilters: { q: string; status: string; machineId: string; dateFrom: string; dateTo: string };
   machines: MachineOption[];
   readOnly?: boolean;
 }) {
@@ -96,7 +84,6 @@ export function MaintenanceOrdersModuleClient({
     (next: {
       q?: string;
       status?: string;
-      type?: string;
       machineId?: string;
       dateFrom?: string;
       dateTo?: string;
@@ -105,14 +92,12 @@ export function MaintenanceOrdersModuleClient({
       const params = new URLSearchParams();
       const q = next.q ?? initialFilters.q;
       const status = next.status ?? initialFilters.status;
-      const type = next.type ?? initialFilters.type;
       const machineId = next.machineId ?? initialFilters.machineId;
       const dateFrom = next.dateFrom ?? initialFilters.dateFrom;
       const dateTo = next.dateTo ?? initialFilters.dateTo;
       const page = next.page ?? 1;
       if (q) params.set("q", q);
       if (status !== "ALL") params.set("status", status);
-      if (type !== "ALL") params.set("type", type);
       if (machineId && machineId !== "ALL") params.set("machineId", machineId);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
@@ -175,15 +160,8 @@ export function MaintenanceOrdersModuleClient({
         onChange: (v: string) => startFilterTransition(() => pushFilters({ status: v, page: 1 })),
         options: STATUS_OPTIONS,
       },
-      {
-        id: "type",
-        label: "Type",
-        value: initialFilters.type,
-        onChange: (v: string) => startFilterTransition(() => pushFilters({ type: v, page: 1 })),
-        options: TYPE_OPTIONS,
-      },
     ],
-    [initialFilters.machineId, initialFilters.status, initialFilters.type, machineOptions, pushFilters],
+    [initialFilters.machineId, initialFilters.status, machineOptions, pushFilters],
   );
 
   const handleDeleted = React.useCallback((id: string) => {

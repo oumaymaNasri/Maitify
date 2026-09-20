@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import type { MaintenanceOrderRow } from "@/lib/gmao/maintenance-orders-query";
 import { formatDateFrShort } from "@/lib/utils/format-date";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
-import { interventionTypeFr } from "@/lib/view/labels";
 import { cn } from "@/lib/utils";
 
 function statusBadgeClass(status: MaintenanceOrderRow["status"]): string {
@@ -130,15 +129,6 @@ export function MaintenanceOrdersDataTable({
         cell: ({ row }) => formatDateFrShort(row.original.plannedDate),
       },
       {
-        accessorKey: "interventionType",
-        header: "Type",
-        cell: ({ row }) => (
-          <Badge variant={row.original.interventionType === "CORRECTIVE" ? "warning" : "secondary"} className="rounded-full font-normal">
-            {interventionTypeFr(row.original.interventionType)}
-          </Badge>
-        ),
-      },
-      {
         accessorKey: "logCount",
         header: "Interventions",
         cell: ({ row }) => (
@@ -208,7 +198,7 @@ export function MaintenanceOrdersDataTable({
       {!readOnly ? <GmaoBulkSelectBar count={selectedIds.size} onBulkDelete={onBulkDelete} /> : null}
       <GmaoStandardTable
         table={table}
-        emptyMessage="Aucun ordre de maintenance."
+        emptyMessage="Aucun ordre de maintenance journalier."
         selectedIdSet={selectedIds}
         getRowId={(row) => row.id}
         isPending={isPending}

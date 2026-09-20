@@ -11,7 +11,7 @@ const exact: Record<string, PageMeta> = {
   "/machines": { title: "Machines", subtitle: "Parc équipements & statuts" },
   "/interventions": { title: "Liste de Maintenance", subtitle: "Historique maintenance" },
   "/interventions/new": { title: "Nouvelle intervention", subtitle: "Saisie terrain" },
-  "/maintenance-orders": { title: "Ordre de maintenance", subtitle: "Planification Directeur" },
+  "/maintenance-orders": { title: "Ordres de maintenance journaliers", subtitle: "Un bon de travail par jour — préventif et correctif" },
   "/technicians": { title: "Techniciens", subtitle: "Profils & spécialités" },
   "/parts": { title: "Pièces de rechange", subtitle: "Stock & seuils d'alerte" },
   "/stock": { title: "Stock & Pièces", subtitle: "Inventaire, alertes et mouvements" },

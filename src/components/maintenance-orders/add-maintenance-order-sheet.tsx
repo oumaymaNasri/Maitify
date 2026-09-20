@@ -1,6 +1,5 @@
 "use client";
 
-import { InterventionType } from "@prisma/client";
 import {
   CalendarDays,
   ClipboardCheck,
@@ -9,7 +8,6 @@ import {
   Plus,
   Settings2,
   ShieldCheck,
-  Wrench,
 } from "lucide-react";
 import * as React from "react";
 
@@ -17,13 +15,6 @@ import { createMaintenanceOrderAction } from "@/app/actions/maintenance-order";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -35,7 +26,6 @@ import {
 } from "@/components/ui/sheet";
 import type { MaintenanceOrderRow } from "@/lib/gmao/maintenance-orders-query";
 import { cn } from "@/lib/utils";
-import { interventionTypeFr } from "@/lib/view/labels";
 import {
   FormFieldLabel,
   MachineMultiSelect,
@@ -73,7 +63,6 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [interventionType, setInterventionType] = React.useState<InterventionType>(InterventionType.PREVENTIVE);
   const [selectedMachineIds, setSelectedMachineIds] = React.useState<Set<string>>(new Set());
   const [taskNettoyage, setTaskNettoyage] = React.useState(false);
   const [taskGraissage, setTaskGraissage] = React.useState(false);
@@ -96,7 +85,6 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
     setError(null);
 
     const fd = new FormData(e.currentTarget);
-    fd.set("interventionType", interventionType);
     fd.set("machineIds", Array.from(selectedMachineIds).join(","));
     fd.set("taskNettoyage", String(taskNettoyage));
     fd.set("taskGraissage", String(taskGraissage));
@@ -117,9 +105,8 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
 
     onCreated?.({
       id: res.id,
-      reference: "",
+      reference: `OM-${(fd.get("plannedDate")?.toString() || dateInputValue())}`,
       plannedDate: fd.get("plannedDate")?.toString() ?? new Date().toISOString(),
-      interventionType,
       status: "ACTIVE",
       observationComment: fd.get("observationComment")?.toString().trim() || null,
       managerApproval: fd.get("managerApproval")?.toString().trim() || null,
@@ -143,8 +130,8 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
       </SheetTrigger>
       <SheetContent side="right" className="flex w-full flex-col overflow-y-auto border-slate-200 sm:max-w-lg">
         <SheetHeader className="space-y-1 border-b border-slate-100 pb-4">
-          <SheetTitle className="text-lg text-slate-900">Nouvel ordre de maintenance</SheetTitle>
-          <SheetDescription>Planification par le Directeur — FOR-MNT-02</SheetDescription>
+          <SheetTitle className="text-lg text-slate-900">Nouvel ordre de maintenance journalier</SheetTitle>
+          <SheetDescription>Bon de travail du jour — FOR-MNT-02. Un seul OM par date, préventif et correctif confondus.</SheetDescription>
         </SheetHeader>
 
         <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-5 py-5">
@@ -161,28 +148,6 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
               disabled={pending}
               className="h-10 rounded-lg border-slate-200"
             />
-          </div>
-
-          <div className="space-y-2">
-            <FormFieldLabel icon={Wrench} required>
-              Type d&apos;intervention
-            </FormFieldLabel>
-            <Select
-              value={interventionType}
-              onValueChange={(v) => setInterventionType(v as InterventionType)}
-              disabled={pending}
-            >
-              <SelectTrigger className="h-10 rounded-lg border-slate-200">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.values(InterventionType).map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {interventionTypeFr(t)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">

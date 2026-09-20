@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActiveMaintenanceOrderOption } from "@/lib/gmao/maintenance-orders-query";
-import { interventionTypeToOperationType } from "@/lib/validations/maintenance-order";
 import { formatDateFrShort } from "@/lib/utils/format-date";
 
 export type MachineOption = { id: string; name: string; legacyMatricule: number | null };
@@ -108,7 +107,7 @@ export function InterventionIntelligentForm({
         return;
       }
       setMaintenanceOrderLineId(line.lineId);
-      setOperationType(interventionTypeToOperationType(order.interventionType));
+      setOperationType("CONTROLE");
       setPreventiveCleaning(line.taskNettoyage);
       setPreventiveLubrication(line.taskGraissage);
       setPreventiveOil(line.taskHuile);

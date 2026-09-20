@@ -6,14 +6,12 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import { prisma } from "@/lib/db/prisma";
 import { formatDateFrShort } from "@/lib/utils/format-date";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
-import { interventionTypeFr } from "@/lib/view/labels";
 
 export type TechnicianUpcomingOm = {
   id: string;
   reference: string;
   plannedDate: string;
   plannedDateLabel: string;
-  interventionType: string;
   statusLabel: string;
   machineNames: string;
   pendingLines: number;
@@ -76,7 +74,6 @@ export async function fetchTechnicianDashboardData(
         id: true,
         reference: true,
         plannedDate: true,
-        interventionType: true,
         status: true,
         lines: {
           where: { maintenanceLog: { is: null } },
@@ -91,7 +88,6 @@ export async function fetchTechnicianDashboardData(
     reference: o.reference,
     plannedDate: o.plannedDate.toISOString(),
     plannedDateLabel: formatDateFrShort(o.plannedDate.toISOString()),
-    interventionType: interventionTypeFr(o.interventionType),
     statusLabel: maintenanceOrderStatusFr(o.status),
     machineNames: o.lines.map((l) => l.machine.name).join(", ") || "—",
     pendingLines: o.lines.length,

@@ -13,7 +13,6 @@ type PageProps = {
     page?: string;
     q?: string;
     status?: string;
-    type?: string;
     machineId?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -28,7 +27,6 @@ export default async function MaintenanceOrdersPage({ searchParams }: PageProps)
     const filters = {
       q: searchParams?.q?.trim() ?? "",
       status: searchParams?.status ?? "ALL",
-      type: searchParams?.type ?? "ALL",
       machineId: searchParams?.machineId ?? "ALL",
       dateFrom: searchParams?.dateFrom ?? "",
       dateTo: searchParams?.dateTo ?? "",

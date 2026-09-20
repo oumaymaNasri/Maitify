@@ -1,6 +1,6 @@
 "use client";
 
-import { InterventionType, MaintenanceOrderStatus } from "@prisma/client";
+import { MaintenanceOrderStatus } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 import * as React from "react";
 
@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/select";
 import type { MaintenanceOrderRow } from "@/lib/gmao/maintenance-orders-query";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
-import { interventionTypeFr } from "@/lib/view/labels";
 
 type MaintenanceOrderEditDialogProps = {
   order: MaintenanceOrderRow | null;
@@ -58,7 +57,6 @@ export function MaintenanceOrderEditDialog({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [plannedDate, setPlannedDate] = React.useState("");
-  const [interventionType, setInterventionType] = React.useState<InterventionType>(InterventionType.PREVENTIVE);
   const [status, setStatus] = React.useState<MaintenanceOrderStatus>(MaintenanceOrderStatus.ACTIVE);
   const [observationComment, setObservationComment] = React.useState("");
   const [managerApproval, setManagerApproval] = React.useState("");
@@ -82,7 +80,6 @@ export function MaintenanceOrderEditDialog({
       }
       const d = res.data;
       setPlannedDate(dateInputFromIso(d.plannedDate));
-      setInterventionType(d.interventionType);
       setStatus(d.status);
       setObservationComment(d.observationComment ?? "");
       setManagerApproval(d.managerApproval ?? "");
@@ -108,7 +105,6 @@ export function MaintenanceOrderEditDialog({
     const fd = new FormData();
     fd.set("id", order.id);
     fd.set("plannedDate", plannedDate);
-    fd.set("interventionType", interventionType);
     fd.set("status", status);
     fd.set("observationComment", observationComment);
     fd.set("managerApproval", managerApproval);
@@ -132,7 +128,6 @@ export function MaintenanceOrderEditDialog({
     onUpdated?.({
       ...order,
       plannedDate: new Date(plannedDate).toISOString(),
-      interventionType,
       status,
       observationComment: observationComment.trim() || null,
       managerApproval: managerApproval.trim() || null,
@@ -161,37 +156,20 @@ export function MaintenanceOrderEditDialog({
               <Input id="edit-plannedDate" type="date" value={plannedDate} onChange={(e) => setPlannedDate(e.target.value)} required disabled={pending} />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select value={interventionType} onValueChange={(v) => setInterventionType(v as InterventionType)} disabled={pending}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(InterventionType).map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {interventionTypeFr(t)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Statut</Label>
-                <Select value={status} onValueChange={(v) => setStatus(v as MaintenanceOrderStatus)} disabled={pending}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(MaintenanceOrderStatus).map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {maintenanceOrderStatusFr(s)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Statut</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as MaintenanceOrderStatus)} disabled={pending}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(MaintenanceOrderStatus).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {maintenanceOrderStatusFr(s)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

@@ -23,7 +23,6 @@ export type MaintenanceOrderDetailVm = {
   reference: string;
   plannedDate: string;
   dayKey: string | null;
-  interventionType: InterventionType;
   status: MaintenanceOrderStatus;
   observationComment: string | null;
   managerApproval: string | null;
@@ -123,7 +122,6 @@ export async function fetchMaintenanceOrderDetail(id: string): Promise<Maintenan
     reference: row.reference,
     plannedDate: row.plannedDate.toISOString(),
     dayKey: row.dayKey,
-    interventionType: row.interventionType,
     status: row.status,
     observationComment: row.observationComment,
     managerApproval: row.managerApproval,
