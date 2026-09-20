@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Edit2, Eye, Trash2 } from "lucide-react";
 import * as React from "react";
 
@@ -11,7 +11,7 @@ import {
   GmaoStandardTable,
   GmaoTablePagination,
 } from "@/components/gmao/gmao-table";
-import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW } from "@/components/gmao/table-styles";
 import type { MachineCardVm } from "@/components/machines/machine-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -31,13 +31,6 @@ type MachinesDataTableProps = {
   onDelete: (machine: MachineCardVm) => void;
   onBulkDelete: () => void;
   isPending?: boolean;
-  serverPagination?: {
-    page: number;
-    pageCount: number;
-    total: number;
-    onPrevious: () => void;
-    onNext: () => void;
-  };
 };
 
 export function MachinesDataTable({
@@ -48,7 +41,6 @@ export function MachinesDataTable({
   onDelete,
   onBulkDelete,
   isPending,
-  serverPagination,
 }: MachinesDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const visibleIds = React.useMemo(() => machines.map((m) => m.id), [machines]);
@@ -185,11 +177,7 @@ export function MachinesDataTable({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    ...(serverPagination ? {} : { getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize: GMAO_TABLE_PAGE_SIZE } } }),
   });
-
-  const page = serverPagination ? serverPagination.page : table.getState().pagination.pageIndex + 1;
-  const pageCount = serverPagination ? serverPagination.pageCount : Math.max(table.getPageCount(), 1);
 
   return (
     <div className="space-y-3">
@@ -201,16 +189,7 @@ export function MachinesDataTable({
         getRowId={(row) => row.id}
         isPending={isPending}
       />
-      <GmaoTablePagination
-        total={serverPagination?.total ?? machines.length}
-        noun="équipement(s)"
-        page={page}
-        pageCount={pageCount}
-        canPrevious={serverPagination ? serverPagination.page > 1 : table.getCanPreviousPage()}
-        canNext={serverPagination ? serverPagination.page < serverPagination.pageCount : table.getCanNextPage()}
-        onPrevious={() => (serverPagination ? serverPagination.onPrevious() : table.previousPage())}
-        onNext={() => (serverPagination ? serverPagination.onNext() : table.nextPage())}
-      />
+      <GmaoTablePagination total={machines.length} noun="équipement(s)" />
     </div>
   );
 }

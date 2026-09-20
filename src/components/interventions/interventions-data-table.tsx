@@ -5,14 +5,13 @@ import type { ColumnDef, ColumnOrderState, ColumnSizingState, VisibilityState } 
 import {
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { Columns3, Edit2, Eye, GripVertical, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import { GmaoRowCheckbox, GmaoTablePagination } from "@/components/gmao/gmao-table";
-import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_PAGE_SIZE, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_SCROLL, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { InterventionFicheButton } from "@/components/interventions/intervention-fiche-button";
 import { Badge } from "@/components/ui/badge";
@@ -258,20 +257,16 @@ export function InterventionsDataTable({
     return cols;
   }, [allVisibleSelected, someVisibleSelected, selectedIds, readOnly, onView, onEdit, onDelete, toggleAllVisible, toggleRow]);
 
-  const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: GMAO_TABLE_PAGE_SIZE });
-
   const table = useReactTable({
     data: interventions,
     columns,
-    state: { columnOrder, columnVisibility, columnSizing, pagination },
+    state: { columnOrder, columnVisibility, columnSizing },
     onColumnOrderChange: setColumnOrder,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnSizingChange: setColumnSizing,
-    onPaginationChange: setPagination,
     columnResizeMode: "onChange",
     enableColumnResizing: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getRowId: (row) => row.id,
   });
 
@@ -288,7 +283,6 @@ export function InterventionsDataTable({
     virtualRows.length > 0 ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1]!.end : 0;
 
   React.useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     scrollRef.current?.scrollTo({ top: 0 });
   }, [totals.total, serverSort.sort, serverSort.dir]);
 
@@ -347,7 +341,7 @@ export function InterventionsDataTable({
         </div>
       </div>
 
-      <div ref={scrollRef} className="max-h-[28rem] overflow-x-auto overflow-y-auto">
+      <div ref={scrollRef} className={cn(GMAO_TABLE_SCROLL, "max-h-[calc(100vh-17rem)]")}>
         <table className="w-max min-w-full border-separate border-spacing-0 text-sm" style={{ tableLayout: "fixed" }}>
           <thead className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
             {table.getHeaderGroups().map((hg) => (
@@ -449,16 +443,7 @@ export function InterventionsDataTable({
         </table>
       </div>
     </div>
-      <GmaoTablePagination
-        total={totals.total}
-        noun="résultat(s)"
-        page={table.getState().pagination.pageIndex + 1}
-        pageCount={Math.max(table.getPageCount(), 1)}
-        canPrevious={table.getCanPreviousPage()}
-        canNext={table.getCanNextPage()}
-        onPrevious={() => table.previousPage()}
-        onNext={() => table.nextPage()}
-      />
+      <GmaoTablePagination total={totals.total} noun="résultat(s)" />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowDownUp, Edit2, Package, Trash2 } from "lucide-react";
 import * as React from "react";
 
@@ -11,7 +11,7 @@ import {
   GmaoStandardTable,
   GmaoTablePagination,
 } from "@/components/gmao/gmao-table";
-import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW } from "@/components/gmao/table-styles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { PartInventoryRow } from "@/lib/gmao/stock-parts-query";
@@ -173,8 +173,6 @@ function StockInventoryGridInner({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: GMAO_TABLE_PAGE_SIZE } },
   });
 
   if (parts.length === 0) {
@@ -191,16 +189,7 @@ function StockInventoryGridInner({
     <div className="space-y-3">
       <GmaoBulkSelectBar count={selectedIds.size} onBulkDelete={onBulkDelete} />
       <GmaoStandardTable table={table} emptyMessage="Aucune pièce trouvée." selectedIdSet={selectedIds} getRowId={(row) => row.id} />
-      <GmaoTablePagination
-        total={parts.length}
-        noun="pièce(s)"
-        page={table.getState().pagination.pageIndex + 1}
-        pageCount={Math.max(table.getPageCount(), 1)}
-        canPrevious={table.getCanPreviousPage()}
-        canNext={table.getCanNextPage()}
-        onPrevious={() => table.previousPage()}
-        onNext={() => table.nextPage()}
-      />
+      <GmaoTablePagination total={parts.length} noun="pièce(s)" />
     </div>
   );
 }

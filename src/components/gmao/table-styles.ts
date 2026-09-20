@@ -1,5 +1,8 @@
 export const GMAO_TABLE_PAGE_SIZE = 10;
 
+export const GMAO_TABLE_SCROLL =
+  "max-h-[calc(100vh-17rem)] overflow-x-auto overflow-y-auto";
+
 export const GMAO_TABLE_HEAD =
   "h-11 sticky top-0 z-10 bg-slate-50 px-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-600 first:rounded-tl-xl last:rounded-tr-xl";
 

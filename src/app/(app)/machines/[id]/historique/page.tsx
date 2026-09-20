@@ -23,12 +23,7 @@ import { cn } from "@/lib/utils";
 
 type PageProps = {
   params: { id: string };
-  searchParams?: { page?: string };
 };
-
-function formatHistoryDate(iso: string): string {
-  return formatDateFrShort(iso);
-}
 
 function workflowBadgeClass(status: string): string {
   switch (status) {
@@ -41,45 +36,38 @@ function workflowBadgeClass(status: string): string {
   }
 }
 
-export default async function MachineHistoryPage({ params, searchParams }: PageProps) {
-  const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
-
+export default async function MachineHistoryPage({ params }: PageProps) {
   const [header, history, exportRows] = await Promise.all([
     fetchMachineHistoryHeader(params.id),
-    fetchMachineHistoryPage(params.id, page),
+    fetchMachineHistoryPage(params.id),
     fetchMachineHistoryExportRows(params.id),
   ]);
 
   if (!header || !history || exportRows === null) notFound();
 
-  const pageHref = (targetPage: number) => {
-    if (targetPage <= 1) return `/machines/${params.id}/historique`;
-    return `/machines/${params.id}/historique?page=${targetPage}`;
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <ButtonLink
-              href="/donnees-de-base/machines"
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
-            >
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Retour à la liste
-            </ButtonLink>
-            <span className="font-semibold text-slate-900">{header.name}</span>
-            <span className="font-mono text-xs text-slate-600">{header.code}</span>
-            <span className="text-sm text-slate-600">{header.location}</span>
-            <Badge className={cn("font-medium", machineStatusBadgeClass(header.assetStatus))}>
-              {machineAssetStatusFr(header.assetStatus)}
-            </Badge>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <MachineHistoryExportButtons header={header} rows={exportRows} />
-          </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <ButtonLink
+            href="/donnees-de-base/machines"
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+          >
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Retour à la liste
+          </ButtonLink>
+          <span className="font-semibold text-slate-900">{header.name}</span>
+          <span className="font-mono text-xs text-slate-600">{header.code}</span>
+          <span className="text-sm text-slate-600">{header.location}</span>
+          <Badge className={cn("font-medium", machineStatusBadgeClass(header.assetStatus))}>
+            {machineAssetStatusFr(header.assetStatus)}
+          </Badge>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <MachineHistoryExportButtons header={header} rows={exportRows} />
+        </div>
       </div>
 
       {history.items.length === 0 ? (
@@ -102,20 +90,21 @@ export default async function MachineHistoryPage({ params, searchParams }: PageP
               </TableHeader>
               <TableBody>
                 {history.items.map((row, index) => (
-                  <TableRow
-                    key={row.id}
-                    className={gmaoRowClass(index)}
-                  >
+                  <TableRow key={row.id} className={gmaoRowClass(index)}>
                     <TableCell className={`whitespace-nowrap ${GMAO_TABLE_CELL} text-sm text-slate-700`}>
-                      {formatHistoryDate(row.date)}
+                      {formatDateFrShort(row.date)}
                     </TableCell>
-                    <TableCell className={`${GMAO_TABLE_CELL} font-mono text-xs text-slate-600`}>{row.referenceCode}</TableCell>
+                    <TableCell className={`${GMAO_TABLE_CELL} font-mono text-xs text-slate-600`}>
+                      {row.referenceCode}
+                    </TableCell>
                     <TableCell className={`${GMAO_TABLE_CELL} text-sm text-slate-700`}>
                       <Badge variant={row.type === "CORRECTIVE" ? "warning" : "secondary"} className="rounded-full font-normal">
                         {interventionTypeFr(row.type)}
                       </Badge>
                     </TableCell>
-                    <TableCell className={`${GMAO_TABLE_CELL} text-sm text-slate-700`}>{row.technicianName ?? "—"}</TableCell>
+                    <TableCell className={`${GMAO_TABLE_CELL} text-sm text-slate-700`}>
+                      {row.technicianName ?? "—"}
+                    </TableCell>
                     <TableCell className={`max-w-md ${GMAO_TABLE_CELL} text-sm text-slate-700`}>
                       <span className="line-clamp-2" title={row.description}>
                         {row.description}
@@ -135,12 +124,6 @@ export default async function MachineHistoryPage({ params, searchParams }: PageP
           <GmaoTablePagination
             total={history.total}
             noun={history.total > 1 ? "interventions" : "intervention"}
-            page={history.page}
-            pageCount={history.pageCount}
-            canPrevious={history.page > 1}
-            canNext={history.page < history.pageCount}
-            previousHref={pageHref(history.page - 1)}
-            nextHref={pageHref(history.page + 1)}
           />
         </>
       )}

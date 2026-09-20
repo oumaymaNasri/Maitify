@@ -2,15 +2,16 @@
 
 import type { Header, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import * as React from "react";
 
 import {
   GMAO_TABLE_CELL,
   GMAO_TABLE_HEAD,
+  GMAO_TABLE_SCROLL,
   GMAO_TABLE_WRAP,
 } from "@/components/gmao/table-styles";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
@@ -44,63 +45,22 @@ export function GmaoRowCheckbox({
 export function GmaoTablePagination({
   total,
   noun = "résultat(s)",
-  page,
-  pageCount,
-  canPrevious,
-  canNext,
-  onPrevious,
-  onNext,
-  previousHref,
-  nextHref,
 }: {
   total: number;
   noun?: string;
-  page: number;
-  pageCount: number;
-  canPrevious: boolean;
-  canNext: boolean;
+  page?: number;
+  pageCount?: number;
+  canPrevious?: boolean;
+  canNext?: boolean;
   onPrevious?: () => void;
   onNext?: () => void;
   previousHref?: string;
   nextHref?: string;
 }) {
-  const safeCount = Math.max(pageCount, 1);
-  const navBtn =
-    "h-9 rounded-xl border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-50 disabled:opacity-40";
-
   return (
-    <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-      <p className="text-sm text-slate-600">
-        <span className="font-semibold tabular-nums text-slate-900">{total.toLocaleString("fr-FR")}</span> {noun}
-      </p>
-      <div className="flex items-center gap-2">
-        {previousHref && canPrevious ? (
-          <ButtonLink href={previousHref} variant="outline" size="sm" className={navBtn}>
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Précédent
-          </ButtonLink>
-        ) : (
-          <Button type="button" variant="outline" size="sm" className={navBtn} disabled={!canPrevious} onClick={onPrevious}>
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Précédent
-          </Button>
-        )}
-        <span className="min-w-[6.5rem] text-center text-sm tabular-nums text-slate-600">
-          Page {page} / {safeCount}
-        </span>
-        {nextHref && canNext ? (
-          <ButtonLink href={nextHref} variant="outline" size="sm" className={navBtn}>
-            Suivant
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </ButtonLink>
-        ) : (
-          <Button type="button" variant="outline" size="sm" className={navBtn} disabled={!canNext} onClick={onNext}>
-            Suivant
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Button>
-        )}
-      </div>
-    </div>
+    <p className="text-sm text-slate-600">
+      <span className="font-semibold tabular-nums text-slate-900">{total.toLocaleString("fr-FR")}</span> {noun}
+    </p>
   );
 }
 
@@ -173,6 +133,7 @@ export function GmaoStandardTable<TData>({
   const rows = table.getRowModel().rows;
   return (
     <div className={cn(GMAO_TABLE_WRAP, isPending && "opacity-70 transition-opacity")}>
+      <div className={GMAO_TABLE_SCROLL}>
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
@@ -209,6 +170,7 @@ export function GmaoStandardTable<TData>({
           )}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

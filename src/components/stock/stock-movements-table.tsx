@@ -1,12 +1,11 @@
 "use client";
 
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import * as React from "react";
 
 import { GmaoStandardTable, GmaoTablePagination } from "@/components/gmao/gmao-table";
-import { GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
 import { Badge } from "@/components/ui/badge";
 import type { StockMovementRow } from "@/lib/gmao/stock-movements-query";
 import { cn } from "@/lib/utils";
@@ -92,8 +91,6 @@ export function StockMovementsTable({ movements, isPending }: StockMovementsTabl
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: GMAO_TABLE_PAGE_SIZE } },
   });
 
   if (movements.length === 0) {
@@ -110,16 +107,7 @@ export function StockMovementsTable({ movements, isPending }: StockMovementsTabl
   return (
     <div className="space-y-3">
       <GmaoStandardTable table={table} emptyMessage="Aucun mouvement enregistré." isPending={isPending} getRowId={(row) => row.id} />
-      <GmaoTablePagination
-        total={movements.length}
-        noun="mouvement(s)"
-        page={table.getState().pagination.pageIndex + 1}
-        pageCount={Math.max(table.getPageCount(), 1)}
-        canPrevious={table.getCanPreviousPage()}
-        canNext={table.getCanNextPage()}
-        onPrevious={() => table.previousPage()}
-        onNext={() => table.nextPage()}
-      />
+      <GmaoTablePagination total={movements.length} noun="mouvement(s)" />
     </div>
   );
 }

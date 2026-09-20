@@ -25,8 +25,6 @@ export function ServerPaginatedTable<TData, TValue>({
   columns,
   data,
   total,
-  page,
-  pageCount,
   initialQuery = "",
   filterPlaceholder = "Recherche par nom ou ID…",
   queryParam = "q",
@@ -53,7 +51,7 @@ export function ServerPaginatedTable<TData, TValue>({
 
   const handleSearch = React.useCallback(
     (value: string) => {
-      pushParams({ [queryParam]: value.trim() || null, page: "1" });
+      pushParams({ [queryParam]: value.trim() || null });
     },
     [pushParams, queryParam],
   );
@@ -65,8 +63,6 @@ export function ServerPaginatedTable<TData, TValue>({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    manualPagination: true,
-    pageCount,
   });
 
   return (
@@ -80,16 +76,7 @@ export function ServerPaginatedTable<TData, TValue>({
       />
       {isPending ? <p className="text-xs text-[#1F76FB]">Chargement…</p> : null}
       <GmaoStandardTable table={table} emptyMessage="Aucun enregistrement." isPending={isPending} />
-      <GmaoTablePagination
-        total={total}
-        noun="résultat(s)"
-        page={page}
-        pageCount={pageCount}
-        canPrevious={page > 1 && !isPending}
-        canNext={page < pageCount && !isPending}
-        onPrevious={() => pushParams({ page: String(page - 1) })}
-        onNext={() => pushParams({ page: String(page + 1) })}
-      />
+      <GmaoTablePagination total={total} noun="résultat(s)" />
     </div>
   );
 }

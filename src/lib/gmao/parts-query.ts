@@ -42,14 +42,12 @@ function buildWhere(q: string): Prisma.SparePartWhereInput {
 
 export async function fetchPartsPage(params: PaginationParams): Promise<PaginatedResult<SparePartRow>> {
   const where = buildWhere(params.q);
-  const skip = (params.page - 1) * params.pageSize;
 
   const [total, rows] = await Promise.all([
     prisma.sparePart.count({ where }),
     prisma.sparePart.findMany({
       where,
-      skip,
-      take: params.pageSize,
+      take: 20_000,
       orderBy: [{ designation: "asc" }, { id: "asc" }],
       select: partSelect,
     }),
@@ -68,16 +66,16 @@ export async function fetchPartsPage(params: PaginationParams): Promise<Paginate
       machineMatricule: p.machine?.legacyMatricule ?? null,
     })),
     total,
-    page: params.page,
-    pageSize: params.pageSize,
-    pageCount: Math.max(1, Math.ceil(total / params.pageSize) || 1),
+    page: 1,
+    pageSize: total || 1,
+    pageCount: 1,
   };
 }
 
 export function getPartsPageCached(params: PaginationParams) {
   return unstable_cache(
     () => fetchPartsPage(params),
-    [CACHE_TAGS.parts, String(params.page), String(params.pageSize), params.q],
+    [CACHE_TAGS.parts, "all", params.q],
     { revalidate: 60, tags: [CACHE_TAGS.parts] },
   )();
 }

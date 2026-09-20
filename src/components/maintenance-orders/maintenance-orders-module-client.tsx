@@ -42,13 +42,6 @@ const DeleteConfirmDialog = dynamic(
   { ssr: false },
 );
 
-type OrdersPagination = {
-  page: number;
-  pageCount: number;
-  total: number;
-  pageSize: number;
-};
-
 const STATUS_OPTIONS = [
   { value: "ALL", label: "Tous" },
   ...Object.values(MaintenanceOrderStatus).map((s) => ({
@@ -59,13 +52,11 @@ const STATUS_OPTIONS = [
 
 export function MaintenanceOrdersModuleClient({
   orders: initialRows,
-  pagination,
   initialFilters,
   machines,
   readOnly = false,
 }: {
   orders: MaintenanceOrderRow[];
-  pagination: OrdersPagination;
   initialFilters: { q: string; status: string; machineId: string; dateFrom: string; dateTo: string };
   machines: MachineOption[];
   readOnly?: boolean;
@@ -87,7 +78,6 @@ export function MaintenanceOrdersModuleClient({
       machineId?: string;
       dateFrom?: string;
       dateTo?: string;
-      page?: number;
     }) => {
       const params = new URLSearchParams();
       const q = next.q ?? initialFilters.q;
@@ -95,13 +85,11 @@ export function MaintenanceOrdersModuleClient({
       const machineId = next.machineId ?? initialFilters.machineId;
       const dateFrom = next.dateFrom ?? initialFilters.dateFrom;
       const dateTo = next.dateTo ?? initialFilters.dateTo;
-      const page = next.page ?? 1;
       if (q) params.set("q", q);
       if (status !== "ALL") params.set("status", status);
       if (machineId && machineId !== "ALL") params.set("machineId", machineId);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
-      if (page > 1) params.set("page", String(page));
       const qs = params.toString();
       router.push(qs ? `${pathname}?${qs}` : pathname);
     },
@@ -110,7 +98,7 @@ export function MaintenanceOrdersModuleClient({
 
   const handleDebouncedSearch = React.useCallback(
     (value: string) => {
-      startFilterTransition(() => pushFilters({ q: value.trim(), page: 1 }));
+      startFilterTransition(() => pushFilters({ q: value.trim() }));
     },
     [pushFilters],
   );
@@ -130,15 +118,6 @@ export function MaintenanceOrdersModuleClient({
     [rows, viewOrderId],
   );
 
-  const goToPage = React.useCallback(
-    (nextPage: number) => {
-      const safe = Math.max(1, Math.min(nextPage, pagination.pageCount));
-      if (safe === pagination.page) return;
-      pushFilters({ page: safe });
-    },
-    [pagination.page, pagination.pageCount, pushFilters],
-  );
-
   const machineOptions = React.useMemo(
     () => [{ value: "ALL", label: "Toutes les machines" }, ...machines.map((m) => ({ value: m.id, label: m.name }))],
     [machines],
@@ -150,14 +129,14 @@ export function MaintenanceOrdersModuleClient({
         id: "machine",
         label: "Machines",
         value: initialFilters.machineId,
-        onChange: (v: string) => startFilterTransition(() => pushFilters({ machineId: v, page: 1 })),
+        onChange: (v: string) => startFilterTransition(() => pushFilters({ machineId: v })),
         options: machineOptions,
       },
       {
         id: "status",
         label: "Statut",
         value: initialFilters.status,
-        onChange: (v: string) => startFilterTransition(() => pushFilters({ status: v, page: 1 })),
+        onChange: (v: string) => startFilterTransition(() => pushFilters({ status: v })),
         options: STATUS_OPTIONS,
       },
     ],
@@ -190,7 +169,7 @@ export function MaintenanceOrdersModuleClient({
         searchInputId="om-reference-search"
         searchPlaceholder="Référence ou ID de l'ordre…"
         searchInitialValue={initialFilters.q}
-        resultCount={pagination.total}
+        resultCount={rows.length}
         action={
           readOnly ? undefined : (
             <AddMaintenanceOrderSheet
@@ -212,7 +191,7 @@ export function MaintenanceOrdersModuleClient({
                 id="om-date-from"
                 type="date"
                 value={initialFilters.dateFrom}
-                onChange={(e) => startFilterTransition(() => pushFilters({ dateFrom: e.target.value, page: 1 }))}
+                onChange={(e) => startFilterTransition(() => pushFilters({ dateFrom: e.target.value }))}
                 className="mt-0.5 h-9 border-slate-200 bg-white"
               />
             </div>
@@ -224,7 +203,7 @@ export function MaintenanceOrdersModuleClient({
                 id="om-date-to"
                 type="date"
                 value={initialFilters.dateTo}
-                onChange={(e) => startFilterTransition(() => pushFilters({ dateTo: e.target.value, page: 1 }))}
+                onChange={(e) => startFilterTransition(() => pushFilters({ dateTo: e.target.value }))}
                 className="mt-0.5 h-9 border-slate-200 bg-white"
               />
             </div>
@@ -241,13 +220,6 @@ export function MaintenanceOrdersModuleClient({
         onDelete={readOnly ? () => {} : setDeleteOrder}
         onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
         readOnly={readOnly}
-        serverPagination={{
-          page: pagination.page,
-          pageCount: pagination.pageCount,
-          total: pagination.total,
-          onPrevious: () => goToPage(pagination.page - 1),
-          onNext: () => goToPage(pagination.page + 1),
-        }}
       />
 
       <MaintenanceOrderDetailSheet

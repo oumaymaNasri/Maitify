@@ -42,14 +42,12 @@ export async function fetchWaterMeasurementsPage(
   params: PaginationParams,
 ): Promise<PaginatedResult<WaterMeasurementRow>> {
   const where = buildWhere(params.q);
-  const skip = (params.page - 1) * params.pageSize;
 
   const [total, rows] = await Promise.all([
     prisma.waterQualityMeasurement.count({ where }),
     prisma.waterQualityMeasurement.findMany({
       where,
-      skip,
-      take: params.pageSize,
+      take: 20_000,
       orderBy: [{ measuredAt: "desc" }, { id: "desc" }],
       select: measurementSelect,
     }),
@@ -61,16 +59,16 @@ export async function fetchWaterMeasurementsPage(
       measuredAt: m.measuredAt.toISOString(),
     })),
     total,
-    page: params.page,
-    pageSize: params.pageSize,
-    pageCount: Math.max(1, Math.ceil(total / params.pageSize) || 1),
+    page: 1,
+    pageSize: total || 1,
+    pageCount: 1,
   };
 }
 
 export function getWaterMeasurementsPageCached(params: PaginationParams) {
   return unstable_cache(
     () => fetchWaterMeasurementsPage(params),
-    [CACHE_TAGS.waterMeasurements, String(params.page), String(params.pageSize), params.q],
+    [CACHE_TAGS.waterMeasurements, "all", params.q],
     { revalidate: 45, tags: [CACHE_TAGS.waterMeasurements] },
   )();
 }

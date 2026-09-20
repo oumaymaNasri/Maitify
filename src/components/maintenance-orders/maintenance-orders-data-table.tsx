@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Edit2, Eye, Trash2 } from "lucide-react";
 import * as React from "react";
 
@@ -11,7 +11,7 @@ import {
   GmaoStandardTable,
   GmaoTablePagination,
 } from "@/components/gmao/gmao-table";
-import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW } from "@/components/gmao/table-styles";
 import { MaintenanceOrderPdfButton } from "@/components/maintenance-orders/maintenance-order-pdf-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,14 +33,6 @@ function statusBadgeClass(status: MaintenanceOrderRow["status"]): string {
   }
 }
 
-type ServerPaginationProps = {
-  page: number;
-  pageCount: number;
-  total: number;
-  onPrevious: () => void;
-  onNext: () => void;
-};
-
 type MaintenanceOrdersDataTableProps = {
   orders: MaintenanceOrderRow[];
   selectedIds: Set<string>;
@@ -51,7 +43,6 @@ type MaintenanceOrdersDataTableProps = {
   onBulkDelete: () => void;
   isPending?: boolean;
   readOnly?: boolean;
-  serverPagination?: ServerPaginationProps;
 };
 
 export function MaintenanceOrdersDataTable({
@@ -64,7 +55,6 @@ export function MaintenanceOrdersDataTable({
   onBulkDelete,
   isPending,
   readOnly = false,
-  serverPagination,
 }: MaintenanceOrdersDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const visibleIds = React.useMemo(() => orders.map((o) => o.id), [orders]);
@@ -187,11 +177,7 @@ export function MaintenanceOrdersDataTable({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    ...(serverPagination ? {} : { getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize: GMAO_TABLE_PAGE_SIZE } } }),
   });
-
-  const page = serverPagination ? serverPagination.page : table.getState().pagination.pageIndex + 1;
-  const pageCount = serverPagination ? serverPagination.pageCount : Math.max(table.getPageCount(), 1);
 
   return (
     <div className="space-y-3">
@@ -203,16 +189,7 @@ export function MaintenanceOrdersDataTable({
         getRowId={(row) => row.id}
         isPending={isPending}
       />
-      <GmaoTablePagination
-        total={serverPagination?.total ?? orders.length}
-        noun="résultat(s)"
-        page={page}
-        pageCount={pageCount}
-        canPrevious={serverPagination ? serverPagination.page > 1 : table.getCanPreviousPage()}
-        canNext={serverPagination ? serverPagination.page < serverPagination.pageCount : table.getCanNextPage()}
-        onPrevious={() => (serverPagination ? serverPagination.onPrevious() : table.previousPage())}
-        onNext={() => (serverPagination ? serverPagination.onNext() : table.nextPage())}
-      />
+      <GmaoTablePagination total={orders.length} noun="résultat(s)" />
     </div>
   );
 }

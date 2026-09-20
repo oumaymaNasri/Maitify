@@ -4,7 +4,6 @@ import type { ColumnDef, FilterFn, SortingState } from "@tanstack/react-table";
 import {
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -12,7 +11,6 @@ import * as React from "react";
 
 import { GmaoStandardTable, GmaoTablePagination } from "@/components/gmao/gmao-table";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
-import { GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
 
 type DataTableProps<TData, TValue> = {
   columns: ColumnDef<TData, TValue>[];
@@ -45,10 +43,6 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize: GMAO_TABLE_PAGE_SIZE },
-    },
   });
 
   const filteredCount = table.getFilteredRowModel().rows.length;
@@ -63,16 +57,7 @@ export function DataTable<TData, TValue>({
         resultCount={filteredCount}
       />
       <GmaoStandardTable table={table} emptyMessage="Aucun enregistrement." />
-      <GmaoTablePagination
-        total={filteredCount}
-        noun="résultat(s)"
-        page={table.getState().pagination.pageIndex + 1}
-        pageCount={Math.max(table.getPageCount(), 1)}
-        canPrevious={table.getCanPreviousPage()}
-        canNext={table.getCanNextPage()}
-        onPrevious={() => table.previousPage()}
-        onNext={() => table.nextPage()}
-      />
+      <GmaoTablePagination total={filteredCount} noun="résultat(s)" />
     </div>
   );
 }

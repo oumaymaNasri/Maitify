@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Edit2, Eye, Trash2 } from "lucide-react";
 import * as React from "react";
 
@@ -11,7 +11,7 @@ import {
   GmaoStandardTable,
   GmaoTablePagination,
 } from "@/components/gmao/gmao-table";
-import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW } from "@/components/gmao/table-styles";
 import type { TechnicianRow } from "@/lib/gmao/technicians-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -170,8 +170,6 @@ export function TechniciansDataTable({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: GMAO_TABLE_PAGE_SIZE } },
   });
 
   return (
@@ -184,16 +182,7 @@ export function TechniciansDataTable({
         getRowId={(row) => row.id}
         isPending={isPending}
       />
-      <GmaoTablePagination
-        total={technicians.length}
-        noun="technicien(s)"
-        page={table.getState().pagination.pageIndex + 1}
-        pageCount={Math.max(table.getPageCount(), 1)}
-        canPrevious={table.getCanPreviousPage()}
-        canNext={table.getCanNextPage()}
-        onPrevious={() => table.previousPage()}
-        onNext={() => table.nextPage()}
-      />
+      <GmaoTablePagination total={technicians.length} noun="technicien(s)" />
     </div>
   );
 }
