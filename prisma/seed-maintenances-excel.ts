@@ -584,26 +584,42 @@ async function syncWorkflowStatuses() {
 
 async function main() {
   const force = process.env.SEED_MAINTENANCES_FORCE === "1";
-  const combinedRows = loadRows("maintenances-combinees.json", EXPECTED_COMBINED_ROWS);
-  const preventiveRows = loadRows("maintenances-preventives.json", EXPECTED_PREVENTIVE_ROWS);
-  const expected = combinedRows.length + preventiveRows.length;
+  const onVercel = process.env.VERCEL === "1";
 
   const [existingCombined, existingPreventive] = await Promise.all([
     prisma.maintenanceLog.count({ where: { importSource: SOURCE_COMBINED } }),
     prisma.maintenanceLog.count({ where: { importSource: SOURCE_PREVENTIVE } }),
   ]);
+  const existingTotal = existingCombined + existingPreventive;
+  const alreadySeeded =
+    existingCombined === EXPECTED_COMBINED_ROWS && existingPreventive === EXPECTED_PREVENTIVE_ROWS;
 
-  if (existingCombined === combinedRows.length && existingPreventive === preventiveRows.length && !force) {
+  if (alreadySeeded && !force) {
     console.log(
-      `[seed-maintenances] déjà en base : combinées=${existingCombined} préventives=${existingPreventive} total=${existingCombined + existingPreventive}. Conservé.`,
+      `[seed-maintenances] déjà en base : combinées=${existingCombined} préventives=${existingPreventive} total=${existingTotal}. Conservé (pas de relecture JSON).`,
     );
-    const techs = await loadTechnicianIndex();
-    await repairImportedMetadata(techs);
-    await syncWorkflowStatuses();
+    if (!onVercel) {
+      const techs = await loadTechnicianIndex();
+      await repairImportedMetadata(techs);
+      await syncWorkflowStatuses();
+    }
     const om = await syncDailyMaintenanceOrders(prisma);
     console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
     return;
   }
+
+  if (onVercel && existingTotal > 100 && !force) {
+    console.log(
+      `[seed-maintenances] Vercel : conservation des ${existingTotal} interventions existantes (pas de réimport).`,
+    );
+    const om = await syncDailyMaintenanceOrders(prisma);
+    console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
+    return;
+  }
+
+  const combinedRows = loadRows("maintenances-combinees.json", EXPECTED_COMBINED_ROWS);
+  const preventiveRows = loadRows("maintenances-preventives.json", EXPECTED_PREVENTIVE_ROWS);
+  const expected = combinedRows.length + preventiveRows.length;
 
   const before = await prisma.maintenanceLog.count();
   console.log(`[seed-maintenances] suppression de ${before} interventions existantes…`);
