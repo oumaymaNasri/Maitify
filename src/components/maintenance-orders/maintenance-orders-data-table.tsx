@@ -1,52 +1,25 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Edit2, Eye, Trash2 } from "lucide-react";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { Edit2, Eye, Trash2 } from "lucide-react";
 import * as React from "react";
 
-import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
+import {
+  GmaoBulkSelectBar,
+  GmaoRowCheckbox,
+  GmaoStandardTable,
+  GmaoTablePagination,
+} from "@/components/gmao/gmao-table";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
 import { MaintenanceOrderPdfButton } from "@/components/maintenance-orders/maintenance-order-pdf-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { MaintenanceOrderRow } from "@/lib/gmao/maintenance-orders-query";
 import { formatDateFrShort } from "@/lib/utils/format-date";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
 import { cn } from "@/lib/utils";
-
-function RowCheckbox({
-  checked,
-  indeterminate,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean;
-  indeterminate?: boolean;
-  onChange: (checked: boolean) => void;
-  ariaLabel: string;
-}) {
-  const ref = React.useRef<HTMLInputElement>(null);
-  React.useEffect(() => {
-    if (ref.current) ref.current.indeterminate = Boolean(indeterminate);
-  }, [indeterminate]);
-  return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      aria-label={ariaLabel}
-      className="h-4 w-4 rounded border-slate-300 text-[#1F76FB] focus:ring-[#1F76FB]"
-    />
-  );
-}
 
 function statusBadgeClass(status: MaintenanceOrderRow["status"]): string {
   switch (status) {
@@ -94,6 +67,7 @@ export function MaintenanceOrdersDataTable({
   readOnly = false,
   serverPagination,
 }: MaintenanceOrdersDataTableProps) {
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const visibleIds = React.useMemo(() => orders.map((o) => o.id), [orders]);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
@@ -107,38 +81,35 @@ export function MaintenanceOrdersDataTable({
     [onSelectedIdsChange, selectedIds, visibleIds],
   );
 
-  const columns = React.useMemo<ColumnDef<MaintenanceOrderRow>[]>(
-    () => {
-      const cols: ColumnDef<MaintenanceOrderRow>[] = [];
-
-      if (!readOnly) {
-        cols.push({
-          id: "select",
-          header: () => (
-            <RowCheckbox
-              checked={allVisibleSelected}
-              indeterminate={someVisibleSelected && !allVisibleSelected}
-              onChange={toggleAllVisible}
-              ariaLabel="Sélectionner tous les ordres visibles"
-            />
-          ),
-          cell: ({ row }) => (
-            <RowCheckbox
-              checked={selectedIds.has(row.original.id)}
-              onChange={(checked) => {
-                const next = new Set(selectedIds);
-                if (checked) next.add(row.original.id);
-                else next.delete(row.original.id);
-                onSelectedIdsChange(next);
-              }}
-              ariaLabel={`Sélectionner ${row.original.reference}`}
-            />
-          ),
-          size: 40,
-        });
-      }
-
-      cols.push(
+  const columns = React.useMemo<ColumnDef<MaintenanceOrderRow>[]>(() => {
+    const cols: ColumnDef<MaintenanceOrderRow>[] = [];
+    if (!readOnly) {
+      cols.push({
+        id: "select",
+        enableSorting: false,
+        header: () => (
+          <GmaoRowCheckbox
+            checked={allVisibleSelected}
+            indeterminate={someVisibleSelected && !allVisibleSelected}
+            onChange={toggleAllVisible}
+            ariaLabel="Sélectionner tous les ordres visibles"
+          />
+        ),
+        cell: ({ row }) => (
+          <GmaoRowCheckbox
+            checked={selectedIds.has(row.original.id)}
+            onChange={(checked) => {
+              const next = new Set(selectedIds);
+              if (checked) next.add(row.original.id);
+              else next.delete(row.original.id);
+              onSelectedIdsChange(next);
+            }}
+            ariaLabel={`Sélectionner ${row.original.reference}`}
+          />
+        ),
+      });
+    }
+    cols.push(
       {
         accessorKey: "reference",
         header: "Référence",
@@ -146,7 +117,7 @@ export function MaintenanceOrdersDataTable({
           <span className="font-medium text-slate-900">
             {row.original.reference}
             {row.original.autoGenerated ? (
-              <Badge variant="outline" className="ml-2 font-normal text-[10px]">
+              <Badge variant="outline" className="ml-2 rounded-full font-normal text-[10px]">
                 Auto
               </Badge>
             ) : null}
@@ -161,7 +132,11 @@ export function MaintenanceOrdersDataTable({
       {
         accessorKey: "interventionType",
         header: "Type",
-        cell: ({ row }) => interventionTypeFr(row.original.interventionType),
+        cell: ({ row }) => (
+          <Badge variant={row.original.interventionType === "CORRECTIVE" ? "warning" : "secondary"} className="rounded-full font-normal">
+            {interventionTypeFr(row.original.interventionType)}
+          </Badge>
+        ),
       },
       {
         accessorKey: "logCount",
@@ -183,129 +158,71 @@ export function MaintenanceOrdersDataTable({
         accessorKey: "status",
         header: "Statut",
         cell: ({ row }) => (
-          <Badge variant="outline" className={cn("font-medium", statusBadgeClass(row.original.status))}>
+          <Badge variant="outline" className={cn("rounded-full font-medium", statusBadgeClass(row.original.status))}>
             {maintenanceOrderStatusFr(row.original.status)}
           </Badge>
         ),
       },
       {
         id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
+        header: "Actions",
+        enableSorting: false,
         cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-1">
-            <MaintenanceOrderPdfButton orderId={row.original.id} reference={row.original.reference} size="icon" />
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => onView(row.original)} aria-label="Voir">
+          <div className="flex items-center gap-0.5">
+            <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_VIEW} onClick={() => onView(row.original)} aria-label="Voir">
               <Eye className="h-4 w-4" />
             </Button>
             {!readOnly ? (
               <>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(row.original)} aria-label="Modifier">
+                <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_EDIT} onClick={() => onEdit(row.original)} aria-label="Modifier">
                   <Edit2 className="h-4 w-4" />
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-rose-600 hover:text-rose-700"
-                  onClick={() => onDelete(row.original)}
-                  aria-label="Supprimer"
-                >
+                <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_DELETE} onClick={() => onDelete(row.original)} aria-label="Supprimer">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </>
             ) : null}
+            <MaintenanceOrderPdfButton orderId={row.original.id} reference={row.original.reference} size="icon" />
           </div>
         ),
       },
-      );
-
-      return cols;
-    },
-    [allVisibleSelected, onDelete, onEdit, onSelectedIdsChange, onView, readOnly, selectedIds, someVisibleSelected, toggleAllVisible],
-  );
+    );
+    return cols;
+  }, [allVisibleSelected, onDelete, onEdit, onSelectedIdsChange, onView, readOnly, selectedIds, someVisibleSelected, toggleAllVisible]);
 
   const table = useReactTable({
     data: orders,
     columns,
+    state: { sorting },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    ...(serverPagination ? {} : { getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize: 10 } } }),
+    getSortedRowModel: getSortedRowModel(),
+    ...(serverPagination ? {} : { getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize: GMAO_TABLE_PAGE_SIZE } } }),
   });
 
+  const page = serverPagination ? serverPagination.page : table.getState().pagination.pageIndex + 1;
+  const pageCount = serverPagination ? serverPagination.pageCount : Math.max(table.getPageCount(), 1);
+
   return (
-    <div className={cn("space-y-3", isPending && "opacity-70")}>
-      {!readOnly && selectedIds.size > 0 ? (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm">
-          <span className="text-slate-600">{selectedIds.size} sélectionné(s)</span>
-          <Button type="button" variant="destructive" size="sm" onClick={onBulkDelete}>
-            Supprimer la sélection
-          </Button>
-        </div>
-      ) : null}
-
-      <div className={GMAO_TABLE_WRAP}>
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id} className="border-0 hover:bg-transparent">
-                {hg.headers.map((h) => (
-                  <TableHead key={h.id} className={GMAO_TABLE_HEAD}>
-                    {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-slate-500">
-                  Aucun ordre de maintenance.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex items-center justify-between text-sm text-slate-600">
-        <span>
-          {serverPagination ? (
-            <>
-              {serverPagination.total} résultat(s) · page {serverPagination.page}/{serverPagination.pageCount}
-            </>
-          ) : (
-            <>Page {table.getState().pagination.pageIndex + 1} / {table.getPageCount() || 1}</>
-          )}
-        </span>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={serverPagination ? serverPagination.page <= 1 : !table.getCanPreviousPage()}
-            onClick={() => (serverPagination ? serverPagination.onPrevious() : table.previousPage())}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={serverPagination ? serverPagination.page >= serverPagination.pageCount : !table.getCanNextPage()}
-            onClick={() => (serverPagination ? serverPagination.onNext() : table.nextPage())}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-3">
+      {!readOnly ? <GmaoBulkSelectBar count={selectedIds.size} onBulkDelete={onBulkDelete} /> : null}
+      <GmaoStandardTable
+        table={table}
+        emptyMessage="Aucun ordre de maintenance."
+        selectedIdSet={selectedIds}
+        getRowId={(row) => row.id}
+        isPending={isPending}
+      />
+      <GmaoTablePagination
+        total={serverPagination?.total ?? orders.length}
+        noun="résultat(s)"
+        page={page}
+        pageCount={pageCount}
+        canPrevious={serverPagination ? serverPagination.page > 1 : table.getCanPreviousPage()}
+        canNext={serverPagination ? serverPagination.page < serverPagination.pageCount : table.getCanNextPage()}
+        onPrevious={() => (serverPagination ? serverPagination.onPrevious() : table.previousPage())}
+        onNext={() => (serverPagination ? serverPagination.onNext() : table.nextPage())}
+      />
     </div>
   );
 }

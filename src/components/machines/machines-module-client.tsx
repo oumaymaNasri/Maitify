@@ -185,8 +185,9 @@ export function MachinesModuleClient({
   );
 
   return (
-    <GmaoModuleShell title="Liste des machines">
+    <GmaoModuleShell>
       <ModuleFilterBar
+        layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
         searchPlaceholder="Recherche floue : nom, ID, emplacement…"
         resultCount={pagination?.total ?? filtered.length}
@@ -208,33 +209,18 @@ export function MachinesModuleClient({
         onEdit={setEditMachine}
         onDelete={setDeleteMachine}
         onBulkDelete={() => setBulkDeleteOpen(true)}
+        serverPagination={
+          pagination
+            ? {
+                page: pagination.page,
+                pageCount: pagination.pageCount,
+                total: pagination.total,
+                onPrevious: () => goToPage(pagination.page - 1),
+                onNext: () => goToPage(pagination.page + 1),
+              }
+            : undefined
+        }
       />
-
-      {pagination && pagination.pageCount > 1 ? (
-        <div className="flex items-center justify-between text-sm text-slate-600">
-          <span>
-            Page {pagination.page}/{pagination.pageCount}
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="rounded-md border border-slate-200 px-3 py-1 disabled:opacity-40"
-              disabled={pagination.page <= 1}
-              onClick={() => goToPage(pagination.page - 1)}
-            >
-              Précédent
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-slate-200 px-3 py-1 disabled:opacity-40"
-              disabled={pagination.page >= pagination.pageCount}
-              onClick={() => goToPage(pagination.page + 1)}
-            >
-              Suivant
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       <MachineEditDialog
         machine={editMachine}

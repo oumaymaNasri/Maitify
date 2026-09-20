@@ -5,12 +5,14 @@ import type { ColumnDef, ColumnOrderState, ColumnSizingState, VisibilityState } 
 import {
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { Columns3, Edit2, Eye, GripVertical, Trash2 } from "lucide-react";
 import * as React from "react";
 
-import { GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
+import { GmaoRowCheckbox, GmaoTablePagination } from "@/components/gmao/gmao-table";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_PAGE_SIZE, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { InterventionFicheButton } from "@/components/interventions/intervention-fiche-button";
 import { Badge } from "@/components/ui/badge";
@@ -77,33 +79,6 @@ function CellText({ value, className }: { value: string | null | undefined; clas
     <p className={cn("max-w-[280px] truncate text-sm text-slate-700", className)} title={text}>
       {text}
     </p>
-  );
-}
-
-function RowCheckbox({
-  checked,
-  indeterminate,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean;
-  indeterminate?: boolean;
-  onChange: (checked: boolean) => void;
-  ariaLabel: string;
-}) {
-  const ref = React.useRef<HTMLInputElement>(null);
-  React.useEffect(() => {
-    if (ref.current) ref.current.indeterminate = Boolean(indeterminate);
-  }, [indeterminate]);
-  return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      aria-label={ariaLabel}
-      className="h-4 w-4 rounded border-slate-300 text-[#1F76FB] focus:ring-[#1F76FB]"
-    />
   );
 }
 
@@ -184,7 +159,7 @@ export function InterventionsDataTable({
       cols.push({
         id: "select",
         header: () => (
-          <RowCheckbox
+          <GmaoRowCheckbox
             checked={allVisibleSelected}
             indeterminate={someVisibleSelected && !allVisibleSelected}
             onChange={toggleAllVisible}
@@ -192,7 +167,7 @@ export function InterventionsDataTable({
           />
         ),
         cell: ({ row }) => (
-          <RowCheckbox
+          <GmaoRowCheckbox
             checked={selectedIds.has(row.original.id)}
             onChange={(checked) => toggleRow(row.original.id, checked)}
             ariaLabel={`Sélectionner ${row.original.machineName}`}
@@ -227,7 +202,7 @@ export function InterventionsDataTable({
         header: "Type de maintenance",
         size: 150,
         cell: ({ row }) => (
-          <Badge variant={row.original.type === "CORRECTIVE" ? "warning" : "secondary"} className="font-normal">
+          <Badge variant={row.original.type === "CORRECTIVE" ? "warning" : "secondary"} className="rounded-full font-normal">
             {interventionTypeFr(row.original.type)}
           </Badge>
         ),
@@ -262,15 +237,15 @@ export function InterventionsDataTable({
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex items-center gap-0.5">
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-[#1F76FB] hover:bg-[#E8F1FF]" onClick={() => onView(row.original)} aria-label="Voir">
+            <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_VIEW} onClick={() => onView(row.original)} aria-label="Voir">
               <Eye className="h-4 w-4" />
             </Button>
             {!readOnly ? (
               <>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-slate-600 hover:bg-slate-100" onClick={() => onEdit(row.original)} aria-label="Modifier">
+                <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_EDIT} onClick={() => onEdit(row.original)} aria-label="Modifier">
                   <Edit2 className="h-4 w-4" />
                 </Button>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => onDelete(row.original)} aria-label="Supprimer">
+                <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_DELETE} onClick={() => onDelete(row.original)} aria-label="Supprimer">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </>
@@ -283,16 +258,20 @@ export function InterventionsDataTable({
     return cols;
   }, [allVisibleSelected, someVisibleSelected, selectedIds, readOnly, onView, onEdit, onDelete, toggleAllVisible, toggleRow]);
 
+  const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: GMAO_TABLE_PAGE_SIZE });
+
   const table = useReactTable({
     data: interventions,
     columns,
-    state: { columnOrder, columnVisibility, columnSizing },
+    state: { columnOrder, columnVisibility, columnSizing, pagination },
     onColumnOrderChange: setColumnOrder,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnSizingChange: setColumnSizing,
+    onPaginationChange: setPagination,
     columnResizeMode: "onChange",
     enableColumnResizing: true,
     getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     getRowId: (row) => row.id,
   });
 
@@ -309,8 +288,9 @@ export function InterventionsDataTable({
     virtualRows.length > 0 ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1]!.end : 0;
 
   React.useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     scrollRef.current?.scrollTo({ top: 0 });
-  }, [interventions]);
+  }, [totals.total, serverSort.sort, serverSort.dir]);
 
   const sortable = new Set(["date", "machineName", "type", "importMatricule", "durationMinutes", "technicianName"]);
 
@@ -324,6 +304,7 @@ export function InterventionsDataTable({
   }
 
   return (
+    <div className="space-y-3">
     <div className={cn(embedded ? "overflow-hidden rounded-xl border border-slate-100 bg-white" : GMAO_TABLE_WRAP)}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <p className="text-xs text-slate-500">
@@ -366,7 +347,7 @@ export function InterventionsDataTable({
         </div>
       </div>
 
-      <div ref={scrollRef} className="h-[75vh] max-h-[800px] overflow-x-auto overflow-y-auto">
+      <div ref={scrollRef} className="max-h-[28rem] overflow-x-auto overflow-y-auto">
         <table className="w-max min-w-full border-separate border-spacing-0 text-sm" style={{ tableLayout: "fixed" }}>
           <thead className="sticky top-0 z-20 bg-slate-50 shadow-[0_1px_0_#e2e8f0]">
             {table.getHeaderGroups().map((hg) => (
@@ -467,6 +448,17 @@ export function InterventionsDataTable({
           </tbody>
         </table>
       </div>
+    </div>
+      <GmaoTablePagination
+        total={totals.total}
+        noun="résultat(s)"
+        page={table.getState().pagination.pageIndex + 1}
+        pageCount={Math.max(table.getPageCount(), 1)}
+        canPrevious={table.getCanPreviousPage()}
+        canNext={table.getCanNextPage()}
+        onPrevious={() => table.previousPage()}
+        onNext={() => table.nextPage()}
+      />
     </div>
   );
 }

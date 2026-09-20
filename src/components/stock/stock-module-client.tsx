@@ -182,10 +182,7 @@ export function StockModuleClient({ parts: initialParts, movements: initialMovem
   const resultCount = activeTab === "inventory" ? filteredParts.length : filteredMovements.length;
 
   return (
-    <GmaoModuleShell
-      title="Stock & pièces de rechange"
-      subtitle="Inventaire, alertes rupture, mouvements et association aux machines."
-    >
+    <GmaoModuleShell>
       <div className="flex flex-wrap items-center gap-2" role="tablist">
         <button
           type="button"
@@ -228,6 +225,7 @@ export function StockModuleClient({ parts: initialParts, movements: initialMovem
       </div>
 
       <ModuleFilterBar
+        layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
         searchResetKey={activeTab}
         searchPlaceholder={

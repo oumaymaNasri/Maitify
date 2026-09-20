@@ -18,7 +18,7 @@ const cols: ColumnDef<WaterMeasurementRow>[] = [
     accessorKey: "zone",
     header: "Zone",
     cell: ({ row }) => (
-      <Badge variant="outline" className="font-normal">
+      <Badge variant="outline" className="rounded-full font-normal">
         {waterZoneFr(row.original.zone)}
       </Badge>
     ),

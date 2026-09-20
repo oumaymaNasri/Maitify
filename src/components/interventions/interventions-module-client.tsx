@@ -325,11 +325,7 @@ export function InterventionsModuleClient({
   ];
 
   return (
-    <GmaoModuleShell
-      className="space-y-3"
-      title={readOnly ? "Mes interventions" : "Liste de Maintenance"}
-      subtitle={`${totals.catalogTotal.toLocaleString("fr-FR")} maintenances importées — filtrer par sous-module.`}
-    >
+    <GmaoModuleShell className="space-y-3">
     <div className="space-y-2">
       <div
         className="flex flex-wrap items-center gap-2"

@@ -117,8 +117,9 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
   }, []);
 
   return (
-    <GmaoModuleShell title="Liste des Techniciens">
+    <GmaoModuleShell>
       <ModuleFilterBar
+        layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
         searchPlaceholder="Recherche : nom, prénom, spécialité, matricule…"
         resultCount={filtered.length}

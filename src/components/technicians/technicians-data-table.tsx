@@ -1,20 +1,20 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Edit2, Eye, Trash2 } from "lucide-react";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { Edit2, Eye, Trash2 } from "lucide-react";
 import * as React from "react";
 
-import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
+import {
+  GmaoBulkSelectBar,
+  GmaoRowCheckbox,
+  GmaoStandardTable,
+  GmaoTablePagination,
+} from "@/components/gmao/gmao-table";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
 import type { TechnicianRow } from "@/lib/gmao/technicians-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   technicianAvailabilityFr,
   technicianRoleFr,
@@ -22,35 +22,6 @@ import {
 } from "@/lib/view/gmao-labels";
 import { technicianAvailabilityBadgeClass } from "@/lib/view/status-badges";
 import { cn } from "@/lib/utils";
-
-function RowCheckbox({
-  checked,
-  indeterminate,
-  onChange,
-  ariaLabel,
-}: {
-  checked: boolean;
-  indeterminate?: boolean;
-  onChange: (checked: boolean) => void;
-  ariaLabel: string;
-}) {
-  const ref = React.useRef<HTMLInputElement>(null);
-
-  React.useEffect(() => {
-    if (ref.current) ref.current.indeterminate = Boolean(indeterminate);
-  }, [indeterminate]);
-
-  return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      aria-label={ariaLabel}
-      className="h-4 w-4 rounded border-slate-300 text-[#1F76FB] focus:ring-[#1F76FB]"
-    />
-  );
-}
 
 type TechniciansDataTableProps = {
   technicians: TechnicianRow[];
@@ -73,6 +44,7 @@ export function TechniciansDataTable({
   onBulkDelete,
   isPending,
 }: TechniciansDataTableProps) {
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const visibleIds = React.useMemo(() => technicians.map((t) => t.id), [technicians]);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
@@ -101,8 +73,9 @@ export function TechniciansDataTable({
     () => [
       {
         id: "select",
+        enableSorting: false,
         header: () => (
-          <RowCheckbox
+          <GmaoRowCheckbox
             checked={allVisibleSelected}
             indeterminate={someVisibleSelected && !allVisibleSelected}
             onChange={toggleAllVisible}
@@ -110,13 +83,12 @@ export function TechniciansDataTable({
           />
         ),
         cell: ({ row }) => (
-          <RowCheckbox
+          <GmaoRowCheckbox
             checked={selectedIds.has(row.original.id)}
             onChange={(checked) => toggleRow(row.original.id, checked)}
             ariaLabel={`Sélectionner ${row.original.firstName} ${row.original.lastName}`}
           />
         ),
-        enableSorting: false,
       },
       {
         accessorKey: "lastName",
@@ -134,7 +106,7 @@ export function TechniciansDataTable({
         accessorKey: "specialty",
         header: "Spécialité",
         cell: ({ row }) => (
-          <Badge variant="secondary" className="font-normal">
+          <Badge variant="secondary" className="rounded-full font-normal">
             {technicianSpecialtyFr(row.original.specialty)}
           </Badge>
         ),
@@ -148,7 +120,7 @@ export function TechniciansDataTable({
         accessorKey: "availability",
         header: "Statut",
         cell: ({ row }) => (
-          <Badge className={cn("font-medium", technicianAvailabilityBadgeClass(row.original.availability))}>
+          <Badge className={cn("rounded-full font-medium", technicianAvailabilityBadgeClass(row.original.availability))}>
             {technicianAvailabilityFr(row.original.availability)}
           </Badge>
         ),
@@ -156,6 +128,7 @@ export function TechniciansDataTable({
       {
         accessorKey: "phone",
         header: "Contact",
+        enableSorting: false,
         cell: ({ row }) => (
           <div className="text-sm text-slate-600">
             <p>{row.original.phone ?? "—"}</p>
@@ -171,164 +144,56 @@ export function TechniciansDataTable({
       {
         id: "actions",
         header: "Actions",
+        enableSorting: false,
         cell: ({ row }) => (
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-xl text-[#1F76FB] hover:bg-[#E8F1FF]"
-              onClick={() => onView(row.original)}
-              aria-label="Voir"
-            >
+          <div className="flex items-center gap-0.5">
+            <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_VIEW} onClick={() => onView(row.original)} aria-label="Voir">
               <Eye className="h-4 w-4" />
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-[#1F76FB]"
-              onClick={() => onEdit(row.original)}
-              aria-label="Modifier"
-            >
+            <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_EDIT} onClick={() => onEdit(row.original)} aria-label="Modifier">
               <Edit2 className="h-4 w-4" />
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600"
-              onClick={() => onDelete(row.original)}
-              aria-label="Supprimer"
-            >
+            <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_DELETE} onClick={() => onDelete(row.original)} aria-label="Supprimer">
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         ),
       },
     ],
-    [
-      allVisibleSelected,
-      someVisibleSelected,
-      selectedIds,
-      toggleAllVisible,
-      toggleRow,
-      onView,
-      onEdit,
-      onDelete,
-    ],
+    [allVisibleSelected, someVisibleSelected, selectedIds, toggleAllVisible, toggleRow, onView, onEdit, onDelete],
   );
 
   const table = useReactTable({
     data: technicians,
     columns,
+    state: { sorting },
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
+    initialState: { pagination: { pageSize: GMAO_TABLE_PAGE_SIZE } },
   });
 
-  const selectedCount = selectedIds.size;
-
-  if (technicians.length === 0) {
-    return (
-      <p className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-600">
-        Aucun technicien ne correspond aux filtres.
-      </p>
-    );
-  }
-
   return (
-    <div className={cn("space-y-4", isPending && "opacity-70 transition-opacity")}>
-      {selectedCount > 0 ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-[#1F76FB]/25 bg-[#E8F1FF] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-medium text-slate-800">
-            <span className="tabular-nums text-[#1F76FB]">{selectedCount}</span> élément
-            {selectedCount > 1 ? "s" : ""} sélectionné{selectedCount > 1 ? "s" : ""}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onBulkDelete}
-            className="rounded-xl border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Supprimer la sélection
-          </Button>
-        </div>
-      ) : null}
-
-      <div className={GMAO_TABLE_WRAP}>
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id} className="border-0 hover:bg-transparent">
-                {hg.headers.map((h) => (
-                  <TableHead
-                    key={h.id}
-                    className={GMAO_TABLE_HEAD}
-                  >
-                    {flexRender(h.column.columnDef.header, h.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row, i) => (
-              <TableRow
-                key={row.id}
-                data-state={selectedIds.has(row.original.id) ? "selected" : undefined}
-                className={cn(
-                  "border-slate-100 transition-colors hover:bg-[#E8F1FF]/50",
-                  i % 2 === 1 && "bg-slate-50/60",
-                  selectedIds.has(row.original.id) && "bg-[#E8F1FF]/30",
-                )}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="px-3 py-3 align-middle">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-        <p className="text-sm text-slate-600">
-          <span className="font-semibold tabular-nums text-slate-900">
-            {table.getFilteredRowModel().rows.length}
-          </span>{" "}
-          technicien(s)
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!table.getCanPreviousPage()}
-            onClick={() => table.previousPage()}
-            className="rounded-xl border-slate-100"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm tabular-nums text-slate-600">
-            Page {table.getState().pagination.pageIndex + 1} / {Math.max(table.getPageCount(), 1)}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!table.getCanNextPage()}
-            onClick={() => table.nextPage()}
-            className="rounded-xl border-slate-100"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-3">
+      <GmaoBulkSelectBar count={selectedIds.size} onBulkDelete={onBulkDelete} />
+      <GmaoStandardTable
+        table={table}
+        emptyMessage="Aucun technicien ne correspond aux filtres."
+        selectedIdSet={selectedIds}
+        getRowId={(row) => row.id}
+        isPending={isPending}
+      />
+      <GmaoTablePagination
+        total={technicians.length}
+        noun="technicien(s)"
+        page={table.getState().pagination.pageIndex + 1}
+        pageCount={Math.max(table.getPageCount(), 1)}
+        canPrevious={table.getCanPreviousPage()}
+        canNext={table.getCanNextPage()}
+        onPrevious={() => table.previousPage()}
+        onNext={() => table.nextPage()}
+      />
     </div>
   );
 }

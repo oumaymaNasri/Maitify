@@ -33,10 +33,7 @@ async function PartsFetch({ searchParams }: PageProps) {
 
 export default function PartsPage({ searchParams }: PageProps) {
   return (
-    <div className="density-page-inner space-y-5">
-      <p className="text-sm text-muted-foreground">
-        Pagination serveur — la consommation sur intervention diminue le stock après validation (signature requise).
-      </p>
+    <div className="gmao-module-page density-page-inner space-y-4">
       <Suspense key={paginationSearchKey(searchParams)} fallback={<TablePageSkeleton columns={5} />}>
         <PartsFetch searchParams={searchParams} />
       </Suspense>

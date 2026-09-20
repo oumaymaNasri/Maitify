@@ -176,8 +176,9 @@ export function MaintenanceOrdersModuleClient({
   }, []);
 
   return (
-    <GmaoModuleShell title={readOnly ? "Ordres de Maintenance (consultation)" : "Ordres de Maintenance"}>
+    <GmaoModuleShell>
       <ModuleFilterBar
+        layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
         searchPlaceholder="Recherche : référence, machine…"
         searchResetKey={`${initialFilters.q}-${initialFilters.status}-${initialFilters.type}-${pagination.page}`}

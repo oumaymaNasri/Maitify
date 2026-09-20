@@ -1,10 +1,13 @@
 "use client";
 
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import * as React from "react";
 
-import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
+import { GmaoStandardTable, GmaoTablePagination } from "@/components/gmao/gmao-table";
+import { GMAO_TABLE_PAGE_SIZE } from "@/components/gmao/table-styles";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { StockMovementRow } from "@/lib/gmao/stock-movements-query";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +17,85 @@ type StockMovementsTableProps = {
 };
 
 export function StockMovementsTable({ movements, isPending }: StockMovementsTableProps) {
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: "date", desc: true }]);
+
+  const columns = React.useMemo<ColumnDef<StockMovementRow>[]>(
+    () => [
+      {
+        accessorKey: "date",
+        header: "Date",
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap text-sm tabular-nums text-slate-600">
+            {new Date(row.original.date).toLocaleString("fr-FR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "partDesignation",
+        header: "Pièce",
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium text-slate-900">{row.original.partDesignation}</p>
+            <p className="text-xs text-slate-500">
+              {[row.original.partBrand, row.original.partReference].filter(Boolean).join(" · ") || "—"}
+            </p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => {
+          const isEntree = row.original.type === "ENTREE";
+          return (
+            <Badge
+              className={cn(
+                "gap-1 rounded-full border-0",
+                isEntree ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" : "bg-amber-100 text-amber-800 hover:bg-amber-100",
+              )}
+            >
+              {isEntree ? <ArrowDownLeft className="h-3 w-3" aria-hidden /> : <ArrowUpRight className="h-3 w-3" aria-hidden />}
+              {isEntree ? "Entrée" : "Sortie"}
+            </Badge>
+          );
+        },
+      },
+      {
+        accessorKey: "quantity",
+        header: "Quantité",
+        cell: ({ row }) => (
+          <span className="font-mono font-semibold tabular-nums">
+            {row.original.type === "ENTREE" ? "+" : "−"}
+            {row.original.quantity}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "motif",
+        header: "Motif",
+        cell: ({ row }) => <span className="max-w-xs truncate text-sm text-slate-600">{row.original.motif ?? "—"}</span>,
+      },
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data: movements,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: GMAO_TABLE_PAGE_SIZE } },
+  });
+
   if (movements.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-slate-200 bg-white px-6 py-16 text-center">
@@ -26,66 +108,18 @@ export function StockMovementsTable({ movements, isPending }: StockMovementsTabl
   }
 
   return (
-    <div className={cn(GMAO_TABLE_WRAP, isPending && "opacity-60")}>
-      <Table>
-        <TableHeader>
-          <TableRow className="border-0 hover:bg-transparent">
-            <TableHead className={GMAO_TABLE_HEAD}>Date</TableHead>
-            <TableHead className={GMAO_TABLE_HEAD}>Pièce</TableHead>
-            <TableHead className={GMAO_TABLE_HEAD}>Type</TableHead>
-            <TableHead className={cn(GMAO_TABLE_HEAD, "text-right")}>Quantité</TableHead>
-            <TableHead className={GMAO_TABLE_HEAD}>Motif</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {movements.map((m) => {
-            const isEntree = m.type === "ENTREE";
-            return (
-              <TableRow key={m.id}>
-                <TableCell className="whitespace-nowrap text-sm tabular-nums text-slate-600">
-                  {new Date(m.date).toLocaleString("fr-FR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <p className="font-medium text-slate-900">{m.partDesignation}</p>
-                    <p className="text-xs text-slate-500">
-                      {[m.partBrand, m.partReference].filter(Boolean).join(" · ") || "—"}
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    className={cn(
-                      "gap-1 border-0",
-                      isEntree
-                        ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
-                        : "bg-amber-100 text-amber-800 hover:bg-amber-100",
-                    )}
-                  >
-                    {isEntree ? (
-                      <ArrowDownLeft className="h-3 w-3" aria-hidden />
-                    ) : (
-                      <ArrowUpRight className="h-3 w-3" aria-hidden />
-                    )}
-                    {isEntree ? "Entrée" : "Sortie"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-mono font-semibold tabular-nums">
-                  {isEntree ? "+" : "−"}
-                  {m.quantity}
-                </TableCell>
-                <TableCell className="max-w-xs truncate text-sm text-slate-600">{m.motif ?? "—"}</TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+    <div className="space-y-3">
+      <GmaoStandardTable table={table} emptyMessage="Aucun mouvement enregistré." isPending={isPending} getRowId={(row) => row.id} />
+      <GmaoTablePagination
+        total={movements.length}
+        noun="mouvement(s)"
+        page={table.getState().pagination.pageIndex + 1}
+        pageCount={Math.max(table.getPageCount(), 1)}
+        canPrevious={table.getCanPreviousPage()}
+        canNext={table.getCanNextPage()}
+        onPrevious={() => table.previousPage()}
+        onNext={() => table.nextPage()}
+      />
     </div>
   );
 }

@@ -1,12 +1,11 @@
-import { Suspense } from "react";
-
-import { DbErrorHint } from "@/components/layout/DbError";
 import { WaterMeasurementForm } from "@/components/water/WaterMeasurementForm";
 import { WaterMeasurementsDataTable } from "@/components/water/water-measurements-data-table";
 import { TablePageSkeleton } from "@/components/data-table/table-page-skeleton";
+import { DbErrorHint } from "@/components/layout/DbError";
 import { parsePaginationParams } from "@/lib/db/pagination";
 import { getWaterMeasurementsPageCached } from "@/lib/gmao/water-measurements-query";
 import { paginationSearchKey } from "@/lib/utils/search-params-key";
+import { Suspense } from "react";
 
 type PageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -34,19 +33,13 @@ async function MeasurementsTable({ searchParams }: PageProps) {
 
 export default function WaterQualityPage({ searchParams }: PageProps) {
   return (
-    <div className="density-page-inner space-y-8">
-      <p className="max-w-3xl text-sm text-muted-foreground">Saisie validée (Zod) et historique paginé côté serveur.</p>
-
+    <div className="gmao-module-page density-page-inner space-y-4">
       <div className="mx-auto max-w-3xl">
         <WaterMeasurementForm />
       </div>
-
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">Historique des mesures</h2>
-        <Suspense key={paginationSearchKey(searchParams)} fallback={<TablePageSkeleton columns={8} />}>
-          <MeasurementsTable searchParams={searchParams} />
-        </Suspense>
-      </div>
+      <Suspense key={paginationSearchKey(searchParams)} fallback={<TablePageSkeleton columns={8} />}>
+        <MeasurementsTable searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }

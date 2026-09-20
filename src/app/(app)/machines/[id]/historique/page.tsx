@@ -1,9 +1,9 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { MachineHistoryExportButtons } from "@/components/machines/machine-history-export-buttons";
-import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
+import { GmaoTablePagination, gmaoRowClass } from "@/components/gmao/gmao-table";
+import { GMAO_TABLE_CELL, GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -104,24 +104,25 @@ export default async function MachineHistoryPage({ params, searchParams }: PageP
                 {history.items.map((row, index) => (
                   <TableRow
                     key={row.id}
-                    className={cn(
-                      "border-slate-100 transition-colors hover:bg-[#E8F1FF]/50",
-                      index % 2 === 1 && "bg-slate-50/60",
-                    )}
+                    className={gmaoRowClass(index)}
                   >
-                    <TableCell className="whitespace-nowrap px-3 py-3 text-sm text-slate-700">
+                    <TableCell className={`whitespace-nowrap ${GMAO_TABLE_CELL} text-sm text-slate-700`}>
                       {formatHistoryDate(row.date)}
                     </TableCell>
-                    <TableCell className="px-3 py-3 font-mono text-xs text-slate-600">{row.referenceCode}</TableCell>
-                    <TableCell className="px-3 py-3 text-sm text-slate-700">{interventionTypeFr(row.type)}</TableCell>
-                    <TableCell className="px-3 py-3 text-sm text-slate-700">{row.technicianName ?? "—"}</TableCell>
-                    <TableCell className="max-w-md px-3 py-3 text-sm text-slate-700">
+                    <TableCell className={`${GMAO_TABLE_CELL} font-mono text-xs text-slate-600`}>{row.referenceCode}</TableCell>
+                    <TableCell className={`${GMAO_TABLE_CELL} text-sm text-slate-700`}>
+                      <Badge variant={row.type === "CORRECTIVE" ? "warning" : "secondary"} className="rounded-full font-normal">
+                        {interventionTypeFr(row.type)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={`${GMAO_TABLE_CELL} text-sm text-slate-700`}>{row.technicianName ?? "—"}</TableCell>
+                    <TableCell className={`max-w-md ${GMAO_TABLE_CELL} text-sm text-slate-700`}>
                       <span className="line-clamp-2" title={row.description}>
                         {row.description}
                       </span>
                     </TableCell>
-                    <TableCell className="px-3 py-3">
-                      <Badge className={cn("font-medium", workflowBadgeClass(row.workflowStatus))}>
+                    <TableCell className={GMAO_TABLE_CELL}>
+                      <Badge className={cn("rounded-full font-medium", workflowBadgeClass(row.workflowStatus))}>
                         {maintenanceWorkflowStatusFr(row.workflowStatus)}
                       </Badge>
                     </TableCell>
@@ -131,43 +132,16 @@ export default async function MachineHistoryPage({ params, searchParams }: PageP
             </Table>
           </div>
 
-          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-            <p className="text-sm text-slate-600">
-              <span className="font-semibold tabular-nums text-slate-900">{history.total}</span> intervention
-              {history.total > 1 ? "s" : ""}
-            </p>
-            <div className="flex items-center gap-2">
-              {history.page > 1 ? (
-                <Link
-                  href={pageHref(history.page - 1)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  aria-label="Page précédente"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Link>
-              ) : (
-                <span className="inline-flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-slate-300">
-                  <ChevronLeft className="h-4 w-4" />
-                </span>
-              )}
-              <span className="text-sm tabular-nums text-slate-600">
-                Page {history.page} / {history.pageCount}
-              </span>
-              {history.page < history.pageCount ? (
-                <Link
-                  href={pageHref(history.page + 1)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                  aria-label="Page suivante"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              ) : (
-                <span className="inline-flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-slate-300">
-                  <ChevronRight className="h-4 w-4" />
-                </span>
-              )}
-            </div>
-          </div>
+          <GmaoTablePagination
+            total={history.total}
+            noun={history.total > 1 ? "interventions" : "intervention"}
+            page={history.page}
+            pageCount={history.pageCount}
+            canPrevious={history.page > 1}
+            canNext={history.page < history.pageCount}
+            previousHref={pageHref(history.page - 1)}
+            nextHref={pageHref(history.page + 1)}
+          />
         </>
       )}
     </div>
