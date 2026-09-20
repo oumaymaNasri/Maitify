@@ -1,6 +1,7 @@
 import type { MaintenanceOrderDetailVm } from "@/lib/gmao/maintenance-order-detail-query";
-import { formatDateFrShort } from "@/lib/utils/format-date";
+import { formatDateFrShort, formatDurationMinutes } from "@/lib/utils/format-date";
 import { interventionTypeFr } from "@/lib/view/labels";
+import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
 function esc(s: string | null | undefined): string {
   if (s == null || s === "") return "";
@@ -37,6 +38,29 @@ function machineRows(detail: MaintenanceOrderDetailVm): string {
         <td class="col-center">${taskMark(line.taskHuile)}</td>
         <td class="col-center">${taskMark(line.taskControl)}</td>
         <td class="col-center">${taskMark(line.taskNonConforme)}</td>
+      </tr>`,
+    )
+    .join("");
+}
+
+function interventionRows(detail: MaintenanceOrderDetailVm, type: "PREVENTIVE" | "OTHER"): string {
+  const logs =
+    type === "PREVENTIVE"
+      ? detail.logs.filter((l) => l.type === "PREVENTIVE")
+      : detail.logs.filter((l) => l.type !== "PREVENTIVE");
+  if (logs.length === 0) {
+    return `<tr><td colspan="5" class="empty-row">${
+      type === "PREVENTIVE" ? "Aucune maintenance préventive" : "Aucune maintenance corrective"
+    }</td></tr>`;
+  }
+  return logs
+    .map(
+      (log) => `<tr>
+        <td class="col-machine">${esc(log.machineName)}</td>
+        <td class="col-center">${esc(interventionTypeFr(log.type))}</td>
+        <td>${esc(log.technicianName ?? "—")}</td>
+        <td class="col-center">${esc(formatDurationMinutes(log.durationMinutes))}</td>
+        <td class="col-center">${esc(maintenanceWorkflowStatusFr(log.workflowStatus))}</td>
       </tr>`,
     )
     .join("");
@@ -147,6 +171,15 @@ export function buildMaintenanceOrderHtml(detail: MaintenanceOrderDetailVm): str
       background: #fff;
     }
     .ref-bar strong { font-weight: 700; color: #334155; }
+
+    .section-title {
+      margin: 14px 0 0;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #334155;
+    }
 
     /* ——— Tableau machines ——— */
     .machines-table {
@@ -311,6 +344,38 @@ export function buildMaintenanceOrderHtml(detail: MaintenanceOrderDetailVm): str
       </thead>
       <tbody>
         ${machineRows(detail)}
+      </tbody>
+    </table>
+
+    <p class="section-title">Interventions préventives du ${fmtDate(detail.plannedDate)}</p>
+    <table class="machines-table">
+      <thead>
+        <tr>
+          <th class="w-machine">Machine</th>
+          <th class="w-type">Type</th>
+          <th>Technicien</th>
+          <th class="w-task">Temps</th>
+          <th class="w-task">Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${interventionRows(detail, "PREVENTIVE")}
+      </tbody>
+    </table>
+
+    <p class="section-title">Interventions correctives du ${fmtDate(detail.plannedDate)}</p>
+    <table class="machines-table">
+      <thead>
+        <tr>
+          <th class="w-machine">Machine</th>
+          <th class="w-type">Type</th>
+          <th>Technicien</th>
+          <th class="w-task">Temps</th>
+          <th class="w-task">Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${interventionRows(detail, "OTHER")}
       </tbody>
     </table>
 

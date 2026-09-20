@@ -103,7 +103,12 @@ function buildOrdersWhere(filters?: {
     and.push({ interventionType: filters.type as InterventionType });
   }
   if (filters?.machineId && filters.machineId !== "ALL") {
-    and.push({ lines: { some: { machineId: filters.machineId } } });
+    and.push({
+      OR: [
+        { lines: { some: { machineId: filters.machineId } } },
+        { logs: { some: { machineId: filters.machineId } } },
+      ],
+    });
   }
   if (filters?.dateFrom) {
     and.push({ plannedDate: { gte: new Date(`${filters.dateFrom}T00:00:00.000`) } });
@@ -172,7 +177,7 @@ export function getMaintenanceOrdersCached(
   const dateTo = filters?.dateTo ?? "";
   return unstable_cache(
     () => fetchMaintenanceOrdersPage(page, pageSize, filters),
-    [CACHE_TAGS.maintenanceOrders, "v3", String(page), String(pageSize), q, status, type, machineId, dateFrom, dateTo],
+    [CACHE_TAGS.maintenanceOrders, "v4", String(page), String(pageSize), q, status, type, machineId, dateFrom, dateTo],
     { revalidate: 60, tags: [CACHE_TAGS.maintenanceOrders] },
   )();
 }

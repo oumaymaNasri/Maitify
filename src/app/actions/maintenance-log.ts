@@ -326,24 +326,37 @@ export async function updateMaintenanceLogAction(formData: FormData): Promise<Ma
   const data = validated.data;
 
   try {
-    await prisma.maintenanceLog.update({
-      where: { id: data.id },
-      data: {
-        machineId: data.machineId,
-        technicianId: data.technicianId,
+    await prisma.$transaction(async (tx) => {
+      const log = await tx.maintenanceLog.update({
+        where: { id: data.id },
+        data: {
+          machineId: data.machineId,
+          technicianId: data.technicianId,
+          date: data.date,
+          operationType: data.operationType,
+          type: mapOperationToLegacyType(data.operationType),
+          workflowStatus: data.workflowStatus,
+          workPerformed: data.workPerformed,
+          failureDescription: data.failureDescription ?? null,
+          durationMinutes: data.durationMinutes ?? null,
+          sectorMaintenance: data.sectorMaintenance ?? null,
+          service: data.service ?? null,
+          operation: data.operation ?? null,
+          difficulties: data.difficulties ?? null,
+          failureCause: data.failureCause ?? null,
+        },
+      });
+      await attachLogToDailyOrder(tx, {
+        logId: log.id,
         date: data.date,
-        operationType: data.operationType,
-        type: mapOperationToLegacyType(data.operationType),
-        workflowStatus: data.workflowStatus,
-        workPerformed: data.workPerformed,
-        failureDescription: data.failureDescription ?? null,
-        durationMinutes: data.durationMinutes ?? null,
-        sectorMaintenance: data.sectorMaintenance ?? null,
-        service: data.service ?? null,
-        operation: data.operation ?? null,
-        difficulties: data.difficulties ?? null,
-        failureCause: data.failureCause ?? null,
-      },
+        type: log.type,
+        machineId: data.machineId,
+        preventiveCleaning: log.preventiveCleaning,
+        preventiveLubrication: log.preventiveLubrication,
+        preventiveOil: log.preventiveOil,
+        preventiveControl: log.preventiveControl,
+        preventiveNonConforme: log.preventiveNonConforme,
+      });
     });
     revalidateMaintenancePaths();
     return { ok: true, id: data.id };

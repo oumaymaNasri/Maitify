@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { MaintenanceOrderDetailVm } from "@/lib/gmao/maintenance-order-detail-query";
-import { formatDateFrShort } from "@/lib/utils/format-date";
+import { formatDateFrShort, formatDurationMinutes } from "@/lib/utils/format-date";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
+import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 import { cn } from "@/lib/utils";
 
 type MaintenanceOrderDetailSheetProps = {
@@ -26,6 +27,45 @@ function taskBadge(label: string, active: boolean) {
     <Badge variant={active ? "default" : "outline"} className={cn("text-xs", !active && "text-slate-400")}>
       {label}: {active ? "OUI" : "NON"}
     </Badge>
+  );
+}
+
+function InterventionLogsSection({
+  title,
+  empty,
+  logs,
+}: {
+  title: string;
+  empty: string;
+  logs: MaintenanceOrderDetailVm["logs"];
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase text-slate-500">{title}</p>
+      {logs.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">{empty}</p>
+      ) : (
+        <div className="space-y-2">
+          {logs.map((log) => (
+            <div key={log.id} className="rounded-lg border border-slate-200 p-3 text-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-medium text-slate-900">{log.machineName}</p>
+                  <p className="text-xs text-slate-500">{log.machineLocation}</p>
+                </div>
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  <Badge variant="secondary">{interventionTypeFr(log.type)}</Badge>
+                  <Badge variant="outline">{maintenanceWorkflowStatusFr(log.workflowStatus)}</Badge>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-slate-600">
+                Technicien : {log.technicianName ?? "—"} · Temps : {formatDurationMinutes(log.durationMinutes)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -79,6 +119,8 @@ export function MaintenanceOrderDetailSheet({
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">{interventionTypeFr(detail.interventionType)}</Badge>
                 <Badge variant="outline">{maintenanceOrderStatusFr(detail.status)}</Badge>
+                <Badge variant="outline">{detail.preventiveCount} préventive(s)</Badge>
+                <Badge variant="outline">{detail.correctiveCount} corrective(s)</Badge>
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
@@ -90,33 +132,46 @@ export function MaintenanceOrderDetailSheet({
                 </p>
               </div>
 
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Machines & tâches</p>
-                <div className="space-y-3">
-                  {detail.lines.map((line) => (
-                    <div key={line.id} className="rounded-lg border border-slate-200 p-3 text-sm">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium text-slate-900">{line.machineName}</p>
-                          <p className="text-xs text-slate-500">{line.machineLocation}</p>
+              {detail.lines.length > 0 ? (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Plan préventif (machines & tâches)</p>
+                  <div className="space-y-3">
+                    {detail.lines.map((line) => (
+                      <div key={line.id} className="rounded-lg border border-slate-200 p-3 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-slate-900">{line.machineName}</p>
+                            <p className="text-xs text-slate-500">{line.machineLocation}</p>
+                          </div>
+                          {line.completed ? (
+                            <Badge className="bg-emerald-50 text-emerald-700">Exécuté</Badge>
+                          ) : (
+                            <Badge variant="outline">En attente</Badge>
+                          )}
                         </div>
-                        {line.completed ? (
-                          <Badge className="bg-emerald-50 text-emerald-700">Exécuté</Badge>
-                        ) : (
-                          <Badge variant="outline">En attente</Badge>
-                        )}
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {taskBadge("Nettoyage", line.taskNettoyage)}
+                          {taskBadge("Graissage", line.taskGraissage)}
+                          {taskBadge("Huile", line.taskHuile)}
+                          {taskBadge("C", line.taskControl)}
+                          {taskBadge("N.C", line.taskNonConforme)}
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {taskBadge("Nettoyage", line.taskNettoyage)}
-                        {taskBadge("Graissage", line.taskGraissage)}
-                        {taskBadge("Huile", line.taskHuile)}
-                        {taskBadge("C", line.taskControl)}
-                        {taskBadge("N.C", line.taskNonConforme)}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : null}
+
+              <InterventionLogsSection
+                title="Maintenances préventives du jour"
+                empty="Aucune maintenance préventive rattachée à cette date."
+                logs={detail.logs.filter((l) => l.type === "PREVENTIVE")}
+              />
+              <InterventionLogsSection
+                title="Maintenances correctives du jour"
+                empty="Aucune maintenance corrective rattachée à cette date."
+                logs={detail.logs.filter((l) => l.type !== "PREVENTIVE")}
+              />
 
               {detail.observationComment ? (
                 <div className="rounded-lg border border-slate-200 p-4 text-sm">
