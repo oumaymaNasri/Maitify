@@ -11,7 +11,7 @@ import {
   GMAO_TABLE_SCROLL,
   GMAO_TABLE_WRAP,
 } from "@/components/gmao/table-styles";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +45,12 @@ export function GmaoRowCheckbox({
 export function GmaoTablePagination({
   total,
   noun = "résultat(s)",
+  page = 1,
+  pageCount = 1,
+  previousHref,
+  nextHref,
+  onPrevious,
+  onNext,
 }: {
   total: number;
   noun?: string;
@@ -57,10 +63,42 @@ export function GmaoTablePagination({
   previousHref?: string;
   nextHref?: string;
 }) {
+  const hasPager = pageCount > 1 || Boolean(previousHref || nextHref || onPrevious || onNext);
+  const prevDisabled = page <= 1;
+  const nextDisabled = page >= pageCount;
   return (
-    <p className="text-sm text-slate-600">
-      <span className="font-semibold tabular-nums text-slate-900">{total.toLocaleString("fr-FR")}</span> {noun}
-    </p>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-sm text-slate-600">
+        <span className="font-semibold tabular-nums text-slate-900">{total.toLocaleString("fr-FR")}</span> {noun}
+        {hasPager ? (
+          <span className="ml-2 text-slate-500">
+            · page <span className="tabular-nums text-slate-800">{page}</span> / {pageCount}
+          </span>
+        ) : null}
+      </p>
+      {hasPager ? (
+        <div className="flex items-center gap-2">
+          {previousHref && !prevDisabled ? (
+            <ButtonLink href={previousHref} variant="outline" size="sm" className="h-8 rounded-lg" scroll={false}>
+              Précédent
+            </ButtonLink>
+          ) : (
+            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg" disabled={prevDisabled} onClick={onPrevious}>
+              Précédent
+            </Button>
+          )}
+          {nextHref && !nextDisabled ? (
+            <ButtonLink href={nextHref} variant="outline" size="sm" className="h-8 rounded-lg" scroll={false}>
+              Suivant
+            </ButtonLink>
+          ) : (
+            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg" disabled={nextDisabled} onClick={onNext}>
+              Suivant
+            </Button>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

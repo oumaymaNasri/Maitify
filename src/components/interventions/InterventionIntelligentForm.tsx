@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { createMaintenanceLogWithParts } from "@/app/actions/maintenance-log";
 import { dispatchOmNotice } from "@/components/gmao/om-notice-host";
+import { SearchableVirtualSelect } from "@/components/gmao/searchable-virtual-select";
 import { InterventionFicheButton } from "@/components/interventions/intervention-fiche-button";
 import { SparePartSearchSelect } from "@/components/interventions/spare-part-search-select";
 import { TouchSignaturePad } from "@/components/interventions/TouchSignaturePad";
@@ -76,6 +77,7 @@ export function InterventionIntelligentForm({
   const [lines, setLines] = React.useState<{ partId: string; quantity: number }[]>([{ partId: "", quantity: 1 }]);
   const [selectedOrderId, setSelectedOrderId] = React.useState("");
   const [machineId, setMachineId] = React.useState("");
+  const [technicianId, setTechnicianId] = React.useState(lockedTechnicianId ?? "");
   const [operationType, setOperationType] = React.useState("DIAGNOSTIC");
   const [maintenanceOrderLineId, setMaintenanceOrderLineId] = React.useState("");
   const [preventiveCleaning, setPreventiveCleaning] = React.useState(false);
@@ -94,6 +96,19 @@ export function InterventionIntelligentForm({
     const ids = new Set(selectedOrder.lines.map((l) => l.machineId));
     return machines.filter((m) => ids.has(m.id));
   }, [machines, selectedOrder]);
+
+  const machineOptions = React.useMemo(
+    () =>
+      availableMachines.map((m) => ({
+        value: m.id,
+        label: m.legacyMatricule != null ? `${m.name} · M${m.legacyMatricule}` : m.name,
+      })),
+    [availableMachines],
+  );
+  const technicianOptions = React.useMemo(
+    () => technicians.map((t) => ({ value: t.id, label: t.label })),
+    [technicians],
+  );
 
   const applyLinePrefill = React.useCallback(
     (order: ActiveMaintenanceOrderOption | null, nextMachineId: string) => {
@@ -250,47 +265,28 @@ export function InterventionIntelligentForm({
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="machineId">Machine *</Label>
-            <select
+            <SearchableVirtualSelect
               id="machineId"
               name="machineId"
               required
               value={machineId}
-              onChange={(e) => onMachineChange(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="" disabled>
-                Sélectionner…
-              </option>
-              {availableMachines.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                  {m.legacyMatricule != null ? ` · M${m.legacyMatricule}` : ""}
-                </option>
-              ))}
-            </select>
+              onValueChange={onMachineChange}
+              options={machineOptions}
+              placeholder="Rechercher une machine…"
+            />
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="technicianId">Technicien / intervenant *</Label>
-            <select
+            <SearchableVirtualSelect
               id="technicianId"
               name="technicianId"
               required
+              value={lockedTechnicianId ?? technicianId}
+              onValueChange={setTechnicianId}
+              options={technicianOptions}
+              placeholder="Rechercher un intervenant…"
               disabled={Boolean(lockedTechnicianId)}
-              defaultValue={lockedTechnicianId ?? ""}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {!lockedTechnicianId ? (
-                <option value="" disabled>
-                  Sélectionner…
-                </option>
-              ) : null}
-              {technicians.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                  {t.availability === "EN_INTERVENTION" ? " (en intervention)" : ""}
-                </option>
-              ))}
-            </select>
+            />
             {lockedTechnicianId ? (
               <p className="text-xs text-muted-foreground">Profil verrouillé — vous ne pouvez créer des fiches qu&apos;à votre nom.</p>
             ) : null}

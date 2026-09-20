@@ -31,6 +31,7 @@ type MachinesDataTableProps = {
   onDelete: (machine: MachineCardVm) => void;
   onBulkDelete: () => void;
   isPending?: boolean;
+  pagination?: { page: number; pageCount: number; total: number };
 };
 
 export function MachinesDataTable({
@@ -41,6 +42,7 @@ export function MachinesDataTable({
   onDelete,
   onBulkDelete,
   isPending,
+  pagination,
 }: MachinesDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const visibleIds = React.useMemo(() => machines.map((m) => m.id), [machines]);
@@ -189,7 +191,24 @@ export function MachinesDataTable({
         getRowId={(row) => row.id}
         isPending={isPending}
       />
-      <GmaoTablePagination total={machines.length} noun="équipement(s)" />
+      <GmaoTablePagination
+        total={pagination?.total ?? machines.length}
+        noun="équipement(s)"
+        page={pagination?.page}
+        pageCount={pagination?.pageCount}
+        previousHref={
+          pagination && pagination.page > 1
+            ? pagination.page - 1 > 1
+              ? `/donnees-de-base/machines?page=${pagination.page - 1}`
+              : "/donnees-de-base/machines"
+            : undefined
+        }
+        nextHref={
+          pagination && pagination.page < pagination.pageCount
+            ? `/donnees-de-base/machines?page=${pagination.page + 1}`
+            : undefined
+        }
+      />
     </div>
   );
 }

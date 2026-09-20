@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 type PageProps = {
   params: { id: string };
+  searchParams?: { page?: string };
 };
 
 function workflowBadgeClass(status: string): string {
@@ -36,10 +37,11 @@ function workflowBadgeClass(status: string): string {
   }
 }
 
-export default async function MachineHistoryPage({ params }: PageProps) {
+export default async function MachineHistoryPage({ params, searchParams }: PageProps) {
+  const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
   const [header, history, exportRows] = await Promise.all([
     fetchMachineHistoryHeader(params.id),
-    fetchMachineHistoryPage(params.id),
+    fetchMachineHistoryPage(params.id, page),
     fetchMachineHistoryExportRows(params.id),
   ]);
 
@@ -124,6 +126,16 @@ export default async function MachineHistoryPage({ params }: PageProps) {
           <GmaoTablePagination
             total={history.total}
             noun={history.total > 1 ? "interventions" : "intervention"}
+            page={history.page}
+            pageCount={history.pageCount}
+            previousHref={
+              history.page > 1
+                ? `/machines/${params.id}/historique${history.page - 1 > 1 ? `?page=${history.page - 1}` : ""}`
+                : undefined
+            }
+            nextHref={
+              history.page < history.pageCount ? `/machines/${params.id}/historique?page=${history.page + 1}` : undefined
+            }
           />
         </>
       )}

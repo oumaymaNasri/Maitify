@@ -61,9 +61,15 @@ type StockModuleClientProps = {
   parts: PartInventoryRow[];
   movements: StockMovementRow[];
   machines: MachineOption[];
+  pagination?: { page: number; pageCount: number; total: number };
 };
 
-export function StockModuleClient({ parts: initialParts, movements: initialMovements, machines }: StockModuleClientProps) {
+export function StockModuleClient({
+  parts: initialParts,
+  movements: initialMovements,
+  machines,
+  pagination,
+}: StockModuleClientProps) {
   const [activeTab, setActiveTab] = React.useState<StockTab>("inventory");
   const [parts, setParts] = React.useState(initialParts);
   const [movements, setMovements] = React.useState(initialMovements);
@@ -259,6 +265,7 @@ export function StockModuleClient({ parts: initialParts, movements: initialMovem
           onDelete={setDeletePart}
           onAdjust={setAdjustPart}
           onBulkDelete={() => setBulkDeleteOpen(true)}
+          pagination={pagination}
         />
       ) : (
         <StockMovementsTable movements={filteredMovements} />

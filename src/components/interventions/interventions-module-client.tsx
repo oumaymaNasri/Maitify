@@ -20,6 +20,7 @@ import { MaintenanceImportPanel } from "@/components/interventions/maintenance-i
 import { ButtonLink } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { hrefWithPage } from "@/lib/db/pagination";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { cn } from "@/lib/utils";
 import { formatDateFrMedium } from "@/lib/utils/format-date";
@@ -66,6 +67,7 @@ export type InterventionsListQuery = {
   sort: string;
   dir: "asc" | "desc";
   view?: "import" | "";
+  page: number;
 };
 
 type InterventionsTotals = {
@@ -73,88 +75,13 @@ type InterventionsTotals = {
   catalogTotal: number;
   preventive: number;
   corrective: number;
+  all: number;
 };
-
-function rowMatchesQuery(row: InterventionListVm, query: InterventionsListQuery, q: string) {
-  if (query.status !== "ALL" && row.workflowStatus !== query.status) return false;
-  if (query.sector && query.sector !== "ALL") {
-    if ((row.sectorMaintenance ?? "").toLowerCase() !== query.sector.toLowerCase()) return false;
-  }
-  if (query.technicianId && query.technicianId !== "ALL" && row.technicianId !== query.technicianId) {
-    return false;
-  }
-  if (query.dateFrom) {
-    const from = Date.parse(`${query.dateFrom}T00:00:00.000Z`);
-    if (!Number.isNaN(from) && Date.parse(row.date) < from) return false;
-  }
-  if (query.dateTo) {
-    const to = Date.parse(`${query.dateTo}T23:59:59.999Z`);
-    if (!Number.isNaN(to) && Date.parse(row.date) > to) return false;
-  }
-  if (q) {
-    const blob = [
-      row.importMatricule,
-      row.machineName,
-      row.machineLocation,
-      row.technicianName,
-      row.operation,
-      row.failureDescription,
-      row.workPerformed,
-      row.sectorMaintenance,
-      row.service,
-      row.linkedFailureCause,
-      row.sparePartsLabel,
-    ]
-      .join(" ")
-      .toLowerCase();
-    if (!blob.includes(q)) return false;
-  }
-  return true;
-}
-
-function compareRows(a: InterventionListVm, b: InterventionListVm, sort: string, dir: 1 | -1) {
-  let cmp = 0;
-  switch (sort) {
-    case "machineName":
-      cmp = a.machineName.localeCompare(b.machineName, "fr");
-      break;
-    case "type":
-      cmp = a.type.localeCompare(b.type);
-      break;
-    case "importMatricule":
-      cmp = (a.importMatricule ?? "").localeCompare(b.importMatricule ?? "", "fr", { numeric: true });
-      break;
-    case "durationMinutes":
-      cmp = (a.durationMinutes ?? -1) - (b.durationMinutes ?? -1);
-      break;
-    case "technicianName":
-      cmp = (a.technicianName ?? "").localeCompare(b.technicianName ?? "", "fr");
-      break;
-    default:
-      cmp = a.date.localeCompare(b.date);
-  }
-  return cmp * dir || a.id.localeCompare(b.id) * dir;
-}
-
-function filterAndSortInterventions(rows: InterventionListVm[], query: InterventionsListQuery, tab: ListTabId) {
-  const q = query.q.trim().toLowerCase();
-  const base = rows.filter((row) => rowMatchesQuery(row, query, q));
-  const preventiveCount = base.filter((r) => r.type === InterventionType.PREVENTIVE).length;
-  const correctiveCount = base.filter((r) => r.type === InterventionType.CORRECTIVE).length;
-  const typed =
-    tab === "PREVENTIVE"
-      ? base.filter((r) => r.type === InterventionType.PREVENTIVE)
-      : tab === "CORRECTIVE"
-        ? base.filter((r) => r.type === InterventionType.CORRECTIVE)
-        : base;
-  const dir: 1 | -1 = query.dir === "asc" ? 1 : -1;
-  const visibleRows = [...typed].sort((a, b) => compareRows(a, b, query.sort, dir));
-  return { visibleRows, preventiveCount, correctiveCount, allCount: base.length };
-}
 
 type InterventionsModuleClientProps = {
   interventions: InterventionListVm[];
   totals: InterventionsTotals;
+  pagination: { page: number; pageSize: number; pageCount: number };
   machines: MachineOption[];
   technicians: TechnicianOption[];
   sectors: string[];
@@ -174,6 +101,7 @@ export function buildMaintenanceListSearch(query: InterventionsListQuery): strin
   if (query.sort && query.sort !== "date") params.set("sort", query.sort);
   if (query.dir && query.dir !== "desc") params.set("dir", query.dir);
   if (query.view === "import") params.set("view", "import");
+  if (query.page > 1) params.set("page", String(query.page));
   return params.toString();
 }
 
@@ -186,6 +114,7 @@ const newInterventionAction = (
 export function InterventionsModuleClient({
   interventions: initialRows,
   totals,
+  pagination,
   machines,
   technicians,
   sectors,
@@ -207,20 +136,20 @@ export function InterventionsModuleClient({
 
   React.useEffect(() => {
     setRows(initialRows);
-  }, [initialRows]);
+    setQuery(initialQuery);
+  }, [initialRows, initialQuery]);
 
   const patchQuery = React.useCallback(
     (patch: Partial<InterventionsListQuery>) => {
       setQuery((prev) => {
-        const next = { ...prev, ...patch };
+        const next = { ...prev, page: 1, ...patch };
+        if (patch.page != null) next.page = patch.page;
         const qs = buildMaintenanceListSearch(next);
-        if (typeof window !== "undefined") {
-          window.history.replaceState(window.history.state, "", qs ? `${pathname}?${qs}` : pathname);
-        }
+        router.push(qs ? `${pathname}?${qs}` : pathname);
         return next;
       });
     },
-    [pathname],
+    [pathname, router],
   );
 
   const selectTab = React.useCallback(
@@ -312,10 +241,12 @@ export function InterventionsModuleClient({
     setSelectedIds(new Set());
   }, []);
 
-  const { visibleRows, preventiveCount, correctiveCount, allCount } = React.useMemo(
-    () => filterAndSortInterventions(rows, query, tab === "IMPORT" ? "ALL" : tab),
-    [rows, query, tab],
-  );
+  const { visibleRows, preventiveCount, correctiveCount, allCount } = {
+    visibleRows: rows,
+    preventiveCount: totals.preventive,
+    correctiveCount: totals.corrective,
+    allCount: totals.all,
+  };
 
   const tabs: { id: TabId; label: string; count?: number; icon: LucideIcon }[] = [
     { id: "PREVENTIVE", label: "Maintenance Préventive", count: preventiveCount, icon: ShieldCheck },
@@ -376,7 +307,7 @@ export function InterventionsModuleClient({
         onDebouncedSearchChange={handleDebouncedSearch}
         searchPlaceholder="Matricule, machine, rapport, intervenant…"
         searchResetKey={`${query.status}-${query.sector}-${tab}`}
-        resultCount={visibleRows.length}
+        resultCount={totals.total}
         action={newInterventionAction}
         exportActions={readOnly ? undefined : <InterventionsExportButtons items={visibleRows} />}
         filters={filters}
@@ -424,7 +355,10 @@ export function InterventionsModuleClient({
           dir: query.dir,
           onChange: (sort, dir) => patchQuery({ sort, dir }),
         }}
-        totals={{ total: visibleRows.length, catalogTotal: totals.catalogTotal }}
+        totals={{ total: totals.total, catalogTotal: totals.catalogTotal }}
+        pagination={pagination}
+        previousHref={hrefWithPage(pathname, buildMaintenanceListSearch(query), Math.max(1, pagination.page - 1))}
+        nextHref={hrefWithPage(pathname, buildMaintenanceListSearch(query), pagination.page + 1)}
       />
         </>
       )}

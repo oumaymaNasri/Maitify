@@ -25,6 +25,7 @@ type StockInventoryGridProps = {
   onDelete: (part: PartInventoryRow) => void;
   onAdjust: (part: PartInventoryRow) => void;
   onBulkDelete: () => void;
+  pagination?: { page: number; pageCount: number; total: number };
 };
 
 function StockInventoryGridInner({
@@ -35,6 +36,7 @@ function StockInventoryGridInner({
   onDelete,
   onAdjust,
   onBulkDelete,
+  pagination,
 }: StockInventoryGridProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const visibleIds = React.useMemo(() => parts.map((p) => p.id), [parts]);
@@ -189,7 +191,22 @@ function StockInventoryGridInner({
     <div className="space-y-3">
       <GmaoBulkSelectBar count={selectedIds.size} onBulkDelete={onBulkDelete} />
       <GmaoStandardTable table={table} emptyMessage="Aucune pièce trouvée." selectedIdSet={selectedIds} getRowId={(row) => row.id} />
-      <GmaoTablePagination total={parts.length} noun="pièce(s)" />
+      <GmaoTablePagination
+        total={pagination?.total ?? parts.length}
+        noun="pièce(s)"
+        page={pagination?.page}
+        pageCount={pagination?.pageCount}
+        previousHref={
+          pagination && pagination.page > 1
+            ? pagination.page - 1 > 1
+              ? `/stock?page=${pagination.page - 1}`
+              : "/stock"
+            : undefined
+        }
+        nextHref={
+          pagination && pagination.page < pagination.pageCount ? `/stock?page=${pagination.page + 1}` : undefined
+        }
+      />
     </div>
   );
 }

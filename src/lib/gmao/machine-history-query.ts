@@ -1,6 +1,7 @@
 import type { InterventionType, MachineAssetStatus, MaintenanceWorkflowStatus, Prisma } from "@prisma/client";
 
 import type { PaginatedResult } from "@/lib/db/pagination";
+import { clampPagination, DEFAULT_PAGE_SIZE, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 import { workflowStatusForLog } from "@/lib/gmao/intervention-status";
 
@@ -92,6 +93,8 @@ export async function fetchMachineHistoryHeader(machineId: string): Promise<Mach
 
 export async function fetchMachineHistoryPage(
   machineId: string,
+  page = 1,
+  pageSize = DEFAULT_PAGE_SIZE,
 ): Promise<PaginatedResult<MachineHistoryRow> | null> {
   const exists = await prisma.machine.findUnique({
     where: { id: machineId },
@@ -99,22 +102,23 @@ export async function fetchMachineHistoryPage(
   });
   if (!exists) return null;
 
+  const { page: safePage, pageSize: limit, skip } = clampPagination(page, pageSize);
+  const where = { machineId };
+
   const [total, rows] = await prisma.$transaction([
-    prisma.maintenanceLog.count({ where: { machineId } }),
+    prisma.maintenanceLog.count({ where }),
     prisma.maintenanceLog.findMany({
-      where: { machineId },
+      where,
       orderBy: { date: "desc" },
-      take: 20_000,
+      skip,
+      take: limit,
       select: historyLogSelect,
     }),
   ]);
 
   return {
     items: rows.map(mapHistoryRow),
-    total,
-    page: 1,
-    pageSize: total || 1,
-    pageCount: 1,
+    ...paginatedMeta(total, safePage, limit),
   };
 }
 

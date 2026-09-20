@@ -14,6 +14,7 @@ import { MaintenanceOrdersDataTable } from "@/components/maintenance-orders/main
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { MaintenanceOrderRow } from "@/lib/gmao/maintenance-orders-query";
+import { hrefWithPage } from "@/lib/db/pagination";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
 
@@ -54,11 +55,13 @@ const STATUS_OPTIONS = [
 export function MaintenanceOrdersModuleClient({
   orders: initialRows,
   initialFilters,
+  pagination,
   machines,
   readOnly = false,
 }: {
   orders: MaintenanceOrderRow[];
-  initialFilters: { q: string; status: string; machineId: string; dateFrom: string; dateTo: string };
+  initialFilters: { q: string; status: string; machineId: string; dateFrom: string; dateTo: string; page: number };
+  pagination: { page: number; pageCount: number; total: number };
   machines: MachineOption[];
   readOnly?: boolean;
 }) {
@@ -79,6 +82,7 @@ export function MaintenanceOrdersModuleClient({
       machineId?: string;
       dateFrom?: string;
       dateTo?: string;
+      page?: number;
     }) => {
       const params = new URLSearchParams();
       const q = next.q ?? initialFilters.q;
@@ -86,11 +90,13 @@ export function MaintenanceOrdersModuleClient({
       const machineId = next.machineId ?? initialFilters.machineId;
       const dateFrom = next.dateFrom ?? initialFilters.dateFrom;
       const dateTo = next.dateTo ?? initialFilters.dateTo;
+      const page = next.page ?? 1;
       if (q) params.set("q", q);
       if (status !== "ALL") params.set("status", status);
       if (machineId && machineId !== "ALL") params.set("machineId", machineId);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
+      if (page > 1) params.set("page", String(page));
       const qs = params.toString();
       router.push(qs ? `${pathname}?${qs}` : pathname);
     },
@@ -170,7 +176,7 @@ export function MaintenanceOrdersModuleClient({
         searchInputId="om-reference-search"
         searchPlaceholder="Référence ou ID de l'ordre…"
         searchInitialValue={initialFilters.q}
-        resultCount={rows.length}
+        resultCount={pagination.total}
         action={
           readOnly ? undefined : (
             <div className="flex shrink-0 flex-nowrap items-center gap-2">
@@ -224,6 +230,39 @@ export function MaintenanceOrdersModuleClient({
         onDelete={readOnly ? () => {} : setDeleteOrder}
         onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
         readOnly={readOnly}
+        pagination={pagination}
+        previousHref={hrefWithPage(
+          pathname,
+          new URLSearchParams(
+            Object.fromEntries(
+              Object.entries({
+                q: initialFilters.q,
+                status: initialFilters.status !== "ALL" ? initialFilters.status : "",
+                machineId: initialFilters.machineId !== "ALL" ? initialFilters.machineId : "",
+                dateFrom: initialFilters.dateFrom,
+                dateTo: initialFilters.dateTo,
+                page: String(initialFilters.page),
+              }).filter(([, v]) => v),
+            ),
+          ).toString(),
+          Math.max(1, pagination.page - 1),
+        )}
+        nextHref={hrefWithPage(
+          pathname,
+          new URLSearchParams(
+            Object.fromEntries(
+              Object.entries({
+                q: initialFilters.q,
+                status: initialFilters.status !== "ALL" ? initialFilters.status : "",
+                machineId: initialFilters.machineId !== "ALL" ? initialFilters.machineId : "",
+                dateFrom: initialFilters.dateFrom,
+                dateTo: initialFilters.dateTo,
+                page: String(initialFilters.page),
+              }).filter(([, v]) => v),
+            ),
+          ).toString(),
+          pagination.page + 1,
+        )}
       />
 
       <MaintenanceOrderDetailSheet

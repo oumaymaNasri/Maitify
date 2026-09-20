@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import type { PaginatedResult, PaginationParams } from "@/lib/db/pagination";
+import { clampPagination, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 
 export type SparePartRow = {
@@ -42,12 +43,14 @@ function buildWhere(q: string): Prisma.SparePartWhereInput {
 
 export async function fetchPartsPage(params: PaginationParams): Promise<PaginatedResult<SparePartRow>> {
   const where = buildWhere(params.q);
+  const { page, pageSize, skip } = clampPagination(params.page, params.pageSize);
 
   const [total, rows] = await Promise.all([
     prisma.sparePart.count({ where }),
     prisma.sparePart.findMany({
       where,
-      take: 20_000,
+      skip,
+      take: pageSize,
       orderBy: [{ designation: "asc" }, { id: "asc" }],
       select: partSelect,
     }),
@@ -65,17 +68,14 @@ export async function fetchPartsPage(params: PaginationParams): Promise<Paginate
       machineName: p.machine?.name ?? null,
       machineMatricule: p.machine?.legacyMatricule ?? null,
     })),
-    total,
-    page: 1,
-    pageSize: total || 1,
-    pageCount: 1,
+    ...paginatedMeta(total, page, pageSize),
   };
 }
 
 export function getPartsPageCached(params: PaginationParams) {
   return unstable_cache(
     () => fetchPartsPage(params),
-    [CACHE_TAGS.parts, "all", params.q],
+    [CACHE_TAGS.parts, "p", String(params.page), String(params.pageSize), params.q],
     { revalidate: 60, tags: [CACHE_TAGS.parts] },
   )();
 }

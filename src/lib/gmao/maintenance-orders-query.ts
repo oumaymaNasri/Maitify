@@ -2,6 +2,7 @@ import type { MaintenanceOrderStatus, Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
+import { clampPagination, paginatedMeta } from "@/lib/db/pagination";
 import type { PaginatedResult } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 
@@ -20,7 +21,7 @@ export type MaintenanceOrderRow = {
   createdAt: string;
 };
 
-export const MAINTENANCE_ORDERS_LIST_CAP = 5_000;
+export const MAINTENANCE_ORDERS_PAGE_SIZE = 50;
 
 const orderListSelect = {
   id: true,
@@ -121,14 +122,18 @@ export type MaintenanceOrderListFilters = {
 
 export async function fetchMaintenanceOrdersPage(
   filters?: MaintenanceOrderListFilters,
+  page = 1,
+  pageSize = MAINTENANCE_ORDERS_PAGE_SIZE,
 ): Promise<PaginatedResult<MaintenanceOrderRow>> {
   const where = buildOrdersWhere(filters);
+  const { page: safePage, pageSize: limit, skip } = clampPagination(page, pageSize);
 
   const [total, rows] = await Promise.all([
     prisma.maintenanceOrder.count({ where }),
     prisma.maintenanceOrder.findMany({
       where,
-      take: MAINTENANCE_ORDERS_LIST_CAP,
+      skip,
+      take: limit,
       orderBy: [{ plannedDate: "desc" }, { createdAt: "desc" }],
       select: orderListSelect,
     }),
@@ -136,10 +141,7 @@ export async function fetchMaintenanceOrdersPage(
 
   return {
     items: mapOrderRows(rows),
-    total,
-    page: 1,
-    pageSize: total || 1,
-    pageCount: 1,
+    ...paginatedMeta(total, safePage, limit),
   };
 }
 
@@ -148,15 +150,19 @@ export async function fetchMaintenanceOrders(): Promise<MaintenanceOrderRow[]> {
   return page.items;
 }
 
-export function getMaintenanceOrdersCached(filters?: MaintenanceOrderListFilters) {
+export function getMaintenanceOrdersCached(
+  filters?: MaintenanceOrderListFilters,
+  page = 1,
+  pageSize = MAINTENANCE_ORDERS_PAGE_SIZE,
+) {
   const q = filters?.q ?? "";
   const status = filters?.status ?? "ALL";
   const machineId = filters?.machineId ?? "ALL";
   const dateFrom = filters?.dateFrom ?? "";
   const dateTo = filters?.dateTo ?? "";
   return unstable_cache(
-    () => fetchMaintenanceOrdersPage(filters),
-    [CACHE_TAGS.maintenanceOrders, "v6", q, status, machineId, dateFrom, dateTo],
+    () => fetchMaintenanceOrdersPage(filters, page, pageSize),
+    [CACHE_TAGS.maintenanceOrders, "v7", String(page), String(pageSize), q, status, machineId, dateFrom, dateTo],
     { revalidate: 60, tags: [CACHE_TAGS.maintenanceOrders] },
   )();
 }

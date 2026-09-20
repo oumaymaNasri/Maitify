@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import type { PaginatedResult, PaginationParams } from "@/lib/db/pagination";
+import { clampPagination, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 import { workflowStatusForLog, workflowStatusWhere } from "@/lib/gmao/intervention-status";
 
@@ -208,35 +209,33 @@ async function fetchTypeCounts(where: Prisma.MaintenanceLogWhereInput) {
 
 export async function fetchInterventionsInventory(
   technicianId?: string | null,
-  _page = 1,
-  _limit = INTERVENTIONS_PAGE_SIZE,
+  page = 1,
+  limit = INTERVENTIONS_PAGE_SIZE,
   filters?: InterventionListFilters,
 ): Promise<InterventionsInventoryResult> {
-  const listFilters: InterventionListFilters = { ...filters, type: "ALL" };
-  const where = inventoryWhere(technicianId, listFilters);
+  const { page: safePage, pageSize, skip } = clampPagination(page, limit);
+  const where = inventoryWhere(technicianId, filters);
+  const tabWhere = inventoryWhere(technicianId, { ...filters, type: "ALL" });
   const catalogWhere = scopeWhere(technicianId);
 
-  const [catalogTotal, typeCounts, rows] = await Promise.all([
+  const [catalogTotal, typeCounts, total, rows] = await Promise.all([
     prisma.maintenanceLog.count({ where: catalogWhere }),
-    fetchTypeCounts(catalogWhere),
+    fetchTypeCounts(tabWhere),
+    prisma.maintenanceLog.count({ where }),
     prisma.maintenanceLog.findMany({
       where,
-      take: INTERVENTIONS_LIST_CAP,
-      orderBy: orderBy(listFilters),
+      skip,
+      take: pageSize,
+      orderBy: orderBy(filters),
       select: listSelect,
     }),
   ]);
 
-  const items = mapListRows(rows);
-  const total = items.length;
   return {
-    items,
-    total,
+    items: mapListRows(rows),
     catalogTotal,
     typeCounts,
-    page: 1,
-    pageSize: total || 1,
-    pageCount: 1,
+    ...paginatedMeta(total, safePage, pageSize),
   };
 }
 
@@ -273,10 +272,13 @@ export function getInterventionSectorsCached() {
   )();
 }
 
-function catalogCacheKey(technicianId?: string | null, filters?: InterventionListFilters) {
+function catalogCacheKey(technicianId?: string | null, filters?: InterventionListFilters, page = 1, limit = INTERVENTIONS_PAGE_SIZE) {
   return JSON.stringify({
     scope: technicianId ?? "all",
+    page,
+    limit,
     q: filters?.q ?? "",
+    type: filters?.type ?? "ALL",
     status: filters?.status ?? "ALL",
     sector: filters?.sector ?? "ALL",
     technicianId: filters?.technicianId ?? "ALL",
@@ -295,7 +297,7 @@ export function getInterventionsInventoryCached(
 ) {
   return unstable_cache(
     () => fetchInterventionsInventory(technicianId, page, limit, filters),
-    [CACHE_TAGS.interventions, "catalog-v2", catalogCacheKey(technicianId, filters)],
+    [CACHE_TAGS.interventions, "catalog-v3", catalogCacheKey(technicianId, filters, page, limit)],
     { revalidate: 60, tags: [CACHE_TAGS.interventions] },
   )();
 }

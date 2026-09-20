@@ -7,11 +7,10 @@ import {
   getInterventionsInventoryCached,
   getInterventionMachineOptionsCached,
   getInterventionTechnicianOptionsCached,
+  INTERVENTIONS_PAGE_SIZE,
   type InterventionSortKey,
 } from "@/lib/gmao/interventions-query";
 import { getSession } from "@/lib/auth/session-server";
-import { prisma } from "@/lib/db/prisma";
-import { syncDailyMaintenanceOrders } from "@/lib/gmao/maintenance-order-from-logs";
 import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +28,7 @@ type PageProps = {
     sort?: string;
     dir?: string;
     view?: string;
+    page?: string;
   };
 };
 
@@ -56,17 +56,18 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const technicianScopeId = isTechnician ? session?.technicianId : null;
 
     const type = parseType(searchParams?.type);
-    await syncDailyMaintenanceOrders(prisma);
-
     const status = parseStatus(searchParams?.status);
     const sort = parseSort(searchParams?.sort);
-    const dir = searchParams?.dir === "asc" ? "asc" : "desc";
+    const dir: "asc" | "desc" = searchParams?.dir === "asc" ? "asc" : "desc";
     const q = (searchParams?.q ?? "").trim();
     const sector = searchParams?.sector ?? "ALL";
     const technicianId = isTechnician ? "ALL" : (searchParams?.technicianId ?? "ALL");
     const dateFrom = searchParams?.dateFrom ?? "";
     const dateTo = searchParams?.dateTo ?? "";
+    const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
     const importView = searchParams?.view === "import" && !isTechnician;
+
+    const listFilters = { q, type, status, sector, technicianId, dateFrom, dateTo, sort, dir };
 
     const [inventory, machineRows, techRows, sectors] = await Promise.all([
       importView
@@ -74,9 +75,12 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
             items: [] as Awaited<ReturnType<typeof getInterventionsInventoryCached>>["items"],
             total: catalogTotal,
             catalogTotal,
-            typeCounts: { preventive: 0, corrective: 0 },
+            typeCounts: { preventive: 0, corrective: 0, all: catalogTotal },
+            page: 1,
+            pageSize: INTERVENTIONS_PAGE_SIZE,
+            pageCount: 1,
           }))
-        : getInterventionsInventoryCached(technicianScopeId),
+        : getInterventionsInventoryCached(technicianScopeId, page, INTERVENTIONS_PAGE_SIZE, listFilters),
       getInterventionMachineOptionsCached(),
       getInterventionTechnicianOptionsCached(),
       getInterventionSectorsCached(),
@@ -97,7 +101,9 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
           catalogTotal: inventory.catalogTotal,
           preventive: inventory.typeCounts.preventive,
           corrective: inventory.typeCounts.corrective,
+          all: inventory.typeCounts.all,
         }}
+        pagination={{ page: inventory.page, pageSize: inventory.pageSize, pageCount: inventory.pageCount }}
         machines={machines}
         technicians={technicians}
         sectors={sectors}
@@ -113,6 +119,7 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
           sort,
           dir,
           view: searchParams?.view === "import" ? "import" : "",
+          page,
         }}
       />
     );

@@ -1,12 +1,13 @@
-import type { MaintenanceFrequency } from "@prisma/client";
+import type { MachineAssetStatus, MaintenanceFrequency, Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
 import type { MachineCardVm } from "@/components/machines/machine-card";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import type { PaginatedResult } from "@/lib/db/pagination";
+import { clampPagination, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 
-export const MACHINES_PAGE_SIZE = 10;
+export const MACHINES_PAGE_SIZE = 50;
 
 const machineListSelect = {
   id: true,
@@ -49,16 +50,57 @@ function mapMachineCard(m: {
   };
 }
 
-export async function fetchMachinesPage(page = 1, pageSize = MACHINES_PAGE_SIZE): Promise<PaginatedResult<MachineCardVm>> {
-  const safePage = Math.max(1, page);
-  const safeLimit = Math.max(1, Math.min(pageSize, 50));
-  const skip = (safePage - 1) * safeLimit;
+export type MachineListFilters = {
+  q?: string;
+  status?: string;
+  location?: string;
+  sector?: string;
+  machineId?: string;
+};
+
+function machinesWhere(filters?: MachineListFilters): Prisma.MachineWhereInput {
+  const and: Prisma.MachineWhereInput[] = [];
+  const q = filters?.q?.trim();
+  if (q) {
+    const matricule = Number.parseInt(q.replace(/^m/i, ""), 10);
+    and.push({
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { location: { contains: q, mode: "insensitive" } },
+        { id: { contains: q, mode: "insensitive" } },
+        ...(Number.isFinite(matricule) ? [{ legacyMatricule: matricule }] : []),
+      ],
+    });
+  }
+  if (filters?.status && filters.status !== "ALL") {
+    and.push({ assetStatus: filters.status as MachineAssetStatus });
+  }
+  if (filters?.location && filters.location !== "ALL") {
+    and.push({ location: filters.location });
+  }
+  if (filters?.sector && filters.sector !== "ALL") {
+    and.push({ maintenanceSector: filters.sector as MaintenanceFrequency });
+  }
+  if (filters?.machineId && filters.machineId !== "ALL") {
+    and.push({ id: filters.machineId });
+  }
+  return and.length ? { AND: and } : {};
+}
+
+export async function fetchMachinesPage(
+  page = 1,
+  pageSize = MACHINES_PAGE_SIZE,
+  filters?: MachineListFilters,
+): Promise<PaginatedResult<MachineCardVm>> {
+  const { page: safePage, pageSize: limit, skip } = clampPagination(page, pageSize);
+  const where = machinesWhere(filters);
 
   const [total, list] = await Promise.all([
-    prisma.machine.count(),
+    prisma.machine.count({ where }),
     prisma.machine.findMany({
+      where,
       skip,
-      take: safeLimit,
+      take: limit,
       orderBy: { name: "asc" },
       select: machineListSelect,
     }),
@@ -66,10 +108,7 @@ export async function fetchMachinesPage(page = 1, pageSize = MACHINES_PAGE_SIZE)
 
   return {
     items: list.map(mapMachineCard),
-    total,
-    page: safePage,
-    pageSize: safeLimit,
-    pageCount: Math.max(1, Math.ceil(total / safeLimit) || 1),
+    ...paginatedMeta(total, safePage, limit),
   };
 }
 
@@ -85,11 +124,25 @@ export async function fetchMachinesInventory(): Promise<MachineCardVm[]> {
   return fetchAllMachinesInventory();
 }
 
-export function getMachinesInventoryCached(page = 1, pageSize = MACHINES_PAGE_SIZE) {
-  return unstable_cache(() => fetchMachinesPage(page, pageSize), [CACHE_TAGS.machines, String(page), String(pageSize)], {
-    revalidate: 120,
-    tags: [CACHE_TAGS.machines],
-  })();
+export function getMachinesInventoryCached(
+  page = 1,
+  pageSize = MACHINES_PAGE_SIZE,
+  filters?: MachineListFilters,
+) {
+  return unstable_cache(
+    () => fetchMachinesPage(page, pageSize, filters),
+    [
+      CACHE_TAGS.machines,
+      String(page),
+      String(pageSize),
+      filters?.q ?? "",
+      filters?.status ?? "ALL",
+      filters?.location ?? "ALL",
+      filters?.sector ?? "ALL",
+      filters?.machineId ?? "ALL",
+    ],
+    { revalidate: 120, tags: [CACHE_TAGS.machines] },
+  )();
 }
 
 export function getAllMachinesInventoryCached() {

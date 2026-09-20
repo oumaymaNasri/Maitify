@@ -60,8 +60,10 @@ function buildSearchRows(machines: MachineCardVm[]): MachineSearchRow[] {
 
 export function MachinesModuleClient({
   machines: initialMachines,
+  pagination,
 }: {
   machines: MachineCardVm[];
+  pagination?: { page: number; pageCount: number; total: number };
 }) {
   const [rows, setRows] = React.useState(initialMachines);
   const [debouncedQ, setDebouncedQ] = React.useState("");
@@ -192,7 +194,7 @@ export function MachinesModuleClient({
         searchLabel="Équipement"
         searchInputId="machines-equipment-search"
         searchPlaceholder="Nom, matricule ou ID…"
-        resultCount={filtered.length}
+        resultCount={pagination?.total ?? filtered.length}
         action={
           <MachineFormSheet
             onCreated={(created) => {
@@ -211,6 +213,7 @@ export function MachinesModuleClient({
         onEdit={setEditMachine}
         onDelete={setDeleteMachine}
         onBulkDelete={() => setBulkDeleteOpen(true)}
+        pagination={pagination}
       />
 
       <MachineEditDialog

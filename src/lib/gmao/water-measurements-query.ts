@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import type { PaginatedResult, PaginationParams } from "@/lib/db/pagination";
+import { clampPagination, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 
 export type WaterMeasurementRow = {
@@ -42,12 +43,14 @@ export async function fetchWaterMeasurementsPage(
   params: PaginationParams,
 ): Promise<PaginatedResult<WaterMeasurementRow>> {
   const where = buildWhere(params.q);
+  const { page, pageSize, skip } = clampPagination(params.page, params.pageSize);
 
   const [total, rows] = await Promise.all([
     prisma.waterQualityMeasurement.count({ where }),
     prisma.waterQualityMeasurement.findMany({
       where,
-      take: 20_000,
+      skip,
+      take: pageSize,
       orderBy: [{ measuredAt: "desc" }, { id: "desc" }],
       select: measurementSelect,
     }),
@@ -58,17 +61,14 @@ export async function fetchWaterMeasurementsPage(
       ...m,
       measuredAt: m.measuredAt.toISOString(),
     })),
-    total,
-    page: 1,
-    pageSize: total || 1,
-    pageCount: 1,
+    ...paginatedMeta(total, page, pageSize),
   };
 }
 
 export function getWaterMeasurementsPageCached(params: PaginationParams) {
   return unstable_cache(
     () => fetchWaterMeasurementsPage(params),
-    [CACHE_TAGS.waterMeasurements, "all", params.q],
+    [CACHE_TAGS.waterMeasurements, "p", String(params.page), String(params.pageSize), params.q],
     { revalidate: 45, tags: [CACHE_TAGS.waterMeasurements] },
   )();
 }

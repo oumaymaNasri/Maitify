@@ -43,6 +43,9 @@ type MaintenanceOrdersDataTableProps = {
   onBulkDelete: () => void;
   isPending?: boolean;
   readOnly?: boolean;
+  pagination?: { page: number; pageCount: number; total: number };
+  previousHref?: string;
+  nextHref?: string;
 };
 
 export function MaintenanceOrdersDataTable({
@@ -55,6 +58,9 @@ export function MaintenanceOrdersDataTable({
   onBulkDelete,
   isPending,
   readOnly = false,
+  pagination,
+  previousHref,
+  nextHref,
 }: MaintenanceOrdersDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const visibleIds = React.useMemo(() => orders.map((o) => o.id), [orders]);
@@ -193,7 +199,14 @@ export function MaintenanceOrdersDataTable({
         getRowId={(row) => row.id}
         isPending={isPending}
       />
-      <GmaoTablePagination total={orders.length} noun="résultat(s)" />
+      <GmaoTablePagination
+        total={pagination?.total ?? orders.length}
+        noun="résultat(s)"
+        page={pagination?.page}
+        pageCount={pagination?.pageCount}
+        previousHref={previousHref}
+        nextHref={nextHref}
+      />
     </div>
   );
 }

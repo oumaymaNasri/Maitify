@@ -1,5 +1,6 @@
 "use client";
 
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import * as React from "react";
 
@@ -67,6 +68,15 @@ export function SparePartSearchSelect({
     }
   }, [selected, open]);
 
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 56,
+    overscan: 8,
+    enabled: open,
+  });
+
   const pickPart = (id: string) => {
     onValueChange(id);
     setOpen(false);
@@ -125,45 +135,52 @@ export function SparePartSearchSelect({
       </div>
 
       {open && !disabled ? (
-        <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <div
+          ref={listRef}
+          className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+        >
           {filtered.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-slate-500">
               {parts.length === 0 ? "Aucune pièce en stock." : "Aucun résultat."}
             </p>
           ) : (
-            filtered.map((p) => {
-              const lowStock = p.quantity <= p.minStock;
-              const isSelected = p.id === value;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={cn(
-                    "flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50",
-                    isSelected && "bg-[#E8F1FF]/60",
-                  )}
-                  onClick={() => pickPart(p.id)}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900">{p.designation}</p>
-                    <p className="text-xs text-slate-500">{p.reference ?? "Sans référence"}</p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span className={cn("text-sm font-semibold tabular-nums", lowStock ? "text-rose-600" : "text-slate-800")}>
-                      {p.quantity}
-                    </span>
-                    {lowStock ? (
-                      <Badge className="border border-rose-300 bg-rose-600 px-1.5 py-0 text-[10px] text-white hover:bg-rose-600">
-                        Alerte
-                      </Badge>
-                    ) : (
-                      <span className="text-[10px] text-slate-400">seuil {p.minStock}</span>
+            <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+              {virtualizer.getVirtualItems().map((item) => {
+                const p = filtered[item.index]!;
+                const lowStock = p.quantity <= p.minStock;
+                const isSelected = p.id === value;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={cn(
+                      "absolute left-0 flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-slate-50",
+                      isSelected && "bg-[#E8F1FF]/60",
                     )}
-                    {isSelected ? <Check className="h-4 w-4 text-[#1F76FB]" aria-hidden /> : null}
-                  </div>
-                </button>
-              );
-            })
+                    style={{ height: item.size, transform: `translateY(${item.start}px)` }}
+                    onClick={() => pickPart(p.id)}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-900">{p.designation}</p>
+                      <p className="text-xs text-slate-500">{p.reference ?? "Sans référence"}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className={cn("text-sm font-semibold tabular-nums", lowStock ? "text-rose-600" : "text-slate-800")}>
+                        {p.quantity}
+                      </span>
+                      {lowStock ? (
+                        <Badge className="border border-rose-300 bg-rose-600 px-1.5 py-0 text-[10px] text-white hover:bg-rose-600">
+                          Alerte
+                        </Badge>
+                      ) : (
+                        <span className="text-[10px] text-slate-400">seuil {p.minStock}</span>
+                      )}
+                      {isSelected ? <Check className="h-4 w-4 text-[#1F76FB]" aria-hidden /> : null}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       ) : null}

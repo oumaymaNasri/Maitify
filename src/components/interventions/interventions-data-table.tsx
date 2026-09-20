@@ -99,6 +99,9 @@ type InterventionsDataTableProps = {
   totals: { total: number; catalogTotal: number };
   serverSort: ServerSortProps;
   embedded?: boolean;
+  pagination?: { page: number; pageCount: number };
+  previousHref?: string;
+  nextHref?: string;
 };
 
 export function InterventionsDataTable({
@@ -113,6 +116,9 @@ export function InterventionsDataTable({
   totals,
   serverSort,
   embedded = false,
+  pagination,
+  previousHref,
+  nextHref,
 }: InterventionsDataTableProps) {
   const persisted = React.useMemo(() => loadTableState(), []);
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(persisted.columnOrder ?? DEFAULT_ORDER);
@@ -443,7 +449,14 @@ export function InterventionsDataTable({
         </table>
       </div>
     </div>
-      <GmaoTablePagination total={totals.total} noun="résultat(s)" />
+      <GmaoTablePagination
+        total={totals.total}
+        noun="résultat(s)"
+        page={pagination?.page}
+        pageCount={pagination?.pageCount}
+        previousHref={previousHref}
+        nextHref={nextHref}
+      />
     </div>
   );
 }

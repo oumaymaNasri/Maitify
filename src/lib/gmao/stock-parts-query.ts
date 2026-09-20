@@ -1,6 +1,8 @@
 import { unstable_cache } from "next/cache";
+import type { Prisma } from "@prisma/client";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
+import { clampPagination, DEFAULT_PAGE_SIZE, paginatedMeta, type PaginatedResult } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 
 export type PartMachineVm = {
@@ -70,20 +72,61 @@ function mapPartRow(p: {
   };
 }
 
+function inventoryWhere(filters?: { q?: string; machineId?: string }): Prisma.SparePartWhereInput {
+  const and: Prisma.SparePartWhereInput[] = [];
+  const q = filters?.q?.trim();
+  if (q) {
+    and.push({
+      OR: [
+        { designation: { contains: q, mode: "insensitive" } },
+        { reference: { contains: q, mode: "insensitive" } },
+        { brand: { contains: q, mode: "insensitive" } },
+        { machine: { name: { contains: q, mode: "insensitive" } } },
+      ],
+    });
+  }
+  if (filters?.machineId && filters.machineId !== "ALL") {
+    and.push({
+      OR: [{ machineId: filters.machineId }, { partMachines: { some: { machineId: filters.machineId } } }],
+    });
+  }
+  return and.length ? { AND: and } : {};
+}
+
+export async function fetchPartsInventoryPage(
+  page = 1,
+  pageSize = DEFAULT_PAGE_SIZE,
+  filters?: { q?: string; machineId?: string },
+): Promise<PaginatedResult<PartInventoryRow>> {
+  const where = inventoryWhere(filters);
+  const { page: safePage, pageSize: limit, skip } = clampPagination(page, pageSize);
+  const [total, rows] = await Promise.all([
+    prisma.sparePart.count({ where }),
+    prisma.sparePart.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: [{ designation: "asc" }, { id: "asc" }],
+      select: partSelect,
+    }),
+  ]);
+  return { items: rows.map(mapPartRow), ...paginatedMeta(total, safePage, limit) };
+}
+
 export async function fetchPartsInventory(): Promise<PartInventoryRow[]> {
   const rows = await prisma.sparePart.findMany({
-    take: 100,
     orderBy: [{ designation: "asc" }, { id: "asc" }],
     select: partSelect,
   });
   return rows.map(mapPartRow);
 }
 
-export function getPartsInventoryCached() {
-  return unstable_cache(() => fetchPartsInventory(), [CACHE_TAGS.parts, CACHE_TAGS.stock], {
-    revalidate: 60,
-    tags: [CACHE_TAGS.parts, CACHE_TAGS.stock],
-  })();
+export function getPartsInventoryCached(page = 1, pageSize = DEFAULT_PAGE_SIZE, q = "", machineId = "ALL") {
+  return unstable_cache(
+    () => fetchPartsInventoryPage(page, pageSize, { q, machineId }),
+    [CACHE_TAGS.parts, CACHE_TAGS.stock, "inv-v2", String(page), String(pageSize), q, machineId],
+    { revalidate: 60, tags: [CACHE_TAGS.parts, CACHE_TAGS.stock] },
+  )();
 }
 
 export type MachineOption = {

@@ -318,11 +318,13 @@ model MaintenanceLog {
   @@index([operationType])
   @@index([workflowStatus])
   @@index([machineId, date])
+  @@index([machineId, date, type])
   @@index([type, date])
   @@index([technicianId, date])
   @@index([importMatricule])
   @@index([sectorMaintenance])
   @@index([maintenanceOrderId])
+  @@index([maintenanceOrderId, date])
   @@map("Intervention")
 }
 
@@ -345,6 +347,7 @@ model MaintenanceOrder {
   logs  MaintenanceLog[]
 
   @@index([plannedDate])
+  @@index([plannedDate, status])
   @@index([status])
   @@map("MaintenanceOrder")
 }

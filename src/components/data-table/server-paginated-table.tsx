@@ -8,6 +8,7 @@ import { useTransition } from "react";
 
 import { GmaoStandardTable, GmaoTablePagination } from "@/components/gmao/gmao-table";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
+import { hrefWithPage } from "@/lib/db/pagination";
 
 type ServerPaginatedTableProps<TData, TValue> = {
   columns: ColumnDef<TData, TValue>[];
@@ -25,6 +26,8 @@ export function ServerPaginatedTable<TData, TValue>({
   columns,
   data,
   total,
+  page,
+  pageCount,
   initialQuery = "",
   filterPlaceholder = "Recherche par nom ou ID…",
   queryParam = "q",
@@ -51,7 +54,7 @@ export function ServerPaginatedTable<TData, TValue>({
 
   const handleSearch = React.useCallback(
     (value: string) => {
-      pushParams({ [queryParam]: value.trim() || null });
+      pushParams({ [queryParam]: value.trim() || null, page: null });
     },
     [pushParams, queryParam],
   );
@@ -71,12 +74,20 @@ export function ServerPaginatedTable<TData, TValue>({
         layout="inline"
         onDebouncedSearchChange={handleSearch}
         searchPlaceholder={filterPlaceholder}
+        searchInitialValue={initialQuery}
         filters={[]}
         resultCount={total}
       />
       {isPending ? <p className="text-xs text-[#1F76FB]">Chargement…</p> : null}
       <GmaoStandardTable table={table} emptyMessage="Aucun enregistrement." isPending={isPending} />
-      <GmaoTablePagination total={total} noun="résultat(s)" />
+      <GmaoTablePagination
+        total={total}
+        noun="résultat(s)"
+        page={page}
+        pageCount={pageCount}
+        previousHref={hrefWithPage(pathname, searchParams.toString(), Math.max(1, page - 1))}
+        nextHref={hrefWithPage(pathname, searchParams.toString(), page + 1)}
+      />
     </div>
   );
 }
