@@ -1,7 +1,7 @@
 import type { InterventionType, MachineAssetStatus, MaintenanceWorkflowStatus, Prisma } from "@prisma/client";
 
 import type { PaginatedResult } from "@/lib/db/pagination";
-import { clampPagination, DEFAULT_PAGE_SIZE, paginatedMeta } from "@/lib/db/pagination";
+import { ALL_PAGE_SIZE, clampPagination, DEFAULT_PAGE_SIZE, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 import { workflowStatusForLog } from "@/lib/gmao/intervention-status";
 
@@ -132,6 +132,7 @@ export async function fetchMachineHistoryExportRows(machineId: string): Promise<
   const rows = await prisma.maintenanceLog.findMany({
     where: { machineId },
     orderBy: { date: "desc" },
+    take: ALL_PAGE_SIZE,
     select: historyLogSelect,
   });
 

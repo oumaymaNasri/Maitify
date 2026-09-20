@@ -4,6 +4,7 @@ import type { Header, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 import * as React from "react";
+import { Suspense } from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -73,18 +74,10 @@ export function GmaoTablePagination({
   previousHref?: string;
   nextHref?: string;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const showSize = typeof pageSize === "number" && pageSize > 0;
   const hasPager = pageCount > 1 || Boolean(previousHref || nextHref || onPrevious || onNext) || showSize;
   const prevDisabled = page <= 1;
   const nextDisabled = page >= pageCount;
-
-  const onPageSizeChange = (raw: string) => {
-    const size = raw as PageSizeChoice;
-    router.push(hrefWithPageSize(pathname, searchParams.toString(), size), { scroll: false });
-  };
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -99,21 +92,9 @@ export function GmaoTablePagination({
       {hasPager ? (
         <div className="flex flex-wrap items-center gap-2">
           {showSize ? (
-            <label className="flex items-center gap-1.5 text-xs text-slate-600">
-              <span className="whitespace-nowrap">Lignes</span>
-              <select
-                aria-label="Nombre de lignes par page"
-                value={pageSizeSelectValue(pageSize)}
-                onChange={(e) => onPageSizeChange(e.target.value)}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800"
-              >
-                {PAGE_SIZE_SELECT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Suspense fallback={<span className="h-8 w-24 rounded-lg border border-slate-200 bg-slate-50" />}>
+              <GmaoPageSizeSelect pageSize={pageSize} />
+            </Suspense>
           ) : null}
           {previousHref && !prevDisabled ? (
             <ButtonLink href={previousHref} variant="outline" size="sm" className="h-8 rounded-lg" scroll={false}>
@@ -136,6 +117,33 @@ export function GmaoTablePagination({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function GmaoPageSizeSelect({ pageSize }: { pageSize: number }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-slate-600">
+      <span className="whitespace-nowrap">Lignes</span>
+      <select
+        aria-label="Nombre de lignes par page"
+        value={pageSizeSelectValue(pageSize)}
+        onChange={(e) => {
+          const size = e.target.value as PageSizeChoice;
+          router.push(hrefWithPageSize(pathname, searchParams.toString(), size), { scroll: false });
+        }}
+        className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800"
+      >
+        {PAGE_SIZE_SELECT_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
