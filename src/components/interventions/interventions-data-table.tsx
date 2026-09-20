@@ -99,7 +99,7 @@ type InterventionsDataTableProps = {
   totals: { total: number; catalogTotal: number };
   serverSort: ServerSortProps;
   embedded?: boolean;
-  pagination?: { page: number; pageCount: number };
+  pagination?: { page: number; pageCount: number; pageSize?: number };
   previousHref?: string;
   nextHref?: string;
 };
@@ -454,6 +454,7 @@ export function InterventionsDataTable({
         noun="résultat(s)"
         page={pagination?.page}
         pageCount={pagination?.pageCount}
+        pageSize={pagination?.pageSize}
         previousHref={previousHref}
         nextHref={nextHref}
       />

@@ -18,12 +18,13 @@ import {
   machineStatusBadgeClass,
   maintenanceWorkflowStatusFr,
 } from "@/lib/view/machine-labels";
+import { hrefWithPage, parsePageSize, pageSizeQueryValue } from "@/lib/db/pagination";
 import { formatDateFrShort } from "@/lib/utils/format-date";
 import { cn } from "@/lib/utils";
 
 type PageProps = {
   params: { id: string };
-  searchParams?: { page?: string };
+  searchParams?: { page?: string; pageSize?: string };
 };
 
 function workflowBadgeClass(status: string): string {
@@ -39,9 +40,10 @@ function workflowBadgeClass(status: string): string {
 
 export default async function MachineHistoryPage({ params, searchParams }: PageProps) {
   const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
+  const pageSize = parsePageSize(searchParams?.pageSize);
   const [header, history, exportRows] = await Promise.all([
     fetchMachineHistoryHeader(params.id),
-    fetchMachineHistoryPage(params.id, page),
+    fetchMachineHistoryPage(params.id, page, pageSize),
     fetchMachineHistoryExportRows(params.id),
   ]);
 
@@ -128,14 +130,29 @@ export default async function MachineHistoryPage({ params, searchParams }: PageP
             noun={history.total > 1 ? "interventions" : "intervention"}
             page={history.page}
             pageCount={history.pageCount}
-            previousHref={
-              history.page > 1
-                ? `/machines/${params.id}/historique${history.page - 1 > 1 ? `?page=${history.page - 1}` : ""}`
-                : undefined
-            }
-            nextHref={
-              history.page < history.pageCount ? `/machines/${params.id}/historique?page=${history.page + 1}` : undefined
-            }
+            pageSize={history.pageSize}
+            previousHref={hrefWithPage(
+              `/machines/${params.id}/historique`,
+              (() => {
+                const paramsSearch = new URLSearchParams();
+                if (history.page > 1) paramsSearch.set("page", String(history.page));
+                const size = pageSizeQueryValue(history.pageSize);
+                if (size) paramsSearch.set("pageSize", size);
+                return paramsSearch.toString();
+              })(),
+              Math.max(1, history.page - 1),
+            )}
+            nextHref={hrefWithPage(
+              `/machines/${params.id}/historique`,
+              (() => {
+                const paramsSearch = new URLSearchParams();
+                if (history.page > 1) paramsSearch.set("page", String(history.page));
+                const size = pageSizeQueryValue(history.pageSize);
+                if (size) paramsSearch.set("pageSize", size);
+                return paramsSearch.toString();
+              })(),
+              history.page + 1,
+            )}
           />
         </>
       )}

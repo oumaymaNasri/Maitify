@@ -5,19 +5,20 @@ import {
   getPartsInventoryCached,
 } from "@/lib/gmao/stock-parts-query";
 import { getStockMovementsCached } from "@/lib/gmao/stock-movements-query";
-import { DEFAULT_PAGE_SIZE } from "@/lib/db/pagination";
+import { parsePageSize } from "@/lib/db/pagination";
 
 type PageProps = {
-  searchParams?: { page?: string; q?: string; machineId?: string };
+  searchParams?: { page?: string; pageSize?: string; q?: string; machineId?: string };
 };
 
 export default async function StockPage({ searchParams }: PageProps) {
   try {
     const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
+    const pageSize = parsePageSize(searchParams?.pageSize);
     const q = searchParams?.q?.trim() ?? "";
     const machineId = searchParams?.machineId ?? "ALL";
     const [partsPage, movements, machines] = await Promise.all([
-      getPartsInventoryCached(page, DEFAULT_PAGE_SIZE, q, machineId),
+      getPartsInventoryCached(page, pageSize, q, machineId),
       getStockMovementsCached(),
       getMachineOptionsForPartsCached(),
     ]);
@@ -27,7 +28,7 @@ export default async function StockPage({ searchParams }: PageProps) {
         parts={partsPage.items}
         movements={movements}
         machines={machines}
-        pagination={{ page: partsPage.page, pageCount: partsPage.pageCount, total: partsPage.total }}
+        pagination={{ page: partsPage.page, pageCount: partsPage.pageCount, total: partsPage.total, pageSize: partsPage.pageSize }}
       />
     );
   } catch (e) {

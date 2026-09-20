@@ -61,7 +61,7 @@ type StockModuleClientProps = {
   parts: PartInventoryRow[];
   movements: StockMovementRow[];
   machines: MachineOption[];
-  pagination?: { page: number; pageCount: number; total: number };
+  pagination?: { page: number; pageCount: number; total: number; pageSize?: number };
 };
 
 export function StockModuleClient({

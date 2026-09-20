@@ -5,6 +5,8 @@ import { flexRender } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 import * as React from "react";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
 import {
   GMAO_TABLE_CELL,
   GMAO_TABLE_HEAD,
@@ -13,6 +15,12 @@ import {
 } from "@/components/gmao/table-styles";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  hrefWithPageSize,
+  PAGE_SIZE_SELECT_OPTIONS,
+  pageSizeSelectValue,
+  type PageSizeChoice,
+} from "@/lib/db/pagination";
 import { cn } from "@/lib/utils";
 
 export function GmaoRowCheckbox({
@@ -47,6 +55,7 @@ export function GmaoTablePagination({
   noun = "résultat(s)",
   page = 1,
   pageCount = 1,
+  pageSize,
   previousHref,
   nextHref,
   onPrevious,
@@ -56,6 +65,7 @@ export function GmaoTablePagination({
   noun?: string;
   page?: number;
   pageCount?: number;
+  pageSize?: number;
   canPrevious?: boolean;
   canNext?: boolean;
   onPrevious?: () => void;
@@ -63,9 +73,19 @@ export function GmaoTablePagination({
   previousHref?: string;
   nextHref?: string;
 }) {
-  const hasPager = pageCount > 1 || Boolean(previousHref || nextHref || onPrevious || onNext);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const showSize = typeof pageSize === "number" && pageSize > 0;
+  const hasPager = pageCount > 1 || Boolean(previousHref || nextHref || onPrevious || onNext) || showSize;
   const prevDisabled = page <= 1;
   const nextDisabled = page >= pageCount;
+
+  const onPageSizeChange = (raw: string) => {
+    const size = raw as PageSizeChoice;
+    router.push(hrefWithPageSize(pathname, searchParams.toString(), size), { scroll: false });
+  };
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm text-slate-600">
@@ -77,7 +97,24 @@ export function GmaoTablePagination({
         ) : null}
       </p>
       {hasPager ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {showSize ? (
+            <label className="flex items-center gap-1.5 text-xs text-slate-600">
+              <span className="whitespace-nowrap">Lignes</span>
+              <select
+                aria-label="Nombre de lignes par page"
+                value={pageSizeSelectValue(pageSize)}
+                onChange={(e) => onPageSizeChange(e.target.value)}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800"
+              >
+                {PAGE_SIZE_SELECT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           {previousHref && !prevDisabled ? (
             <ButtonLink href={previousHref} variant="outline" size="sm" className="h-8 rounded-lg" scroll={false}>
               Précédent

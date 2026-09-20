@@ -27,6 +27,7 @@ export function ServerPaginatedTable<TData, TValue>({
   data,
   total,
   page,
+  pageSize,
   pageCount,
   initialQuery = "",
   filterPlaceholder = "Recherche par nom ou ID…",
@@ -85,6 +86,7 @@ export function ServerPaginatedTable<TData, TValue>({
         noun="résultat(s)"
         page={page}
         pageCount={pageCount}
+        pageSize={pageSize}
         previousHref={hrefWithPage(pathname, searchParams.toString(), Math.max(1, page - 1))}
         nextHref={hrefWithPage(pathname, searchParams.toString(), page + 1)}
       />

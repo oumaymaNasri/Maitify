@@ -20,7 +20,7 @@ import { MaintenanceImportPanel } from "@/components/interventions/maintenance-i
 import { ButtonLink } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { hrefWithPage } from "@/lib/db/pagination";
+import { hrefWithPage, pageSizeQueryValue } from "@/lib/db/pagination";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { cn } from "@/lib/utils";
 import { formatDateFrMedium } from "@/lib/utils/format-date";
@@ -68,6 +68,7 @@ export type InterventionsListQuery = {
   dir: "asc" | "desc";
   view?: "import" | "";
   page: number;
+  pageSize: number;
 };
 
 type InterventionsTotals = {
@@ -102,6 +103,8 @@ export function buildMaintenanceListSearch(query: InterventionsListQuery): strin
   if (query.dir && query.dir !== "desc") params.set("dir", query.dir);
   if (query.view === "import") params.set("view", "import");
   if (query.page > 1) params.set("page", String(query.page));
+  const size = pageSizeQueryValue(query.pageSize);
+  if (size) params.set("pageSize", size);
   return params.toString();
 }
 

@@ -5,12 +5,12 @@ import { unstable_cache } from "next/cache";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import type { PaginatedResult, PaginationParams } from "@/lib/db/pagination";
-import { clampPagination, paginatedMeta } from "@/lib/db/pagination";
+import { ALL_PAGE_SIZE, clampPagination, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
 import { workflowStatusForLog, workflowStatusWhere } from "@/lib/gmao/intervention-status";
 
 export const INTERVENTIONS_PAGE_SIZE = 50;
-export const INTERVENTIONS_LIST_CAP = 20_000;
+export const INTERVENTIONS_LIST_CAP = ALL_PAGE_SIZE;
 
 const LIST_TEXT_CLIP = 220;
 
@@ -248,7 +248,7 @@ export async function fetchAllInterventionsInventory(
     where,
     orderBy: orderBy(filters),
     select: listSelect,
-    take: 20000,
+    take: INTERVENTIONS_LIST_CAP,
   });
   return mapListRows(rows);
 }

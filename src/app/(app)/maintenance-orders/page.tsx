@@ -1,7 +1,8 @@
 import { DbErrorHint } from "@/components/layout/DbError";
 import { MaintenanceOrdersModuleClient } from "@/components/maintenance-orders/maintenance-orders-module-client";
-import { getMaintenanceOrdersCached, MAINTENANCE_ORDERS_PAGE_SIZE } from "@/lib/gmao/maintenance-orders-query";
+import { getMaintenanceOrdersCached } from "@/lib/gmao/maintenance-orders-query";
 import { getMachineOptionsForPartsCached } from "@/lib/gmao/stock-parts-query";
+import { parsePageSize } from "@/lib/db/pagination";
 import { getSession } from "@/lib/auth/session-server";
 import { canManage } from "@/lib/auth/session";
 
@@ -16,6 +17,7 @@ type PageProps = {
     dateFrom?: string;
     dateTo?: string;
     page?: string;
+    pageSize?: string;
   };
 };
 
@@ -24,6 +26,7 @@ export default async function MaintenanceOrdersPage({ searchParams }: PageProps)
     const session = getSession();
     const readOnly = session ? !canManage(session) : true;
     const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
+    const pageSize = parsePageSize(searchParams?.pageSize);
     const filters = {
       q: searchParams?.q?.trim() ?? "",
       status: searchParams?.status ?? "ALL",
@@ -33,15 +36,15 @@ export default async function MaintenanceOrdersPage({ searchParams }: PageProps)
     };
 
     const [paginated, machineRows] = await Promise.all([
-      getMaintenanceOrdersCached(filters, page, MAINTENANCE_ORDERS_PAGE_SIZE),
+      getMaintenanceOrdersCached(filters, page, pageSize),
       getMachineOptionsForPartsCached(),
     ]);
 
     return (
       <MaintenanceOrdersModuleClient
         orders={paginated.items}
-        initialFilters={{ ...filters, page }}
-        pagination={{ page: paginated.page, pageCount: paginated.pageCount, total: paginated.total }}
+        initialFilters={{ ...filters, page, pageSize }}
+        pagination={{ page: paginated.page, pageCount: paginated.pageCount, total: paginated.total, pageSize: paginated.pageSize }}
         machines={machineRows}
         readOnly={readOnly}
       />

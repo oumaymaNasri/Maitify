@@ -14,7 +14,7 @@ import { MaintenanceOrdersDataTable } from "@/components/maintenance-orders/main
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { MaintenanceOrderRow } from "@/lib/gmao/maintenance-orders-query";
-import { hrefWithPage } from "@/lib/db/pagination";
+import { hrefWithPage, pageSizeQueryValue } from "@/lib/db/pagination";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
 
@@ -60,8 +60,8 @@ export function MaintenanceOrdersModuleClient({
   readOnly = false,
 }: {
   orders: MaintenanceOrderRow[];
-  initialFilters: { q: string; status: string; machineId: string; dateFrom: string; dateTo: string; page: number };
-  pagination: { page: number; pageCount: number; total: number };
+  initialFilters: { q: string; status: string; machineId: string; dateFrom: string; dateTo: string; page: number; pageSize: number };
+  pagination: { page: number; pageCount: number; total: number; pageSize: number };
   machines: MachineOption[];
   readOnly?: boolean;
 }) {
@@ -75,6 +75,19 @@ export function MaintenanceOrdersModuleClient({
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [, startFilterTransition] = React.useTransition();
 
+  const filterSearch = React.useMemo(() => {
+    const params = new URLSearchParams();
+    if (initialFilters.q) params.set("q", initialFilters.q);
+    if (initialFilters.status !== "ALL") params.set("status", initialFilters.status);
+    if (initialFilters.machineId && initialFilters.machineId !== "ALL") params.set("machineId", initialFilters.machineId);
+    if (initialFilters.dateFrom) params.set("dateFrom", initialFilters.dateFrom);
+    if (initialFilters.dateTo) params.set("dateTo", initialFilters.dateTo);
+    if (initialFilters.page > 1) params.set("page", String(initialFilters.page));
+    const size = pageSizeQueryValue(initialFilters.pageSize);
+    if (size) params.set("pageSize", size);
+    return params.toString();
+  }, [initialFilters]);
+
   const pushFilters = React.useCallback(
     (next: {
       q?: string;
@@ -83,6 +96,7 @@ export function MaintenanceOrdersModuleClient({
       dateFrom?: string;
       dateTo?: string;
       page?: number;
+      pageSize?: number;
     }) => {
       const params = new URLSearchParams();
       const q = next.q ?? initialFilters.q;
@@ -91,12 +105,15 @@ export function MaintenanceOrdersModuleClient({
       const dateFrom = next.dateFrom ?? initialFilters.dateFrom;
       const dateTo = next.dateTo ?? initialFilters.dateTo;
       const page = next.page ?? 1;
+      const pageSize = next.pageSize ?? initialFilters.pageSize;
       if (q) params.set("q", q);
       if (status !== "ALL") params.set("status", status);
       if (machineId && machineId !== "ALL") params.set("machineId", machineId);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       if (page > 1) params.set("page", String(page));
+      const size = pageSizeQueryValue(pageSize);
+      if (size) params.set("pageSize", size);
       const qs = params.toString();
       router.push(qs ? `${pathname}?${qs}` : pathname);
     },
@@ -231,38 +248,8 @@ export function MaintenanceOrdersModuleClient({
         onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
         readOnly={readOnly}
         pagination={pagination}
-        previousHref={hrefWithPage(
-          pathname,
-          new URLSearchParams(
-            Object.fromEntries(
-              Object.entries({
-                q: initialFilters.q,
-                status: initialFilters.status !== "ALL" ? initialFilters.status : "",
-                machineId: initialFilters.machineId !== "ALL" ? initialFilters.machineId : "",
-                dateFrom: initialFilters.dateFrom,
-                dateTo: initialFilters.dateTo,
-                page: String(initialFilters.page),
-              }).filter(([, v]) => v),
-            ),
-          ).toString(),
-          Math.max(1, pagination.page - 1),
-        )}
-        nextHref={hrefWithPage(
-          pathname,
-          new URLSearchParams(
-            Object.fromEntries(
-              Object.entries({
-                q: initialFilters.q,
-                status: initialFilters.status !== "ALL" ? initialFilters.status : "",
-                machineId: initialFilters.machineId !== "ALL" ? initialFilters.machineId : "",
-                dateFrom: initialFilters.dateFrom,
-                dateTo: initialFilters.dateTo,
-                page: String(initialFilters.page),
-              }).filter(([, v]) => v),
-            ),
-          ).toString(),
-          pagination.page + 1,
-        )}
+        previousHref={hrefWithPage(pathname, filterSearch, Math.max(1, pagination.page - 1))}
+        nextHref={hrefWithPage(pathname, filterSearch, pagination.page + 1)}
       />
 
       <MaintenanceOrderDetailSheet

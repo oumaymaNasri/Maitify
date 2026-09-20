@@ -43,7 +43,7 @@ type MaintenanceOrdersDataTableProps = {
   onBulkDelete: () => void;
   isPending?: boolean;
   readOnly?: boolean;
-  pagination?: { page: number; pageCount: number; total: number };
+  pagination?: { page: number; pageCount: number; total: number; pageSize?: number };
   previousHref?: string;
   nextHref?: string;
 };
@@ -204,6 +204,7 @@ export function MaintenanceOrdersDataTable({
         noun="résultat(s)"
         page={pagination?.page}
         pageCount={pagination?.pageCount}
+        pageSize={pagination?.pageSize}
         previousHref={previousHref}
         nextHref={nextHref}
       />

@@ -63,7 +63,7 @@ export function MachinesModuleClient({
   pagination,
 }: {
   machines: MachineCardVm[];
-  pagination?: { page: number; pageCount: number; total: number };
+  pagination?: { page: number; pageCount: number; total: number; pageSize?: number };
 }) {
   const [rows, setRows] = React.useState(initialMachines);
   const [debouncedQ, setDebouncedQ] = React.useState("");

@@ -7,9 +7,9 @@ import {
   getInterventionsInventoryCached,
   getInterventionMachineOptionsCached,
   getInterventionTechnicianOptionsCached,
-  INTERVENTIONS_PAGE_SIZE,
   type InterventionSortKey,
 } from "@/lib/gmao/interventions-query";
+import { parsePageSize } from "@/lib/db/pagination";
 import { getSession } from "@/lib/auth/session-server";
 import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
 
@@ -29,6 +29,7 @@ type PageProps = {
     dir?: string;
     view?: string;
     page?: string;
+    pageSize?: string;
   };
 };
 
@@ -65,6 +66,7 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const dateFrom = searchParams?.dateFrom ?? "";
     const dateTo = searchParams?.dateTo ?? "";
     const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
+    const pageSize = parsePageSize(searchParams?.pageSize);
     const importView = searchParams?.view === "import" && !isTechnician;
 
     const listFilters = { q, type, status, sector, technicianId, dateFrom, dateTo, sort, dir };
@@ -77,10 +79,10 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
             catalogTotal,
             typeCounts: { preventive: 0, corrective: 0, all: catalogTotal },
             page: 1,
-            pageSize: INTERVENTIONS_PAGE_SIZE,
+            pageSize,
             pageCount: 1,
           }))
-        : getInterventionsInventoryCached(technicianScopeId, page, INTERVENTIONS_PAGE_SIZE, listFilters),
+        : getInterventionsInventoryCached(technicianScopeId, page, pageSize, listFilters),
       getInterventionMachineOptionsCached(),
       getInterventionTechnicianOptionsCached(),
       getInterventionSectorsCached(),
@@ -120,6 +122,7 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
           dir,
           view: searchParams?.view === "import" ? "import" : "",
           page,
+          pageSize,
         }}
       />
     );

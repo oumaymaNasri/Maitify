@@ -31,7 +31,7 @@ type MachinesDataTableProps = {
   onDelete: (machine: MachineCardVm) => void;
   onBulkDelete: () => void;
   isPending?: boolean;
-  pagination?: { page: number; pageCount: number; total: number };
+  pagination?: { page: number; pageCount: number; total: number; pageSize?: number };
 };
 
 export function MachinesDataTable({
@@ -196,6 +196,7 @@ export function MachinesDataTable({
         noun="équipement(s)"
         page={pagination?.page}
         pageCount={pagination?.pageCount}
+        pageSize={pagination?.pageSize}
         previousHref={
           pagination && pagination.page > 1
             ? pagination.page - 1 > 1

@@ -25,7 +25,7 @@ type StockInventoryGridProps = {
   onDelete: (part: PartInventoryRow) => void;
   onAdjust: (part: PartInventoryRow) => void;
   onBulkDelete: () => void;
-  pagination?: { page: number; pageCount: number; total: number };
+  pagination?: { page: number; pageCount: number; total: number; pageSize?: number };
 };
 
 function StockInventoryGridInner({
@@ -196,6 +196,7 @@ function StockInventoryGridInner({
         noun="pièce(s)"
         page={pagination?.page}
         pageCount={pagination?.pageCount}
+        pageSize={pagination?.pageSize}
         previousHref={
           pagination && pagination.page > 1
             ? pagination.page - 1 > 1
