@@ -17,6 +17,7 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import { requireManageAction, requireSessionAction } from "@/lib/auth/session-server";
 import { createStockMovementFromIntervention } from "@/lib/gmao/stock-movement-helper";
 import { prisma } from "@/lib/db/prisma";
+import { fetchInterventionDetail } from "@/lib/gmao/intervention-detail-query";
 import { attachLogToDailyOrder, type DailyOrderLink } from "@/lib/gmao/maintenance-order-from-logs";
 import { completeMaintenanceOrderLine } from "@/app/actions/maintenance-order";
 import {

@@ -273,7 +273,7 @@ export async function syncDailyMaintenanceOrders(db: PrismaClient): Promise<{ da
   }[] = [];
 
   let linked = 0;
-  for (const [dayKey, group] of byDay) {
+  for (const [dayKey, group] of Array.from(byDay.entries())) {
     const order = byKey.get(dayKey);
     if (!order) continue;
     const ids = group.map((l) => l.id);

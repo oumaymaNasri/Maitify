@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { createMaintenanceLogWithParts } from "@/app/actions/maintenance-log";
 import { dispatchOmNotice } from "@/components/gmao/om-notice-host";
+import { InterventionFicheButton } from "@/components/interventions/intervention-fiche-button";
 import { SparePartSearchSelect } from "@/components/interventions/spare-part-search-select";
 import { TouchSignaturePad } from "@/components/interventions/TouchSignaturePad";
 import { Badge } from "@/components/ui/badge";

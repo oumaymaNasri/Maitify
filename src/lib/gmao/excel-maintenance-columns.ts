@@ -82,7 +82,7 @@ export function foldExcelKey(value: string | undefined): string {
   return (value ?? "")
     .trim()
     .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/['’]/g, " ")
     .replace(/[^a-z0-9]+/g, " ")

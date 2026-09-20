@@ -39,7 +39,11 @@ export async function buildMaintenanceImportTemplate(technicians: string[]): Pro
 
   const sheet = workbook.addWorksheet("Planning maintenance", {
     views: [{ state: "frozen", ySplit: 1 }],
-  });
+  }) as ExcelJS.Worksheet & {
+    dataValidations: {
+      add: (range: string, options: ExcelJS.DataValidation) => void;
+    };
+  };
 
   EXCEL_MAINTENANCE_FIELDS.forEach((field, index) => {
     const cell = sheet.getCell(1, index + 1);

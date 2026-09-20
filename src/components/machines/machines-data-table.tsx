@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, Edit2, Eye, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import { GMAO_TABLE_HEAD, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
+import type { MachineCardVm } from "@/components/machines/machine-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
