@@ -154,12 +154,16 @@ export function MaintenanceOrdersDataTable({
             </Button>
             {!readOnly ? (
               <>
-                <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_EDIT} onClick={() => onEdit(row.original)} aria-label="Modifier">
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-                <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_DELETE} onClick={() => onDelete(row.original)} aria-label="Supprimer">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {row.original.status !== "COMPLETED" ? (
+                  <>
+                    <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_EDIT} onClick={() => onEdit(row.original)} aria-label="Modifier">
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_DELETE} onClick={() => onDelete(row.original)} aria-label="Supprimer">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : null}
               </>
             ) : null}
             <MaintenanceOrderPdfButton orderId={row.original.id} reference={row.original.reference} size="icon" />

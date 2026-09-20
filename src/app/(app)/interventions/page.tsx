@@ -10,6 +10,8 @@ import {
   type InterventionSortKey,
 } from "@/lib/gmao/interventions-query";
 import { getSession } from "@/lib/auth/session-server";
+import { prisma } from "@/lib/db/prisma";
+import { syncDailyMaintenanceOrders } from "@/lib/gmao/maintenance-order-from-logs";
 import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +56,8 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const technicianScopeId = isTechnician ? session?.technicianId : null;
 
     const type = parseType(searchParams?.type);
+    await syncDailyMaintenanceOrders(prisma);
+
     const status = parseStatus(searchParams?.status);
     const sort = parseSort(searchParams?.sort);
     const dir = searchParams?.dir === "asc" ? "asc" : "desc";

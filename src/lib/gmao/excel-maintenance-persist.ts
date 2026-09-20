@@ -6,7 +6,8 @@ import {
   type ExcelColumnMapping,
   foldExcelKey,
 } from "@/lib/gmao/excel-maintenance-columns";
-import { workflowStatusForLog } from "@/lib/gmao/intervention-status";
+import { HISTORICAL_CLOSE_THROUGH, interventionIdentityKey, workflowStatusForLog } from "@/lib/gmao/intervention-status";
+import { closeOrdersInPeriod, loadExistingInterventionKeys } from "@/lib/gmao/maintenance-catalog-reconcile";
 import { syncDailyMaintenanceOrders } from "@/lib/gmao/maintenance-order-from-logs";
 
 const UNNAMED_MACHINE = "(Sans machine — import Excel)";
@@ -232,15 +233,28 @@ export async function persistMappedExcelRows(
     });
   }
 
+  const existingKeys = await loadExistingInterventionKeys(prisma);
+  const uniquePrepared: typeof prepared = [];
+  for (const row of prepared) {
+    const key = interventionIdentityKey(row.machineId, row.date, row.type);
+    if (existingKeys.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    existingKeys.add(key);
+    uniquePrepared.push(row);
+  }
+
   const BATCH = 400;
   let inserted = 0;
-  for (let i = 0; i < prepared.length; i += BATCH) {
-    const chunk = prepared.slice(i, i + BATCH);
+  for (let i = 0; i < uniquePrepared.length; i += BATCH) {
+    const chunk = uniquePrepared.slice(i, i + BATCH);
     const result = await prisma.maintenanceLog.createMany({ data: chunk });
     inserted += result.count;
   }
 
   const om = await syncDailyMaintenanceOrders(prisma);
+  await closeOrdersInPeriod(prisma, { toDayKey: HISTORICAL_CLOSE_THROUGH });
   const catalogTotal = await prisma.maintenanceLog.count();
 
   return { inserted, skipped, catalogTotal, om };

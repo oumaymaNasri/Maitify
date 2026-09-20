@@ -8,6 +8,10 @@ import { requireManageAction } from "@/lib/auth/session-server";
 import { fetchMaintenanceOrderDetail } from "@/lib/gmao/maintenance-order-detail-query";
 import { fetchMaintenanceOrders } from "@/lib/gmao/maintenance-orders-query";
 import { calendarDayKey } from "@/lib/gmao/intervention-status";
+import {
+  assertOrderWritableById,
+  closeOrdersInPeriod,
+} from "@/lib/gmao/maintenance-catalog-reconcile";
 import { prisma } from "@/lib/db/prisma";
 import {
   buildOrderLinesFromInput,
@@ -19,7 +23,10 @@ export type MaintenanceOrderActionResult = { ok: true; id: string } | { ok: fals
 
 function revalidateMaintenanceOrderPaths() {
   revalidatePath("/maintenance-orders");
+  revalidatePath("/interventions");
   revalidateTag(CACHE_TAGS.maintenanceOrders);
+  revalidateTag(CACHE_TAGS.interventions);
+  revalidateTag(CACHE_TAGS.dashboard);
 }
 
 function parseOrderForm(formData: FormData) {
@@ -60,6 +67,7 @@ export async function createMaintenanceOrderAction(formData: FormData): Promise<
       select: { id: true },
     });
     if (existing) {
+      await assertOrderWritableById(prisma, existing.id);
       await prisma.$transaction(async (tx) => {
         for (const line of lines) {
           await tx.maintenanceOrderLine.upsert({
@@ -135,6 +143,7 @@ export async function updateMaintenanceOrderAction(formData: FormData): Promise<
     const lines = buildOrderLinesFromInput(parsed.data);
 
     await prisma.$transaction(async (tx) => {
+      await assertOrderWritableById(tx, parsed.data.id);
       const existing = await tx.maintenanceOrder.findUnique({
         where: { id: parsed.data.id },
         include: { lines: { include: { maintenanceLog: { select: { id: true } } } } },
@@ -205,6 +214,7 @@ export async function deleteMaintenanceOrderAction(id: string): Promise<Maintena
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!id?.trim()) return { ok: false, error: "Ordre introuvable." };
   try {
+    await assertOrderWritableById(prisma, id);
     await prisma.maintenanceOrder.delete({ where: { id } });
     revalidateMaintenanceOrderPaths();
     return { ok: true, id };
@@ -223,6 +233,12 @@ export async function deleteMaintenanceOrdersBulkAction(ids: string[]): Promise<
   if (unique.length === 0) return { ok: false, error: "Aucun ordre sélectionné." };
 
   try {
+    const closed = await prisma.maintenanceOrder.count({
+      where: { id: { in: unique }, status: MaintenanceOrderStatus.COMPLETED },
+    });
+    if (closed > 0) {
+      return { ok: false, error: "Impossible de supprimer des ordres déjà clôturés." };
+    }
     const result = await prisma.maintenanceOrder.deleteMany({ where: { id: { in: unique } } });
     revalidateMaintenanceOrderPaths();
     return { ok: true, deleted: result.count, ids: unique };
@@ -278,4 +294,20 @@ export async function completeMaintenanceOrderLine(
   });
 
   revalidateMaintenanceOrderPaths();
+}
+
+export async function closeOrdersPeriodAction(formData: FormData): Promise<
+  { ok: true; orders: number; logs: number } | { ok: false; error: string }
+> {
+  const auth = requireManageAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const fromDayKey = formData.get("fromDayKey")?.toString().trim() || null;
+  const toDayKey = formData.get("toDayKey")?.toString().trim() ?? "";
+  try {
+    const result = await closeOrdersInPeriod(prisma, { fromDayKey, toDayKey });
+    revalidateMaintenanceOrderPaths();
+    return { ok: true, ...result };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Clôture impossible." };
+  }
 }

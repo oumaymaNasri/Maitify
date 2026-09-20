@@ -11,6 +11,12 @@ export function calendarDayKey(date: Date, timeZone = TZ): string {
   }).format(date);
 }
 
+export const HISTORICAL_CLOSE_THROUGH = "2026-08-08";
+
+export function interventionIdentityKey(machineId: string, date: Date, type: InterventionType | string): string {
+  return `${machineId}|${calendarDayKey(date)}|${type}`;
+}
+
 /** Minuit UTC du jour calendaire (Tunis), pour comparer aux dates Excel importées. */
 export function startOfTodayTunis(now = new Date()): Date {
   return new Date(`${calendarDayKey(now)}T00:00:00.000Z`);

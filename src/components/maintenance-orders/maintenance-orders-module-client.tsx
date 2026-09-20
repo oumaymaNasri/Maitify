@@ -9,6 +9,7 @@ import { deleteMaintenanceOrderAction, deleteMaintenanceOrdersBulkAction } from 
 import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
 import type { MachineOption } from "@/components/maintenance-orders/add-maintenance-order-sheet";
+import { CloseOrdersPeriodDialog } from "@/components/maintenance-orders/close-orders-period-dialog";
 import { MaintenanceOrdersDataTable } from "@/components/maintenance-orders/maintenance-orders-data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -172,12 +173,15 @@ export function MaintenanceOrdersModuleClient({
         resultCount={rows.length}
         action={
           readOnly ? undefined : (
-            <AddMaintenanceOrderSheet
-              machines={machines}
-              onCreated={(created) => {
-                setRows((prev) => [created, ...prev]);
-              }}
-            />
+            <div className="flex shrink-0 flex-nowrap items-center gap-2">
+              <CloseOrdersPeriodDialog />
+              <AddMaintenanceOrderSheet
+                machines={machines}
+                onCreated={(created) => {
+                  setRows((prev) => [created, ...prev]);
+                }}
+              />
+            </div>
           )
         }
         filters={filters}

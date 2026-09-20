@@ -19,6 +19,11 @@ import { createStockMovementFromIntervention } from "@/lib/gmao/stock-movement-h
 import { prisma } from "@/lib/db/prisma";
 import { fetchInterventionDetail } from "@/lib/gmao/intervention-detail-query";
 import { attachLogToDailyOrder, type DailyOrderLink } from "@/lib/gmao/maintenance-order-from-logs";
+import {
+  assertDailyOrderWritable,
+  assertLogWritable,
+  findExistingIntervention,
+} from "@/lib/gmao/maintenance-catalog-reconcile";
 import { completeMaintenanceOrderLine } from "@/app/actions/maintenance-order";
 import {
   maintenanceLogEditSchema,
@@ -158,8 +163,22 @@ export async function createMaintenanceLogWithParts(formData: FormData): Promise
   }
 
   const isCompleted = data.workflowStatus === MaintenanceWorkflowStatus.COMPLETED;
+  const logType = mapOperationToLegacyType(data.operationType);
 
   try {
+    await assertDailyOrderWritable(prisma, data.date);
+    const duplicate = await findExistingIntervention(prisma, {
+      machineId: data.machineId,
+      date: data.date,
+      type: logType,
+    });
+    if (duplicate) {
+      return {
+        ok: false,
+        error: "Une intervention de ce type existe déjà pour cette machine à cette date.",
+      };
+    }
+
     const created = await prisma.$transaction(async (tx) => {
       if (data.lines.length > 0 && isCompleted) {
         for (const line of data.lines) {
@@ -327,6 +346,18 @@ export async function updateMaintenanceLogAction(formData: FormData): Promise<Ma
 
   try {
     await prisma.$transaction(async (tx) => {
+      await assertLogWritable(tx, data.id);
+      await assertDailyOrderWritable(tx, data.date);
+      const logType = mapOperationToLegacyType(data.operationType);
+      const duplicate = await findExistingIntervention(tx, {
+        machineId: data.machineId,
+        date: data.date,
+        type: logType,
+        excludeId: data.id,
+      });
+      if (duplicate) {
+        throw new Error("Une intervention de ce type existe déjà pour cette machine à cette date.");
+      }
       const log = await tx.maintenanceLog.update({
         where: { id: data.id },
         data: {
@@ -370,6 +401,7 @@ export async function deleteMaintenanceLogAction(id: string): Promise<Maintenanc
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!id?.trim()) return { ok: false, error: "Intervention introuvable." };
   try {
+    await assertLogWritable(prisma, id);
     await prisma.maintenanceLog.delete({ where: { id } });
     revalidateMaintenancePaths();
     return { ok: true, id };

@@ -17,8 +17,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { startOfTodayTunis, workflowStatusForLog } from "../src/lib/gmao/intervention-status";
-import { syncDailyMaintenanceOrders } from "../src/lib/gmao/maintenance-order-from-logs";
+import { startOfTodayTunis, interventionIdentityKey, workflowStatusForLog } from "../src/lib/gmao/intervention-status";
+import { loadExistingInterventionKeys, reconcileMaintenanceCatalog } from "../src/lib/gmao/maintenance-catalog-reconcile";
 
 const prisma = new PrismaClient();
 
@@ -447,9 +447,20 @@ async function persistLogs(rows: PreparedLog[]) {
   let created = 0;
   let parts = 0;
   let waterCount = 0;
+  let skipped = 0;
+  const existingKeys = await loadExistingInterventionKeys(prisma);
 
   for (let i = 0; i < rows.length; i += BATCH) {
-    const chunk = rows.slice(i, i + BATCH);
+    const chunk = rows.slice(i, i + BATCH).filter((row) => {
+      const key = interventionIdentityKey(row.machineId, row.date, row.type);
+      if (existingKeys.has(key)) {
+        skipped += 1;
+        return false;
+      }
+      existingKeys.add(key);
+      return true;
+    });
+    if (!chunk.length) continue;
     const result = await prisma.maintenanceLog.createMany({
       data: chunk.map((row) => ({
         machineId: row.machineId,
@@ -492,7 +503,7 @@ async function persistLogs(rows: PreparedLog[]) {
       waterCount += waters.length;
     }
 
-    console.log(`[seed-maintenances] ${created}/${rows.length} interventions…`);
+  console.log(`[seed-maintenances] ${created}/${rows.length} interventions (ignorées doublons=${skipped})…`);
   }
 
   return { created, parts, waterCount };
@@ -602,9 +613,11 @@ async function main() {
       const techs = await loadTechnicianIndex();
       await repairImportedMetadata(techs);
       await syncWorkflowStatuses();
-      const om = await syncDailyMaintenanceOrders(prisma);
-      console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
     }
+    const om = await reconcileMaintenanceCatalog(prisma);
+    console.log(
+      `[seed-maintenances] catalogue : conservées=${om.kept} doublons=${om.removed} liés=${om.linked} clôturés=${om.closedOrders}`,
+    );
     return;
   }
 
@@ -637,8 +650,10 @@ async function main() {
   console.log(`[seed-maintenances] OK créées=${stats.created} total=${total} (attendu ${expected})`);
   await repairImportedMetadata(techs);
   await syncWorkflowStatuses();
-  const om = await syncDailyMaintenanceOrders(prisma);
-  console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
+  const om = await reconcileMaintenanceCatalog(prisma);
+  console.log(
+    `[seed-maintenances] catalogue : conservées=${om.kept} doublons=${om.removed} liés=${om.linked} clôturés=${om.closedOrders}`,
+  );
 }
 
 main()
