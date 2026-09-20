@@ -1,9 +1,9 @@
 "use client";
 
 import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
-import { Folders, ShieldCheck, Wrench, type LucideIcon } from "lucide-react";
+import { FileSpreadsheet, Folders, ShieldCheck, Wrench, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
 import {
@@ -16,6 +16,7 @@ import type { InterventionListVm } from "@/components/interventions/intervention
 import type { MachineOption, TechnicianOption } from "@/components/interventions/InterventionIntelligentForm";
 import { InterventionsDataTable } from "@/components/interventions/interventions-data-table";
 import { InterventionsExportButtons } from "@/components/interventions/interventions-export-buttons";
+import { MaintenanceImportPanel } from "@/components/interventions/maintenance-import-panel";
 import { ButtonLink } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +40,8 @@ const DeleteConfirmDialog = dynamic(
 
 type StatusFilter = "ALL" | MaintenanceWorkflowStatus;
 type TypeFilter = "ALL" | InterventionType;
-type TabId = "PREVENTIVE" | "CORRECTIVE" | "ALL";
+type ListTabId = "PREVENTIVE" | "CORRECTIVE" | "ALL";
+type TabId = ListTabId | "IMPORT";
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "Tous" },
@@ -63,6 +65,7 @@ export type InterventionsListQuery = {
   dateTo: string;
   sort: string;
   dir: "asc" | "desc";
+  view?: "import" | "";
 };
 
 type InterventionsTotals = {
@@ -133,7 +136,7 @@ function compareRows(a: InterventionListVm, b: InterventionListVm, sort: string,
   return cmp * dir || a.id.localeCompare(b.id) * dir;
 }
 
-function filterAndSortInterventions(rows: InterventionListVm[], query: InterventionsListQuery, tab: TabId) {
+function filterAndSortInterventions(rows: InterventionListVm[], query: InterventionsListQuery, tab: ListTabId) {
   const q = query.q.trim().toLowerCase();
   const base = rows.filter((row) => rowMatchesQuery(row, query, q));
   const preventiveCount = base.filter((r) => r.type === InterventionType.PREVENTIVE).length;
@@ -170,6 +173,7 @@ export function buildMaintenanceListSearch(query: InterventionsListQuery): strin
   if (query.dateTo) params.set("dateTo", query.dateTo);
   if (query.sort && query.sort !== "date") params.set("sort", query.sort);
   if (query.dir && query.dir !== "desc") params.set("dir", query.dir);
+  if (query.view === "import") params.set("view", "import");
   return params.toString();
 }
 
@@ -189,9 +193,12 @@ export function InterventionsModuleClient({
   query: initialQuery,
 }: InterventionsModuleClientProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [rows, setRows] = React.useState(initialRows);
   const [query, setQuery] = React.useState(initialQuery);
-  const [tab, setTab] = React.useState<TabId>(() => tabFromType(initialQuery.type));
+  const [tab, setTab] = React.useState<TabId>(() =>
+    initialQuery.view === "import" ? "IMPORT" : tabFromType(initialQuery.type),
+  );
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [viewId, setViewId] = React.useState<string | null>(null);
   const [editRow, setEditRow] = React.useState<InterventionListVm | null>(null);
@@ -220,7 +227,11 @@ export function InterventionsModuleClient({
     (next: TabId) => {
       setTab(next);
       setSelectedIds(new Set());
-      patchQuery({ type: next });
+      if (next === "IMPORT") {
+        patchQuery({ view: "import", type: "ALL" });
+      } else {
+        patchQuery({ view: "", type: next });
+      }
     },
     [patchQuery],
   );
@@ -302,14 +313,15 @@ export function InterventionsModuleClient({
   }, []);
 
   const { visibleRows, preventiveCount, correctiveCount, allCount } = React.useMemo(
-    () => filterAndSortInterventions(rows, query, tab),
+    () => filterAndSortInterventions(rows, query, tab === "IMPORT" ? "ALL" : tab),
     [rows, query, tab],
   );
 
-  const tabs: { id: TabId; label: string; count: number; icon: LucideIcon }[] = [
+  const tabs: { id: TabId; label: string; count?: number; icon: LucideIcon }[] = [
     { id: "PREVENTIVE", label: "Maintenance Préventive", count: preventiveCount, icon: ShieldCheck },
     { id: "CORRECTIVE", label: "Maintenance Corrective", count: correctiveCount, icon: Wrench },
     { id: "ALL", label: "Toutes les Maintenances", count: allCount, icon: Folders },
+    ...(!readOnly ? [{ id: "IMPORT" as const, label: "Importer des maintenances", icon: FileSpreadsheet }] : []),
   ];
 
   return (
@@ -343,16 +355,26 @@ export function InterventionsModuleClient({
             >
               <Icon className="h-5 w-5 shrink-0 text-[#1F76FB]" strokeWidth={1.75} />
               <span className="text-sm font-medium leading-none">
-                {item.label}{" "}
-                <span className={cn("tabular-nums", active ? "text-[#1F76FB]" : "text-slate-400")}>
-                  ({item.count.toLocaleString("fr-FR")})
-                </span>
+                {item.label}
+                {item.count != null ? (
+                  <>
+                    {" "}
+                    <span className={cn("tabular-nums", active ? "text-[#1F76FB]" : "text-slate-400")}>
+                      ({item.count.toLocaleString("fr-FR")})
+                    </span>
+                  </>
+                ) : null}
               </span>
             </button>
           );
         })}
       </div>
+    </div>
 
+      {tab === "IMPORT" ? (
+        <MaintenanceImportPanel onImported={() => router.refresh()} />
+      ) : (
+        <>
       <ModuleFilterBar
         layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
@@ -391,7 +413,6 @@ export function InterventionsModuleClient({
           </>
         }
       />
-    </div>
 
       <InterventionsDataTable
         interventions={visibleRows}
@@ -409,6 +430,8 @@ export function InterventionsModuleClient({
         }}
         totals={{ total: visibleRows.length, catalogTotal: totals.catalogTotal }}
       />
+        </>
+      )}
 
       <InterventionDetailSheet
         interventionId={viewId}

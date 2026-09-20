@@ -300,6 +300,10 @@ export function getInterventionsInventoryCached(
   )();
 }
 
+export async function fetchInterventionCatalogCount(): Promise<number> {
+  return prisma.maintenanceLog.count();
+}
+
 export type InterventionMachineOption = {
   id: string;
   name: string;

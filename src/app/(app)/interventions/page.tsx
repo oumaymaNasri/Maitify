@@ -2,6 +2,7 @@ import { DbErrorHint } from "@/components/layout/DbError";
 import { InterventionsModuleClient } from "@/components/interventions/interventions-module-client";
 import type { MachineOption, TechnicianOption } from "@/components/interventions/InterventionIntelligentForm";
 import {
+  fetchInterventionCatalogCount,
   getInterventionSectorsCached,
   getInterventionsInventoryCached,
   getInterventionMachineOptionsCached,
@@ -25,6 +26,7 @@ type PageProps = {
     dateTo?: string;
     sort?: string;
     dir?: string;
+    view?: string;
   };
 };
 
@@ -60,9 +62,17 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const technicianId = isTechnician ? "ALL" : (searchParams?.technicianId ?? "ALL");
     const dateFrom = searchParams?.dateFrom ?? "";
     const dateTo = searchParams?.dateTo ?? "";
+    const importView = searchParams?.view === "import" && !isTechnician;
 
     const [inventory, machineRows, techRows, sectors] = await Promise.all([
-      getInterventionsInventoryCached(technicianScopeId),
+      importView
+        ? fetchInterventionCatalogCount().then((catalogTotal) => ({
+            items: [] as Awaited<ReturnType<typeof getInterventionsInventoryCached>>["items"],
+            total: catalogTotal,
+            catalogTotal,
+            typeCounts: { preventive: 0, corrective: 0 },
+          }))
+        : getInterventionsInventoryCached(technicianScopeId),
       getInterventionMachineOptionsCached(),
       getInterventionTechnicianOptionsCached(),
       getInterventionSectorsCached(),
@@ -98,6 +108,7 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
           dateTo,
           sort,
           dir,
+          view: searchParams?.view === "import" ? "import" : "",
         }}
       />
     );

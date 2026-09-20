@@ -3,6 +3,9 @@ const nextConfig = {
   images: {
     remotePatterns: [],
   },
+  experimental: {
+    serverComponentsExternalPackages: ["exceljs"],
+  },
   // OneDrive / chemins synchronisés : évite chunks incomplets en dev
   webpack: (config, { dev }) => {
     if (dev) {

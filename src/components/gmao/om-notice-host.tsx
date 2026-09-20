@@ -8,6 +8,14 @@ export type OmNoticeDetail = {
   created: boolean;
   reference: string;
   dayKey: string;
+  importSummary?: {
+    inserted: number;
+    skipped: number;
+    omCreated: number;
+    omLinked: number;
+    days: number;
+    catalogTotal: number;
+  };
 };
 
 export const OM_NOTICE_EVENT = "gmao:om-notice";
@@ -39,20 +47,34 @@ export function OmNoticeHost() {
   if (!notice) return null;
 
   const dateLabel = notice.dayKey.split("-").reverse().join("/");
+  const summary = notice.importSummary;
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 max-w-sm">
       <div className="pointer-events-auto flex gap-3 rounded-xl border border-sky-200 bg-white p-3 shadow-lg">
         <CalendarCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#1F76FB]" />
         <div className="min-w-0 flex-1 text-sm">
-          <p className="font-semibold text-slate-900">
-            {notice.created ? "Ordre de maintenance créé" : "Intervention rattachée à l'OM"}
-          </p>
-          <p className="mt-0.5 text-slate-600">
-            {notice.created
-              ? `L'ordre ${notice.reference} a été généré pour le ${dateLabel}.`
-              : `L'intervention a été associée à ${notice.reference} (${dateLabel}).`}
-          </p>
+          {summary ? (
+            <>
+              <p className="font-semibold text-slate-900">Import Excel terminé</p>
+              <p className="mt-0.5 text-slate-600">
+                {summary.inserted.toLocaleString("fr-FR")} ligne(s) ajoutée(s) au catalogue (
+                {summary.catalogTotal.toLocaleString("fr-FR")}). {summary.omCreated} OM Auto créé(s),{" "}
+                {summary.omLinked} intervention(s) rattachée(s) sur {summary.days} jour(s).
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-slate-900">
+                {notice.created ? "Ordre de maintenance créé" : "Intervention rattachée à l'OM"}
+              </p>
+              <p className="mt-0.5 text-slate-600">
+                {notice.created
+                  ? `L'ordre ${notice.reference} a été généré pour le ${dateLabel}.`
+                  : `L'intervention a été associée à ${notice.reference} (${dateLabel}).`}
+              </p>
+            </>
+          )}
           <Link href="/maintenance-orders" className="mt-1 inline-block text-xs font-medium text-[#1F76FB] hover:underline">
             Voir les ordres
           </Link>
