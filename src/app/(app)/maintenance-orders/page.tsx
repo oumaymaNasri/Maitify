@@ -9,7 +9,15 @@ import { getSession } from "@/lib/auth/session-server";
 import { canManage } from "@/lib/auth/session";
 
 type PageProps = {
-  searchParams?: { page?: string; q?: string; status?: string; type?: string };
+  searchParams?: {
+    page?: string;
+    q?: string;
+    status?: string;
+    type?: string;
+    machineId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
 };
 
 export default async function MaintenanceOrdersPage({ searchParams }: PageProps) {
@@ -21,6 +29,9 @@ export default async function MaintenanceOrdersPage({ searchParams }: PageProps)
       q: searchParams?.q?.trim() ?? "",
       status: searchParams?.status ?? "ALL",
       type: searchParams?.type ?? "ALL",
+      machineId: searchParams?.machineId ?? "ALL",
+      dateFrom: searchParams?.dateFrom ?? "",
+      dateTo: searchParams?.dateTo ?? "",
     };
 
     const [paginated, machineRows] = await Promise.all([
@@ -46,7 +57,6 @@ export default async function MaintenanceOrdersPage({ searchParams }: PageProps)
     const err = e instanceof Error ? e.message : String(e);
     return (
       <div className="gmao-module-page density-page-inner py-8">
-        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Ordres de Maintenance</h1>
         <DbErrorHint detail={err} />
       </div>
     );

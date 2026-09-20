@@ -1,6 +1,6 @@
 "use client";
 
-import { TechnicianAvailability } from "@prisma/client";
+import { TechnicianAvailability, TechnicianRole, TechnicianSpecialty } from "@prisma/client";
 import dynamic from "next/dynamic";
 import * as React from "react";
 
@@ -32,12 +32,30 @@ const DeleteConfirmDialog = dynamic(
 
 type TechnicianSearchRow = TechnicianRow & { searchBlob: string };
 type AvailabilityFilter = "ALL" | TechnicianAvailability;
+type SpecialtyFilter = "ALL" | TechnicianSpecialty;
+type RoleFilter = "ALL" | TechnicianRole;
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "Tous" },
   ...Object.values(TechnicianAvailability).map((a) => ({
     value: a,
     label: technicianAvailabilityFr(a),
+  })),
+];
+
+const SPECIALTY_OPTIONS = [
+  { value: "ALL", label: "Toutes" },
+  ...Object.values(TechnicianSpecialty).map((s) => ({
+    value: s,
+    label: technicianSpecialtyFr(s),
+  })),
+];
+
+const ROLE_OPTIONS = [
+  { value: "ALL", label: "Tous" },
+  ...Object.values(TechnicianRole).map((r) => ({
+    value: r,
+    label: technicianRoleFr(r),
   })),
 ];
 
@@ -52,6 +70,8 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
   const [rows, setRows] = React.useState(initialRows);
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [status, setStatus] = React.useState<AvailabilityFilter>("ALL");
+  const [specialty, setSpecialty] = React.useState<SpecialtyFilter>("ALL");
+  const [role, setRole] = React.useState<RoleFilter>("ALL");
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [viewTechnician, setViewTechnician] = React.useState<TechnicianRow | null>(null);
   const [editTechnician, setEditTechnician] = React.useState<TechnicianRow | null>(null);
@@ -73,10 +93,12 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
     const needle = debouncedQ.trim();
     return searchRows.filter((t) => {
       if (status !== "ALL" && t.availability !== status) return false;
+      if (specialty !== "ALL" && t.specialty !== specialty) return false;
+      if (role !== "ALL" && t.role !== role) return false;
       if (!needle) return true;
       return fuzzyMatch(needle, t.searchBlob);
     });
-  }, [searchRows, debouncedQ, status]);
+  }, [searchRows, debouncedQ, status, specialty, role]);
 
   React.useEffect(() => {
     const visible = new Set(filtered.map((t) => t.id));
@@ -89,6 +111,20 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
   const filters = React.useMemo(
     () => [
       {
+        id: "specialty",
+        label: "Spécialité",
+        value: specialty,
+        onChange: (v: string) => startFilterTransition(() => setSpecialty(v as SpecialtyFilter)),
+        options: SPECIALTY_OPTIONS,
+      },
+      {
+        id: "role",
+        label: "Rôle",
+        value: role,
+        onChange: (v: string) => startFilterTransition(() => setRole(v as RoleFilter)),
+        options: ROLE_OPTIONS,
+      },
+      {
         id: "status",
         label: "Statut",
         value: status,
@@ -96,7 +132,7 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
         options: STATUS_OPTIONS,
       },
     ],
-    [status],
+    [specialty, role, status],
   );
 
   const handleDeleted = React.useCallback((id: string) => {
@@ -121,7 +157,9 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
       <ModuleFilterBar
         layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
-        searchPlaceholder="Recherche : nom, prénom, spécialité, matricule…"
+        searchLabel="Technicien"
+        searchInputId="technicians-search"
+        searchPlaceholder="Nom, prénom ou matricule…"
         resultCount={filtered.length}
         action={
           <AddTechnicianSheet

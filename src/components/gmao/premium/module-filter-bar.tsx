@@ -19,6 +19,9 @@ export type ModuleFilterConfig = {
 
 type IsolatedModuleSearchProps = {
   placeholder: string;
+  label?: string;
+  inputId?: string;
+  initialValue?: string;
   resetKey?: string | number;
   onDebouncedChange: (value: string) => void;
   onFilteringChange?: (isFiltering: boolean) => void;
@@ -27,16 +30,20 @@ type IsolatedModuleSearchProps = {
 
 const IsolatedModuleSearch = React.memo(function IsolatedModuleSearch({
   placeholder,
+  label = "Recherche",
+  inputId = "module-search",
+  initialValue = "",
   resetKey,
   onDebouncedChange,
   onFilteringChange,
   compact = false,
 }: IsolatedModuleSearchProps) {
-  const [localQ, setLocalQ] = React.useState("");
+  const [localQ, setLocalQ] = React.useState(initialValue);
   const debouncedQ = useDebouncedValue(localQ, 150);
 
   React.useEffect(() => {
-    setLocalQ("");
+    if (resetKey === undefined) return;
+    setLocalQ(initialValue);
   }, [resetKey]);
 
   React.useEffect(() => {
@@ -53,13 +60,13 @@ const IsolatedModuleSearch = React.memo(function IsolatedModuleSearch({
           compact ? "min-w-[14rem] flex-[1.8] shrink-0" : "space-y-1.5 sm:col-span-2 lg:col-span-5",
       )}
     >
-      <Label htmlFor="module-search" className={cn("font-medium text-slate-700", compact ? "text-[11px]" : "text-xs")}>
-        Recherche
+      <Label htmlFor={inputId} className={cn("font-medium text-slate-700", compact ? "text-[11px]" : "text-xs")}>
+        {label}
       </Label>
       <div className={cn("relative", compact && "mt-0.5")}>
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
         <Input
-          id="module-search"
+          id={inputId}
           value={localQ}
           onChange={(e) => setLocalQ(e.target.value)}
           placeholder={placeholder}
@@ -76,6 +83,9 @@ const IsolatedModuleSearch = React.memo(function IsolatedModuleSearch({
 type ModuleFilterBarProps = {
   onDebouncedSearchChange: (value: string) => void;
   searchPlaceholder?: string;
+  searchLabel?: string;
+  searchInputId?: string;
+  searchInitialValue?: string;
   searchResetKey?: string | number;
   filters: ModuleFilterConfig[];
   resultCount?: number;
@@ -89,6 +99,9 @@ type ModuleFilterBarProps = {
 function ModuleFilterBarInner({
   onDebouncedSearchChange,
   searchPlaceholder = "Recherche par nom ou ID…",
+  searchLabel = "Recherche",
+  searchInputId = "module-search",
+  searchInitialValue,
   searchResetKey,
   filters,
   resultCount,
@@ -141,6 +154,9 @@ function ModuleFilterBarInner({
         <div className="flex flex-nowrap items-end gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin]">
           <IsolatedModuleSearch
             placeholder={searchPlaceholder}
+            label={searchLabel}
+            inputId={searchInputId}
+            initialValue={searchInitialValue}
             resetKey={searchResetKey}
             onDebouncedChange={handleDebouncedChange}
             onFilteringChange={setIsFiltering}
@@ -169,6 +185,9 @@ function ModuleFilterBarInner({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
           <IsolatedModuleSearch
             placeholder={searchPlaceholder}
+            label={searchLabel}
+            inputId={`${searchInputId}-grid`}
+            initialValue={searchInitialValue}
             resetKey={searchResetKey}
             onDebouncedChange={handleDebouncedChange}
             onFilteringChange={setIsFiltering}

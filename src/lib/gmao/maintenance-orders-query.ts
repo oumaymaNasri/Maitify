@@ -82,6 +82,9 @@ function buildOrdersWhere(filters?: {
   q?: string;
   status?: string;
   type?: string;
+  machineId?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }): Prisma.MaintenanceOrderWhereInput {
   const and: Prisma.MaintenanceOrderWhereInput[] = [];
   const q = filters?.q?.trim();
@@ -89,8 +92,7 @@ function buildOrdersWhere(filters?: {
     and.push({
       OR: [
         { reference: { contains: q, mode: "insensitive" } },
-        { observationComment: { contains: q, mode: "insensitive" } },
-        { lines: { some: { machine: { name: { contains: q, mode: "insensitive" } } } } },
+        { id: { contains: q, mode: "insensitive" } },
       ],
     });
   }
@@ -100,13 +102,31 @@ function buildOrdersWhere(filters?: {
   if (filters?.type && filters.type !== "ALL") {
     and.push({ interventionType: filters.type as InterventionType });
   }
+  if (filters?.machineId && filters.machineId !== "ALL") {
+    and.push({ lines: { some: { machineId: filters.machineId } } });
+  }
+  if (filters?.dateFrom) {
+    and.push({ plannedDate: { gte: new Date(`${filters.dateFrom}T00:00:00.000`) } });
+  }
+  if (filters?.dateTo) {
+    and.push({ plannedDate: { lte: new Date(`${filters.dateTo}T23:59:59.999`) } });
+  }
   return and.length ? { AND: and } : {};
 }
+
+export type MaintenanceOrderListFilters = {
+  q?: string;
+  status?: string;
+  type?: string;
+  machineId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
 
 export async function fetchMaintenanceOrdersPage(
   page = 1,
   pageSize = MAINTENANCE_ORDERS_PAGE_SIZE,
-  filters?: { q?: string; status?: string; type?: string },
+  filters?: MaintenanceOrderListFilters,
 ): Promise<PaginatedResult<MaintenanceOrderRow>> {
   const safePage = Math.max(1, page);
   const safeLimit = Math.max(1, Math.min(pageSize, 50));
@@ -142,14 +162,17 @@ export async function fetchMaintenanceOrders(): Promise<MaintenanceOrderRow[]> {
 export function getMaintenanceOrdersCached(
   page = 1,
   pageSize = MAINTENANCE_ORDERS_PAGE_SIZE,
-  filters?: { q?: string; status?: string; type?: string },
+  filters?: MaintenanceOrderListFilters,
 ) {
   const q = filters?.q ?? "";
   const status = filters?.status ?? "ALL";
   const type = filters?.type ?? "ALL";
+  const machineId = filters?.machineId ?? "ALL";
+  const dateFrom = filters?.dateFrom ?? "";
+  const dateTo = filters?.dateTo ?? "";
   return unstable_cache(
     () => fetchMaintenanceOrdersPage(page, pageSize, filters),
-    [CACHE_TAGS.maintenanceOrders, "v2", String(page), String(pageSize), q, status, type],
+    [CACHE_TAGS.maintenanceOrders, "v3", String(page), String(pageSize), q, status, type, machineId, dateFrom, dateTo],
     { revalidate: 60, tags: [CACHE_TAGS.maintenanceOrders] },
   )();
 }

@@ -10,6 +10,8 @@ import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
 import type { MachineOption } from "@/components/maintenance-orders/add-maintenance-order-sheet";
 import { MaintenanceOrdersDataTable } from "@/components/maintenance-orders/maintenance-orders-data-table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { MaintenanceOrderRow } from "@/lib/gmao/maintenance-orders-query";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { maintenanceOrderStatusFr } from "@/lib/view/gmao-labels";
@@ -76,7 +78,7 @@ export function MaintenanceOrdersModuleClient({
 }: {
   orders: MaintenanceOrderRow[];
   pagination: OrdersPagination;
-  initialFilters: { q: string; status: string; type: string };
+  initialFilters: { q: string; status: string; type: string; machineId: string; dateFrom: string; dateTo: string };
   machines: MachineOption[];
   readOnly?: boolean;
 }) {
@@ -91,20 +93,34 @@ export function MaintenanceOrdersModuleClient({
   const [, startFilterTransition] = React.useTransition();
 
   const pushFilters = React.useCallback(
-    (next: { q?: string; status?: string; type?: string; page?: number }) => {
+    (next: {
+      q?: string;
+      status?: string;
+      type?: string;
+      machineId?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      page?: number;
+    }) => {
       const params = new URLSearchParams();
       const q = next.q ?? initialFilters.q;
       const status = next.status ?? initialFilters.status;
       const type = next.type ?? initialFilters.type;
+      const machineId = next.machineId ?? initialFilters.machineId;
+      const dateFrom = next.dateFrom ?? initialFilters.dateFrom;
+      const dateTo = next.dateTo ?? initialFilters.dateTo;
       const page = next.page ?? 1;
       if (q) params.set("q", q);
       if (status !== "ALL") params.set("status", status);
       if (type !== "ALL") params.set("type", type);
+      if (machineId && machineId !== "ALL") params.set("machineId", machineId);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
       if (page > 1) params.set("page", String(page));
       const qs = params.toString();
       router.push(qs ? `${pathname}?${qs}` : pathname);
     },
-    [initialFilters.q, initialFilters.status, initialFilters.type, pathname, router],
+    [initialFilters, pathname, router],
   );
 
   const handleDebouncedSearch = React.useCallback(
@@ -138,8 +154,20 @@ export function MaintenanceOrdersModuleClient({
     [pagination.page, pagination.pageCount, pushFilters],
   );
 
+  const machineOptions = React.useMemo(
+    () => [{ value: "ALL", label: "Toutes les machines" }, ...machines.map((m) => ({ value: m.id, label: m.name }))],
+    [machines],
+  );
+
   const filters = React.useMemo(
     () => [
+      {
+        id: "machine",
+        label: "Machines",
+        value: initialFilters.machineId,
+        onChange: (v: string) => startFilterTransition(() => pushFilters({ machineId: v, page: 1 })),
+        options: machineOptions,
+      },
       {
         id: "status",
         label: "Statut",
@@ -155,7 +183,7 @@ export function MaintenanceOrdersModuleClient({
         options: TYPE_OPTIONS,
       },
     ],
-    [initialFilters.status, initialFilters.type, pushFilters],
+    [initialFilters.machineId, initialFilters.status, initialFilters.type, machineOptions, pushFilters],
   );
 
   const handleDeleted = React.useCallback((id: string) => {
@@ -180,8 +208,10 @@ export function MaintenanceOrdersModuleClient({
       <ModuleFilterBar
         layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
-        searchPlaceholder="Recherche : référence, machine…"
-        searchResetKey={`${initialFilters.q}-${initialFilters.status}-${initialFilters.type}-${pagination.page}`}
+        searchLabel="Référence"
+        searchInputId="om-reference-search"
+        searchPlaceholder="Référence ou ID de l'ordre…"
+        searchInitialValue={initialFilters.q}
         resultCount={pagination.total}
         action={
           readOnly ? undefined : (
@@ -194,6 +224,34 @@ export function MaintenanceOrdersModuleClient({
           )
         }
         filters={filters}
+        extras={
+          <>
+            <div className="w-[10.25rem] min-w-[10.25rem] shrink-0">
+              <Label htmlFor="om-date-from" className="text-[11px] font-medium text-slate-700">
+                Date du
+              </Label>
+              <Input
+                id="om-date-from"
+                type="date"
+                value={initialFilters.dateFrom}
+                onChange={(e) => startFilterTransition(() => pushFilters({ dateFrom: e.target.value, page: 1 }))}
+                className="mt-0.5 h-9 border-slate-200 bg-white"
+              />
+            </div>
+            <div className="w-[10.25rem] min-w-[10.25rem] shrink-0">
+              <Label htmlFor="om-date-to" className="text-[11px] font-medium text-slate-700">
+                Date au
+              </Label>
+              <Input
+                id="om-date-to"
+                type="date"
+                value={initialFilters.dateTo}
+                onChange={(e) => startFilterTransition(() => pushFilters({ dateTo: e.target.value, page: 1 }))}
+                className="mt-0.5 h-9 border-slate-200 bg-white"
+              />
+            </div>
+          </>
+        }
       />
 
       <MaintenanceOrdersDataTable

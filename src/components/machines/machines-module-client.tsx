@@ -2,7 +2,6 @@
 
 import { MachineAssetStatus, MaintenanceFrequency } from "@prisma/client";
 import dynamic from "next/dynamic";
-import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
 import { deleteMachineAction, deleteMachinesBulkAction } from "@/app/actions/machine";
@@ -61,15 +60,12 @@ function buildSearchRows(machines: MachineCardVm[]): MachineSearchRow[] {
 
 export function MachinesModuleClient({
   machines: initialMachines,
-  pagination,
 }: {
   machines: MachineCardVm[];
-  pagination?: { page: number; pageCount: number; total: number; pageSize: number };
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const [rows, setRows] = React.useState(initialMachines);
   const [debouncedQ, setDebouncedQ] = React.useState("");
+  const [equipmentId, setEquipmentId] = React.useState("ALL");
   const [status, setStatus] = React.useState<StatusFilter>("ALL");
   const [location, setLocation] = React.useState("ALL");
   const [sector, setSector] = React.useState<SectorFilter>("ALL");
@@ -113,13 +109,14 @@ export function MachinesModuleClient({
   const filtered = React.useMemo(() => {
     const needle = debouncedQ.trim();
     return searchRows.filter((m) => {
+      if (equipmentId !== "ALL" && m.id !== equipmentId) return false;
       if (status !== "ALL" && m.assetStatus !== status) return false;
       if (location !== "ALL" && m.location !== location) return false;
       if (sector !== "ALL" && m.maintenanceSector !== sector) return false;
       if (!needle) return true;
       return fuzzyMatch(needle, m.searchBlob);
     });
-  }, [searchRows, debouncedQ, status, location, sector]);
+  }, [searchRows, debouncedQ, equipmentId, status, location, sector]);
 
   React.useEffect(() => {
     const visible = new Set(filtered.map((m) => m.id));
@@ -128,6 +125,10 @@ export function MachinesModuleClient({
       return next.size === prev.size ? prev : next;
     });
   }, [filtered]);
+
+  const onEquipmentChange = React.useCallback((v: string) => {
+    startFilterTransition(() => setEquipmentId(v));
+  }, []);
 
   const onStatusChange = React.useCallback((v: string) => {
     startFilterTransition(() => setStatus(v as StatusFilter));
@@ -141,13 +142,25 @@ export function MachinesModuleClient({
     startFilterTransition(() => setSector(v as SectorFilter));
   }, []);
 
+  const equipmentOptions = React.useMemo(
+    () => [
+      { value: "ALL", label: "Tous les équipements" },
+      ...rows.map((m) => ({
+        value: m.id,
+        label: m.legacyMatricule != null ? `${m.name} (M${m.legacyMatricule})` : m.name,
+      })),
+    ],
+    [rows],
+  );
+
   const filters = React.useMemo(
     () => [
+      { id: "equipment", label: "Machine", value: equipmentId, onChange: onEquipmentChange, options: equipmentOptions },
       { id: "status", label: "Statut", value: status, onChange: onStatusChange, options: [...STATUS_OPTIONS] },
       { id: "location", label: "Emplacement", value: location, onChange: onLocationChange, options: locationOptions },
       { id: "sector", label: "Fréquence", value: sector, onChange: onSectorChange, options: SECTOR_OPTIONS },
     ],
-    [status, location, sector, locationOptions, onStatusChange, onLocationChange, onSectorChange],
+    [equipmentId, status, location, sector, equipmentOptions, locationOptions, onEquipmentChange, onStatusChange, onLocationChange, onSectorChange],
   );
 
   const handleUpdated = React.useCallback((updated: MachineCardVm) => {
@@ -171,26 +184,15 @@ export function MachinesModuleClient({
     setSelectedIds(new Set());
   }, []);
 
-  const goToPage = React.useCallback(
-    (nextPage: number) => {
-      if (!pagination) return;
-      const safe = Math.max(1, Math.min(nextPage, pagination.pageCount));
-      if (safe === pagination.page) return;
-      const params = new URLSearchParams();
-      if (safe > 1) params.set("page", String(safe));
-      const qs = params.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname);
-    },
-    [pagination, pathname, router],
-  );
-
   return (
     <GmaoModuleShell>
       <ModuleFilterBar
         layout="inline"
         onDebouncedSearchChange={handleDebouncedSearch}
-        searchPlaceholder="Recherche floue : nom, ID, emplacement…"
-        resultCount={pagination?.total ?? filtered.length}
+        searchLabel="Équipement"
+        searchInputId="machines-equipment-search"
+        searchPlaceholder="Nom, matricule ou ID…"
+        resultCount={filtered.length}
         action={
           <MachineFormSheet
             onCreated={(created) => {
@@ -209,17 +211,6 @@ export function MachinesModuleClient({
         onEdit={setEditMachine}
         onDelete={setDeleteMachine}
         onBulkDelete={() => setBulkDeleteOpen(true)}
-        serverPagination={
-          pagination
-            ? {
-                page: pagination.page,
-                pageCount: pagination.pageCount,
-                total: pagination.total,
-                onPrevious: () => goToPage(pagination.page - 1),
-                onNext: () => goToPage(pagination.page + 1),
-              }
-            : undefined
-        }
       />
 
       <MachineEditDialog
