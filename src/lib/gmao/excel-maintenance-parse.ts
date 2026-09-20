@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 
-function cellToString(value: ExcelJS.CellValue): string {
+function cellToString(value: unknown): string {
   if (value == null || value === "") return "";
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     const y = value.getUTCFullYear();
@@ -17,7 +17,7 @@ function cellToString(value: ExcelJS.CellValue): string {
     if (Array.isArray(rec.richText)) {
       return rec.richText.map((t) => (typeof t === "object" && t && "text" in t ? String(t.text) : "")).join("").trim();
     }
-    if ("result" in rec) return cellToString(rec.result as ExcelJS.CellValue);
+    if ("result" in rec) return cellToString(rec.result);
   }
   return String(value).trim();
 }

@@ -602,18 +602,16 @@ async function main() {
       const techs = await loadTechnicianIndex();
       await repairImportedMetadata(techs);
       await syncWorkflowStatuses();
+      const om = await syncDailyMaintenanceOrders(prisma);
+      console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
     }
-    const om = await syncDailyMaintenanceOrders(prisma);
-    console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
     return;
   }
 
   if (onVercel && existingTotal > 100 && !force) {
     console.log(
-      `[seed-maintenances] Vercel : conservation des ${existingTotal} interventions existantes (pas de réimport).`,
+      `[seed-maintenances] Vercel : conservation des ${existingTotal} interventions existantes (pas de réimport / OM).`,
     );
-    const om = await syncDailyMaintenanceOrders(prisma);
-    console.log(`[seed-maintenances] OM journaliers : jours=${om.days} créés=${om.created} liés=${om.linked}`);
     return;
   }
 

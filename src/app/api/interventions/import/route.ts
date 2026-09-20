@@ -13,7 +13,6 @@ import { persistMappedExcelRows } from "@/lib/gmao/excel-maintenance-persist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const MAX_ROWS = 20000;
