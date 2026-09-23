@@ -3,8 +3,8 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/cron/preventive-reminders",
-      "schedule": "0 6 * * *"
+      "path": "/api/cron/send-maintenance-reminders",
+      "schedule": "0 8 * * *"
     }
   ]
 }

@@ -77,11 +77,20 @@ export function NotificationCenter({ initial }: { initial: InboxSnapshot }) {
     }
     const sent = result.items.filter((i) => !i.skipped);
     const mailed = sent.filter((i) => i.emailed).length;
-    setRunHint(
-      sent.length
-        ? `${sent.length} rappel(s) créé(s)${mailed ? `, ${mailed} e-mail(s)` : " (e-mail non configuré)"}`
-        : "Aucun nouveau rappel (déjà envoyé ou pas d’OM préventif).",
-    );
+    const mailErrors = sent.map((i) => i.mailError).filter(Boolean);
+    if (!result.mailer.configured) {
+      setRunHint(
+        "Rappels in-app créés, mais aucun e-mail : ajoutez RESEND_API_KEY, SENDGRID_API_KEY ou SMTP_HOST sur Vercel.",
+      );
+    } else if (mailErrors.length) {
+      setRunHint(mailErrors[0] ?? "Échec d’envoi e-mail.");
+    } else {
+      setRunHint(
+        sent.length
+          ? `${sent.length} rappel(s), ${mailed} e-mail(s) vers ${result.mailer.to}.`
+          : "Aucun nouveau rappel (déjà envoyé ou pas d’OM préventif).",
+      );
+    }
     router.refresh();
   };
 
