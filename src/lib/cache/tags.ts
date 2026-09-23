@@ -7,4 +7,5 @@ export const CACHE_TAGS = {
   technicians: "technicians",
   maintenanceOrders: "maintenance-orders",
   dashboard: "dashboard",
+  alerts: "alerts",
 } as const;

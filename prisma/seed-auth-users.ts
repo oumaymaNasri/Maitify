@@ -8,9 +8,8 @@
 
 import { PrismaClient, TechnicianSpecialty, UserRole } from "@prisma/client";
 
-
-
 import { hashPassword } from "../src/lib/auth/password";
+import { DIRECTOR_EMAIL_ALIASES, DIRECTOR_LOGIN_EMAIL } from "../src/lib/gmao/director-contact";
 
 
 
@@ -22,7 +21,7 @@ export const DEMO_AUTH_USERS = [
 
   {
 
-    email: "directeur@nutrifish.local",
+    email: "maintenance@nutrifish.tn",
 
     name: "Directeur GMAO",
 
@@ -59,6 +58,18 @@ async function main() {
 
 
   await prisma.user.deleteMany({ where: { email: "responsable@nutrifish.local" } }).catch(() => undefined);
+
+  for (const alias of DIRECTOR_EMAIL_ALIASES) {
+    const previous = await prisma.user.findUnique({ where: { email: alias } });
+    if (!previous) continue;
+    const already = await prisma.user.findUnique({ where: { email: DIRECTOR_LOGIN_EMAIL } });
+    if (!already) {
+      await prisma.user.update({ where: { id: previous.id }, data: { email: DIRECTOR_LOGIN_EMAIL, name: "Directeur GMAO" } });
+      console.log(`  → e-mail Directeur migré : ${alias} → ${DIRECTOR_LOGIN_EMAIL}`);
+    } else if (already.id !== previous.id) {
+      await prisma.user.delete({ where: { id: previous.id } }).catch(() => undefined);
+    }
+  }
 
 
 

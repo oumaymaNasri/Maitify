@@ -13,7 +13,7 @@ export type SessionUser = {
 /** Profil mock par défaut (tests / fallback documentation). */
 export const MOCK_SESSION_USER: SessionUser = {
   name: "Directeur GMAO",
-  email: "directeur@nutrifish.local",
+  email: "maintenance@nutrifish.tn",
   role: "RESPONSABLE",
   permissions: ["ALL"],
 };

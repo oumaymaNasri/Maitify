@@ -114,6 +114,7 @@ enum AlertType {
   STOCK_LOW
   MAINTENANCE_OVERDUE
   MAINTENANCE_ORDER
+  PREVENTIVE_REMINDER
 }
 
 enum AlertSeverity {
@@ -492,6 +493,8 @@ model GmaoAlert {
   title      String
   message    String        @db.Text
   metadata   Json?
+  /// Clé d’idempotence (ex. rappel J-1 / Jour J d’un OM).
+  dedupeKey  String?       @unique @map("dedupe_key")
   resolvedAt DateTime?
   createdAt  DateTime      @default(now())
 

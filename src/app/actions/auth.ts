@@ -8,6 +8,7 @@ import type { AppRole } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/auth/password";
 import { SESSION_COOKIE_NAME, encodeSessionCookie, permissionsForRole } from "@/lib/auth/session-cookie";
 import { loginRoleMatchesAccount, userRoleToAppRole } from "@/lib/auth/user-role-map";
+import { canonicalLoginEmail } from "@/lib/gmao/director-contact";
 import { prisma } from "@/lib/db/prisma";
 
 export type LoginActionResult = { ok: false; error: string };
@@ -29,7 +30,7 @@ function parseRole(raw: FormDataEntryValue | null): AppRole | null {
 }
 
 /** Lecture SQL directe — évite les erreurs si le client Prisma en cache n'a pas encore passwordHash. */
-async function findUserForLogin(email: string): Promise<DbAuthUserRow | null> {
+async function lookupUserByEmail(email: string): Promise<DbAuthUserRow | null> {
   try {
     const rows = await prisma.user.findUnique({
       where: { email },
@@ -56,6 +57,16 @@ async function findUserForLogin(email: string): Promise<DbAuthUserRow | null> {
     `;
     return rows[0] ?? null;
   }
+}
+
+async function findUserForLogin(rawEmail: string): Promise<DbAuthUserRow | null> {
+  const normalized = rawEmail.trim().toLowerCase();
+  const candidates = Array.from(new Set([canonicalLoginEmail(normalized), normalized])).filter(Boolean);
+  for (const candidate of candidates) {
+    const found = await lookupUserByEmail(candidate);
+    if (found) return found;
+  }
+  return null;
 }
 
 export async function loginAction(formData: FormData): Promise<LoginActionResult> {

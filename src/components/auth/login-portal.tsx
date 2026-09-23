@@ -133,7 +133,7 @@ export function LoginPortal() {
                   type="email"
                   autoComplete="username"
                   required
-                  placeholder="nom@nutrifish.local"
+                  placeholder="maintenance@nutrifish.tn"
                   className="h-11 w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 transition-all duration-300 focus:border-[#1F76FB]/60 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[#1F76FB]/30"
                 />
               </div>
@@ -186,7 +186,7 @@ export function LoginPortal() {
           <div className="mt-5 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-[11px] leading-relaxed text-slate-400">
             <p className="font-semibold text-slate-300">Comptes de démonstration</p>
             <p className="mt-1">
-              Directeur : <span className="text-slate-200">directeur@nutrifish.local</span>
+              Directeur : <span className="text-slate-200">maintenance@nutrifish.tn</span>
             </p>
             <p>
               Technicien : <span className="text-slate-200">technicien@nutrifish.local</span>

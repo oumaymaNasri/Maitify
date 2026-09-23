@@ -1,4 +1,10 @@
 {
   "buildCommand": "npm run build:vercel",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/preventive-reminders",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }

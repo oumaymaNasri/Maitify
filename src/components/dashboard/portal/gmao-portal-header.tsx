@@ -14,10 +14,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { NotificationCenter } from "@/components/layout/notification-center";
 import { ThemeToggleButton } from "@/components/layout/ThemeToggleButton";
 import { UserProfileMenu } from "@/components/layout/UserProfileMenu";
 import { useSession } from "@/components/providers/session-provider";
 import { buttonVariants } from "@/components/ui/button";
+import type { InboxSnapshot } from "@/lib/gmao/inbox-notifications";
 import { cn } from "@/lib/utils";
 
 const MODULES: { href: string; label: string; icon: LucideIcon; match?: (p: string) => boolean }[] = [
@@ -36,7 +38,7 @@ const MODULES: { href: string; label: string; icon: LucideIcon; match?: (p: stri
 
 const TECH_HIDDEN = new Set(["/stock"]);
 
-export function GmaoPortalHeader() {
+export function GmaoPortalHeader({ notifications }: { notifications: InboxSnapshot }) {
   const pathname = usePathname();
   const { isManager } = useSession();
   const items = isManager ? MODULES : MODULES.filter((m) => !TECH_HIDDEN.has(m.href));
@@ -76,6 +78,7 @@ export function GmaoPortalHeader() {
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          <NotificationCenter initial={notifications} />
           <ThemeToggleButton className="h-9 w-9 text-sky-100 hover:bg-white/10 hover:text-white" />
           {isManager ? (
             <Link
