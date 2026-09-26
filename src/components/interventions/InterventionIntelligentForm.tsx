@@ -13,20 +13,38 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActiveMaintenanceOrderOption } from "@/lib/gmao/maintenance-orders-query";
+import { calendarDayKey } from "@/lib/gmao/intervention-status";
 import { formatDateFrShort } from "@/lib/utils/format-date";
+import { cn } from "@/lib/utils";
 
 export type MachineOption = { id: string; name: string; legacyMatricule: number | null };
 export type TechnicianOption = { id: string; label: string; availability: string };
 export type PartOption = { id: string; designation: string; reference: string | null; quantity: number; minStock: number };
+
+function omSearchLabel(order: ActiveMaintenanceOrderOption): { label: string; description: string } {
+  const date = formatDateFrShort(order.plannedDate);
+  const names = order.lines.map((l) => l.machineName);
+  const machines =
+    names.length === 0
+      ? "Aucune ligne préventive ouverte"
+      : names.length <= 2
+        ? names.join(", ")
+        : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+  const kind = order.lines.length > 0 ? "Préventive" : "OM journalier";
+  return {
+    label: `${order.reference} · ${date} · ${kind}`,
+    description: machines,
+  };
+}
+
+function dayKeyFromInput(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return calendarDayKey(d);
+}
 
 function localNowForInput(): string {
   const d = new Date();
@@ -78,7 +96,12 @@ export function InterventionIntelligentForm({
   const [selectedOrderId, setSelectedOrderId] = React.useState("");
   const [machineId, setMachineId] = React.useState("");
   const [technicianId, setTechnicianId] = React.useState(lockedTechnicianId ?? "");
-  const [operationType, setOperationType] = React.useState("DIAGNOSTIC");
+  const [operationType, setOperationType] = React.useState("CONTROLE");
+  const [interventionKind, setInterventionKind] = React.useState<"PREVENTIVE" | "CORRECTIVE">("PREVENTIVE");
+  const [dateValue, setDateValue] = React.useState(localNowForInput);
+  const [omDateFilter, setOmDateFilter] = React.useState(() => localNowForInput().slice(0, 10));
+  const [omMachineFilter, setOmMachineFilter] = React.useState("");
+  const omPickedByUser = React.useRef(false);
   const [maintenanceOrderLineId, setMaintenanceOrderLineId] = React.useState("");
   const [preventiveCleaning, setPreventiveCleaning] = React.useState(false);
   const [preventiveLubrication, setPreventiveLubrication] = React.useState(false);
@@ -92,10 +115,10 @@ export function InterventionIntelligentForm({
   );
 
   const availableMachines = React.useMemo(() => {
-    if (!selectedOrder) return machines;
+    if (!selectedOrder || interventionKind !== "PREVENTIVE" || selectedOrder.lines.length === 0) return machines;
     const ids = new Set(selectedOrder.lines.map((l) => l.machineId));
     return machines.filter((m) => ids.has(m.id));
-  }, [machines, selectedOrder]);
+  }, [machines, selectedOrder, interventionKind]);
 
   const machineOptions = React.useMemo(
     () =>
@@ -110,8 +133,21 @@ export function InterventionIntelligentForm({
     [technicians],
   );
 
+  const allMachineOptions = React.useMemo(
+    () =>
+      machines.map((m) => ({
+        value: m.id,
+        label: m.legacyMatricule != null ? `${m.name} · M${m.legacyMatricule}` : m.name,
+      })),
+    [machines],
+  );
+
   const applyLinePrefill = React.useCallback(
-    (order: ActiveMaintenanceOrderOption | null, nextMachineId: string) => {
+    (
+      order: ActiveMaintenanceOrderOption | null,
+      nextMachineId: string,
+      kind: "PREVENTIVE" | "CORRECTIVE" = interventionKind,
+    ) => {
       if (!order || !nextMachineId) {
         setMaintenanceOrderLineId("");
         return;
@@ -122,41 +158,120 @@ export function InterventionIntelligentForm({
         return;
       }
       setMaintenanceOrderLineId(line.lineId);
-      setOperationType("CONTROLE");
-      setPreventiveCleaning(line.taskNettoyage);
-      setPreventiveLubrication(line.taskGraissage);
-      setPreventiveOil(line.taskHuile);
-      setPreventiveControl(line.taskControl);
-      setPreventiveNonConforme(line.taskNonConforme);
+      if (kind === "PREVENTIVE") {
+        setOperationType("CONTROLE");
+        setPreventiveCleaning(line.taskNettoyage);
+        setPreventiveLubrication(line.taskGraissage);
+        setPreventiveOil(line.taskHuile);
+        setPreventiveControl(line.taskControl);
+        setPreventiveNonConforme(line.taskNonConforme);
+      }
     },
-    [],
+    [interventionKind],
+  );
+
+  const resetPreventiveTasks = React.useCallback(() => {
+    setPreventiveCleaning(false);
+    setPreventiveLubrication(false);
+    setPreventiveOil(false);
+    setPreventiveControl(false);
+    setPreventiveNonConforme(false);
+  }, []);
+
+  const applyOrder = React.useCallback(
+    (orderId: string, pickedByUser: boolean, kind: "PREVENTIVE" | "CORRECTIVE" = interventionKind) => {
+      if (pickedByUser) omPickedByUser.current = true;
+      setSelectedOrderId(orderId);
+      if (!orderId) {
+        setMaintenanceOrderLineId("");
+        if (kind === "PREVENTIVE") setOperationType("CONTROLE");
+        resetPreventiveTasks();
+        return;
+      }
+      const order = maintenanceOrders.find((o) => o.id === orderId) ?? null;
+      if (kind !== "PREVENTIVE") {
+        setMaintenanceOrderLineId("");
+        resetPreventiveTasks();
+        return;
+      }
+      if (!order?.lines.length) {
+        setMaintenanceOrderLineId("");
+        resetPreventiveTasks();
+        return;
+      }
+      const preferred =
+        (machineId && order.lines.find((l) => l.machineId === machineId)) ||
+        (order.lines.length === 1 ? order.lines[0] : null);
+      if (preferred) {
+        setMachineId(preferred.machineId);
+        applyLinePrefill(order, preferred.machineId, "PREVENTIVE");
+      } else {
+        setMachineId("");
+        setMaintenanceOrderLineId("");
+      }
+    },
+    [applyLinePrefill, interventionKind, machineId, maintenanceOrders, resetPreventiveTasks],
   );
 
   const onOrderChange = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    setMachineId("");
-    setMaintenanceOrderLineId("");
-    if (!orderId) {
-      setOperationType("DIAGNOSTIC");
-      setPreventiveCleaning(false);
-      setPreventiveLubrication(false);
-      setPreventiveOil(false);
-      setPreventiveControl(false);
-      setPreventiveNonConforme(false);
-      return;
-    }
-    const order = maintenanceOrders.find((o) => o.id === orderId) ?? null;
-    if (order?.lines.length === 1) {
-      const only = order.lines[0]!;
-      setMachineId(only.machineId);
-      applyLinePrefill(order, only.machineId);
-    }
+    applyOrder(orderId, true);
   };
 
   const onMachineChange = (nextMachineId: string) => {
     setMachineId(nextMachineId);
-    applyLinePrefill(selectedOrder, nextMachineId);
+    if (interventionKind === "PREVENTIVE") applyLinePrefill(selectedOrder, nextMachineId);
   };
+
+  const setKind = (kind: "PREVENTIVE" | "CORRECTIVE") => {
+    setInterventionKind(kind);
+    if (kind === "PREVENTIVE") {
+      setOperationType("CONTROLE");
+      applyOrder(selectedOrderId, false, "PREVENTIVE");
+    } else {
+      setOperationType("DIAGNOSTIC");
+      setMaintenanceOrderLineId("");
+      resetPreventiveTasks();
+    }
+  };
+
+  const filteredOrders = React.useMemo(() => {
+    return maintenanceOrders.filter((o) => {
+      if (omDateFilter) {
+        const key = o.dayKey ?? calendarDayKey(new Date(o.plannedDate));
+        if (key !== omDateFilter) return false;
+      }
+      if (omMachineFilter && !o.lines.some((l) => l.machineId === omMachineFilter)) return false;
+      return true;
+    });
+  }, [maintenanceOrders, omDateFilter, omMachineFilter]);
+
+  const omOptions = React.useMemo(() => {
+    const listed = new Set(filteredOrders.map((o) => o.id));
+    const extra = selectedOrder && !listed.has(selectedOrder.id) ? [selectedOrder] : [];
+    return [
+      {
+        value: "__none__",
+        label: "Aucun — OM du jour lié automatiquement à l’enregistrement",
+        description: "Saisie libre",
+      },
+      ...[...filteredOrders, ...extra].map((o) => {
+        const { label, description } = omSearchLabel(o);
+        return { value: o.id, label, description };
+      }),
+    ];
+  }, [filteredOrders, selectedOrder]);
+
+  React.useEffect(() => {
+    if (omPickedByUser.current) return;
+    const dayKey = dayKeyFromInput(dateValue);
+    if (!dayKey) return;
+    const match =
+      maintenanceOrders.find((o) => o.dayKey === dayKey || o.reference === `OM-${dayKey}`) ??
+      maintenanceOrders.find((o) => calendarDayKey(new Date(o.plannedDate)) === dayKey);
+    if (match) {
+      if (selectedOrderId !== match.id) applyOrder(match.id, false);
+    }
+  }, [applyOrder, dateValue, maintenanceOrders, selectedOrderId]);
 
   const onSubmit = (formData: FormData) => {
     setMessage(null);
@@ -169,11 +284,13 @@ export function InterventionIntelligentForm({
     formData.set("photoAfter", photoAfterUrl);
     formData.set("linesJson", JSON.stringify(filtered));
     if (maintenanceOrderLineId) formData.set("maintenanceOrderLineId", maintenanceOrderLineId);
-    if (preventiveCleaning) formData.set("preventiveCleaning", "on");
-    if (preventiveLubrication) formData.set("preventiveLubrication", "on");
-    if (preventiveOil) formData.set("preventiveOil", "on");
-    if (preventiveControl) formData.set("preventiveControl", "on");
-    if (preventiveNonConforme) formData.set("preventiveNonConforme", "on");
+    if (interventionKind === "PREVENTIVE") {
+      if (preventiveCleaning) formData.set("preventiveCleaning", "on");
+      if (preventiveLubrication) formData.set("preventiveLubrication", "on");
+      if (preventiveOil) formData.set("preventiveOil", "on");
+      if (preventiveControl) formData.set("preventiveControl", "on");
+      if (preventiveNonConforme) formData.set("preventiveNonConforme", "on");
+    }
 
     startTransition(async () => {
       const result = await createMaintenanceLogWithParts(formData);
@@ -202,7 +319,12 @@ export function InterventionIntelligentForm({
         setSelectedOrderId("");
         setMachineId("");
         setMaintenanceOrderLineId("");
-        setOperationType("DIAGNOSTIC");
+        setInterventionKind("PREVENTIVE");
+        setOperationType("CONTROLE");
+        setDateValue(localNowForInput());
+        setOmDateFilter(localNowForInput().slice(0, 10));
+        setOmMachineFilter("");
+        omPickedByUser.current = false;
         setPreventiveCleaning(false);
         setPreventiveLubrication(false);
         setPreventiveOil(false);
@@ -219,49 +341,117 @@ export function InterventionIntelligentForm({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Identification</CardTitle>
-          <CardDescription>Machine, technicien, date et type d&apos;opération</CardDescription>
+          <CardDescription>Type, date et ordre de maintenance — le n° d’OM est identifié automatiquement</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="workflowStatus" value="COMPLETED" />
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="maintenanceOrderId">Associer à un Ordre de Maintenance (Optionnel)</Label>
-            <Select
+            <Label>Type de maintenance *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setKind("PREVENTIVE")}
+                className={cn(
+                  "rounded-xl border px-3 py-3 text-sm font-semibold transition",
+                  interventionKind === "PREVENTIVE"
+                    ? "border-[#1F76FB] bg-[#E8F1FF] text-[#0B2A5B]"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                )}
+              >
+                Préventive
+              </button>
+              <button
+                type="button"
+                onClick={() => setKind("CORRECTIVE")}
+                className={cn(
+                  "rounded-xl border px-3 py-3 text-sm font-semibold transition",
+                  interventionKind === "CORRECTIVE"
+                    ? "border-amber-400 bg-amber-50 text-amber-900"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                )}
+              >
+                Corrective
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              {interventionKind === "PREVENTIVE"
+                ? "L’OM du planning préventif pré-remplit la machine et les tâches prévues."
+                : "L’intervention sera rattachée à l’OM journalier de la date choisie."}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="date">Date / heure *</Label>
+            <Input
+              id="date"
+              name="date"
+              type="datetime-local"
+              required
+              value={dateValue}
+              onChange={(e) => {
+                omPickedByUser.current = false;
+                setDateValue(e.target.value);
+                const key = dayKeyFromInput(e.target.value);
+                if (key) setOmDateFilter(key);
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="om-date-filter">Filtrer les OM par date</Label>
+            <Input
+              id="om-date-filter"
+              type="date"
+              value={omDateFilter}
+              onChange={(e) => setOmDateFilter(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="om-machine-filter">Filtrer les OM par machine</Label>
+            <SearchableVirtualSelect
+              id="om-machine-filter"
+              value={omMachineFilter}
+              onValueChange={setOmMachineFilter}
+              options={[{ value: "", label: "Toutes les machines" }, ...allMachineOptions]}
+              placeholder="Rechercher une machine du planning…"
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="maintenanceOrderId">N° d’ordre de maintenance</Label>
+            <SearchableVirtualSelect
+              id="maintenanceOrderId"
               value={selectedOrderId || "__none__"}
               onValueChange={(v) => onOrderChange(v === "__none__" ? "" : v)}
-            >
-              <SelectTrigger id="maintenanceOrderId" className="w-full">
-                <SelectValue placeholder="— Saisie libre —" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— Saisie libre —</SelectItem>
-                {maintenanceOrders.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.reference} · {formatDateFrShort(o.plannedDate)} · {o.lines.length} machine(s)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {maintenanceOrders.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Aucun ordre de maintenance actif en attente de réalisation.</p>
+              options={omOptions}
+              placeholder="Rechercher par n°, date ou machine…"
+            />
+            {selectedOrder ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                <p className="font-semibold text-slate-900">{selectedOrder.reference}</p>
+                <p className="text-xs text-slate-600">
+                  {formatDateFrShort(selectedOrder.plannedDate)}
+                  {selectedOrder.lines.length
+                    ? ` · ${selectedOrder.lines.length} maintenance(s) préventive(s) ouverte(s)`
+                    : " · OM journalier"}
+                </p>
+                {selectedOrder.lines.length ? (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {selectedOrder.lines.map((l) => (
+                      <Badge
+                        key={l.lineId}
+                        variant={machineId === l.machineId ? "default" : "secondary"}
+                        className="text-[10px] font-normal"
+                      >
+                        {l.machineName}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Sélectionnez un OM actif pour pré-remplir machine(s), type d&apos;opération et tâches préventives planifiées.
+              <p className="text-xs text-slate-500">
+                Choisissez une date : le n° {dayKeyFromInput(dateValue) ? `OM-${dayKeyFromInput(dateValue)}` : "OM-AAAA-MM-JJ"} est
+                associé automatiquement.
               </p>
             )}
-            {selectedOrder ? (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <span className="text-xs text-slate-500">Machines planifiées :</span>
-                {selectedOrder.lines.map((l) => (
-                  <Badge
-                    key={l.lineId}
-                    variant={machineId === l.machineId ? "default" : "secondary"}
-                    className="text-[10px] font-normal"
-                  >
-                    {l.machineName}
-                  </Badge>
-                ))}
-              </div>
-            ) : null}
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="machineId">Machine *</Label>
@@ -301,15 +491,16 @@ export function InterventionIntelligentForm({
               onChange={(e) => setOperationType(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <option value="REMPLACEMENT">Remplacement</option>
-              <option value="DIAGNOSTIC">Diagnostic</option>
-              <option value="AMELIORATION">Amélioration</option>
-              <option value="CONTROLE">Contrôle</option>
+              {interventionKind === "PREVENTIVE" ? (
+                <option value="CONTROLE">Contrôle (préventif)</option>
+              ) : (
+                <>
+                  <option value="DIAGNOSTIC">Diagnostic</option>
+                  <option value="REMPLACEMENT">Remplacement</option>
+                  <option value="AMELIORATION">Amélioration</option>
+                </>
+              )}
             </select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="date">Date / heure *</Label>
-            <Input id="date" name="date" type="datetime-local" required defaultValue={localNowForInput()} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="durationMinutes">Durée (min)</Label>
@@ -371,56 +562,61 @@ export function InterventionIntelligentForm({
             <Textarea id="difficulties" name="difficulties" rows={3} />
           </div>
 
-          <div className="rounded-lg border border-dashed p-3">
-            <p className="mb-3 text-sm font-medium">Contrôles préventifs (si type préventive)</p>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={preventiveCleaning}
-                  onChange={(e) => setPreventiveCleaning(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Nettoyage
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={preventiveLubrication}
-                  onChange={(e) => setPreventiveLubrication(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Graissage
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={preventiveOil}
-                  onChange={(e) => setPreventiveOil(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Huile
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={preventiveControl}
-                  onChange={(e) => setPreventiveControl(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Contrôle / C
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={preventiveNonConforme}
-                  onChange={(e) => setPreventiveNonConforme(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                Non conforme / N.C
-              </label>
+          {interventionKind === "PREVENTIVE" ? (
+            <div className="rounded-lg border border-dashed p-3">
+              <p className="mb-3 text-sm font-medium">Tâches préventives prévues</p>
+              <p className="mb-3 text-xs text-slate-500">
+                Pré-remplies depuis l’OM de planning si une machine planifiée est sélectionnée.
+              </p>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={preventiveCleaning}
+                    onChange={(e) => setPreventiveCleaning(e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Nettoyage
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={preventiveLubrication}
+                    onChange={(e) => setPreventiveLubrication(e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Graissage
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={preventiveOil}
+                    onChange={(e) => setPreventiveOil(e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Huile
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={preventiveControl}
+                    onChange={(e) => setPreventiveControl(e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Contrôle / C
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={preventiveNonConforme}
+                    onChange={(e) => setPreventiveNonConforme(e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Non conforme / N.C
+                </label>
+              </div>
             </div>
-          </div>
+          ) : null}
         </CardContent>
       </Card>
 

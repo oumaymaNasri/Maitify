@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 export type VirtualSelectOption = {
   value: string;
   label: string;
+  description?: string;
 };
 
 type SearchableVirtualSelectProps = {
@@ -43,13 +44,17 @@ function SearchableVirtualSelectInner({
   const filtered = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return options;
-    return options.filter((o) => o.label.toLowerCase().includes(needle));
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(needle) ||
+        (o.description?.toLowerCase().includes(needle) ?? false),
+    );
   }, [options, query]);
 
   const virtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => listRef.current,
-    estimateSize: () => 36,
+    estimateSize: () => 44,
     overscan: 12,
     enabled: open,
   });
@@ -104,7 +109,7 @@ function SearchableVirtualSelectInner({
                     key={option.value}
                     type="button"
                     className={cn(
-                      "absolute left-0 flex w-full items-center justify-between gap-2 px-3 text-left text-sm hover:bg-slate-50",
+                      "absolute left-0 flex w-full items-center justify-between gap-2 px-3 py-1 text-left text-sm hover:bg-slate-50",
                       isSelected && "bg-[#E8F1FF]/60",
                     )}
                     style={{ height: item.size, transform: `translateY(${item.start}px)` }}
@@ -113,7 +118,12 @@ function SearchableVirtualSelectInner({
                       setOpen(false);
                     }}
                   >
-                    <span className="truncate">{option.label}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate">{option.label}</span>
+                      {option.description ? (
+                        <span className="block truncate text-[11px] text-slate-500">{option.description}</span>
+                      ) : null}
+                    </span>
                     {isSelected ? <Check className="h-4 w-4 shrink-0 text-[#1F76FB]" /> : null}
                   </button>
                 );

@@ -171,6 +171,7 @@ export type ActiveMaintenanceOrderOption = {
   id: string;
   reference: string;
   plannedDate: string;
+  dayKey: string | null;
   lines: {
     lineId: string;
     machineId: string;
@@ -184,14 +185,23 @@ export type ActiveMaintenanceOrderOption = {
 };
 
 export async function fetchActiveMaintenanceOrders(): Promise<ActiveMaintenanceOrderOption[]> {
+  const from = new Date();
+  from.setUTCDate(from.getUTCDate() - 90);
+  const to = new Date();
+  to.setUTCDate(to.getUTCDate() + 60);
+
   const rows = await prisma.maintenanceOrder.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { plannedDate: "asc" },
-    take: 30,
+    where: {
+      status: "ACTIVE",
+      plannedDate: { gte: from, lte: to },
+    },
+    orderBy: { plannedDate: "desc" },
+    take: 150,
     select: {
       id: true,
       reference: true,
       plannedDate: true,
+      dayKey: true,
       lines: {
         where: { maintenanceLog: { is: null } },
         select: {
@@ -208,21 +218,20 @@ export async function fetchActiveMaintenanceOrders(): Promise<ActiveMaintenanceO
     },
   });
 
-  return rows
-    .filter((o) => o.lines.length > 0)
-    .map((o) => ({
-      id: o.id,
-      reference: o.reference,
-      plannedDate: o.plannedDate.toISOString(),
-      lines: o.lines.map((l) => ({
-        lineId: l.id,
-        machineId: l.machineId,
-        machineName: l.machine.name,
-        taskNettoyage: l.taskNettoyage,
-        taskGraissage: l.taskGraissage,
-        taskHuile: l.taskHuile,
-        taskControl: l.taskControl,
-        taskNonConforme: l.taskNonConforme,
-      })),
-    }));
+  return rows.map((o) => ({
+    id: o.id,
+    reference: o.reference,
+    plannedDate: o.plannedDate.toISOString(),
+    dayKey: o.dayKey,
+    lines: o.lines.map((l) => ({
+      lineId: l.id,
+      machineId: l.machineId,
+      machineName: l.machine.name,
+      taskNettoyage: l.taskNettoyage,
+      taskGraissage: l.taskGraissage,
+      taskHuile: l.taskHuile,
+      taskControl: l.taskControl,
+      taskNonConforme: l.taskNonConforme,
+    })),
+  }));
 }
