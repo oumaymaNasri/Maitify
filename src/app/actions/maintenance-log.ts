@@ -4,9 +4,11 @@ import {
   AlertSeverity,
   AlertType,
   FailureCause,
+  InterventionType,
   MachineAssetStatus,
   MaintenanceAttachmentKind,
   MaintenanceWorkflowStatus,
+  OperationType,
   Prisma,
   TechnicianAvailability,
 } from "@prisma/client";
@@ -22,6 +24,7 @@ import { attachLogToDailyOrder, type DailyOrderLink } from "@/lib/gmao/maintenan
 import {
   assertDailyOrderWritable,
   assertLogWritable,
+  filterWritableMaintenanceLogIds,
   findExistingIntervention,
 } from "@/lib/gmao/maintenance-catalog-reconcile";
 import { completeMaintenanceOrderLine } from "@/app/actions/maintenance-order";
@@ -525,6 +528,126 @@ export async function setPreventiveRealizedBulkAction(
     });
     revalidateMaintenancePaths();
     return { ok: true, updated: result.count, skipped: Math.max(0, unique.length - result.count) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Mise à jour groupée impossible." };
+  }
+}
+
+const BULK_EDIT_MAX = 2000;
+const BULK_CHUNK = 200;
+
+const maintenanceLogBulkFieldSchema = z.enum([
+  "technicianId",
+  "sectorMaintenance",
+  "service",
+  "type",
+  "operationType",
+  "operation",
+  "workflowStatus",
+  "failureCause",
+  "preventiveRealized",
+]);
+
+function nullableText(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function buildMaintenanceLogBulkData(
+  field: z.infer<typeof maintenanceLogBulkFieldSchema>,
+  value: string,
+): Prisma.MaintenanceLogUncheckedUpdateManyInput | null {
+  switch (field) {
+    case "technicianId":
+      return { technicianId: value.trim() || null };
+    case "sectorMaintenance":
+      return { sectorMaintenance: nullableText(value) };
+    case "service":
+      return { service: nullableText(value) };
+    case "operation":
+      return { operation: nullableText(value) };
+    case "type": {
+      const type = value.trim() as InterventionType;
+      if (!Object.values(InterventionType).includes(type)) return null;
+      return { type };
+    }
+    case "operationType": {
+      const operationType = value.trim() as OperationType;
+      if (!Object.values(OperationType).includes(operationType)) return null;
+      return { operationType, type: mapOperationToLegacyType(operationType) };
+    }
+    case "workflowStatus": {
+      const workflowStatus = value.trim() as MaintenanceWorkflowStatus;
+      if (!Object.values(MaintenanceWorkflowStatus).includes(workflowStatus)) return null;
+      return { workflowStatus };
+    }
+    case "failureCause": {
+      const raw = value.trim();
+      if (!raw) return { failureCause: null };
+      const failureCause = parseFailureCause(raw);
+      if (!failureCause) return null;
+      return { failureCause };
+    }
+    case "preventiveRealized": {
+      if (value === "true") {
+        return { preventiveRealized: true, workflowStatus: MaintenanceWorkflowStatus.COMPLETED };
+      }
+      if (value === "false") {
+        return { preventiveRealized: false, workflowStatus: MaintenanceWorkflowStatus.OPEN };
+      }
+      return { preventiveRealized: null };
+    }
+    default:
+      return null;
+  }
+}
+
+export async function bulkUpdateMaintenanceLogsAction(
+  ids: string[],
+  field: string,
+  value: string,
+): Promise<{ ok: true; updated: number; skipped: number } | { ok: false; error: string }> {
+  const auth = requireManageAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const parsedField = maintenanceLogBulkFieldSchema.safeParse(field);
+  if (!parsedField.success) return { ok: false, error: "Colonne non modifiable en masse." };
+
+  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean))).slice(0, BULK_EDIT_MAX);
+  if (unique.length === 0) return { ok: false, error: "Aucune ligne sélectionnée." };
+
+  const data = buildMaintenanceLogBulkData(parsedField.data, value);
+  if (!data) return { ok: false, error: "Valeur invalide pour cette colonne." };
+
+  if (parsedField.data === "technicianId") {
+    const technicianId = value.trim();
+    if (technicianId) {
+      const exists = await prisma.technician.findUnique({ where: { id: technicianId }, select: { id: true } });
+      if (!exists) return { ok: false, error: "Intervenant introuvable." };
+    }
+  }
+
+  try {
+    const { writableIds } = await filterWritableMaintenanceLogIds(prisma, unique);
+    if (writableIds.length === 0) {
+      return { ok: false, error: "Aucune ligne sélectionnée n’est modifiable (ordre clôturé)." };
+    }
+
+    const where: Prisma.MaintenanceLogWhereInput = { id: { in: writableIds } };
+    if (parsedField.data === "preventiveRealized") where.type = InterventionType.PREVENTIVE;
+
+    let updated = 0;
+    for (let i = 0; i < writableIds.length; i += BULK_CHUNK) {
+      const chunk = writableIds.slice(i, i + BULK_CHUNK);
+      const result = await prisma.maintenanceLog.updateMany({
+        where: { ...where, id: { in: chunk } },
+        data,
+      });
+      updated += result.count;
+    }
+
+    revalidateMaintenancePaths();
+    return { ok: true, updated, skipped: Math.max(0, unique.length - updated) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Mise à jour groupée impossible." };
   }

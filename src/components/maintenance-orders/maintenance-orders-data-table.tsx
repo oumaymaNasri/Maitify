@@ -2,7 +2,7 @@
 
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
-import { Edit2, Eye, RotateCcw, Trash2 } from "lucide-react";
+import { Edit2, Eye, PencilLine, RotateCcw, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import {
@@ -44,6 +44,7 @@ type MaintenanceOrdersDataTableProps = {
   onBulkReopen?: () => void;
   reopenPending?: boolean;
   onBulkDelete: () => void;
+  onBulkEdit?: () => void;
   isPending?: boolean;
   readOnly?: boolean;
   pagination?: { page: number; pageCount: number; total: number; pageSize?: number };
@@ -62,6 +63,7 @@ export function MaintenanceOrdersDataTable({
   onBulkReopen,
   reopenPending = false,
   onBulkDelete,
+  onBulkEdit,
   isPending,
   readOnly = false,
   pagination,
@@ -215,19 +217,32 @@ export function MaintenanceOrdersDataTable({
           count={selectedIds.size}
           onBulkDelete={onBulkDelete}
           extraActions={
-            onBulkReopen && orders.some((o) => selectedIds.has(o.id) && o.status !== "ACTIVE") ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={reopenPending}
-                onClick={onBulkReopen}
-                className="rounded-xl border-amber-200 bg-white text-amber-800 hover:bg-amber-50"
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Réouvrir la sélection
-              </Button>
-            ) : null
+            <>
+              {onBulkEdit ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-xl bg-[#1F76FB] text-white hover:bg-[#1a65d6]"
+                  onClick={onBulkEdit}
+                >
+                  <PencilLine className="mr-2 h-4 w-4" />
+                  Modifier la sélection
+                </Button>
+              ) : null}
+              {onBulkReopen && orders.some((o) => selectedIds.has(o.id) && o.status !== "ACTIVE") ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={reopenPending}
+                  onClick={onBulkReopen}
+                  className="rounded-xl border-amber-200 bg-white text-amber-800 hover:bg-amber-50"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Réouvrir la sélection
+                </Button>
+              ) : null}
+            </>
           }
         />
       ) : null}

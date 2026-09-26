@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
-import { deleteMaintenanceOrderAction, deleteMaintenanceOrdersBulkAction, reopenMaintenanceOrderAction, reopenMaintenanceOrdersBulkAction } from "@/app/actions/maintenance-order";
+import { deleteMaintenanceOrderAction, deleteMaintenanceOrdersBulkAction, reopenMaintenanceOrderAction, reopenMaintenanceOrdersBulkAction, bulkUpdateMaintenanceOrdersAction } from "@/app/actions/maintenance-order";
+import { BulkEditDialog, type BulkEditField } from "@/components/gmao/bulk-edit-dialog";
 import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
 import type { MachineOption } from "@/components/maintenance-orders/add-maintenance-order-sheet";
@@ -73,6 +74,8 @@ export function MaintenanceOrdersModuleClient({
   const [editOrder, setEditOrder] = React.useState<MaintenanceOrderRow | null>(null);
   const [deleteOrder, setDeleteOrder] = React.useState<MaintenanceOrderRow | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = React.useState(false);
+  const [bulkEditPending, setBulkEditPending] = React.useState(false);
   const [reopenPending, setReopenPending] = React.useState(false);
   const [, startFilterTransition] = React.useTransition();
 
@@ -227,6 +230,70 @@ export function MaintenanceOrdersModuleClient({
     setSelectedIds(new Set());
   }, [applyReopened, reopenPending, selectedIds]);
 
+  const bulkFields = React.useMemo<BulkEditField[]>(
+    () => [
+      {
+        id: "status",
+        label: "Statut",
+        kind: "select",
+        options: Object.values(MaintenanceOrderStatus).map((status) => ({
+          value: status,
+          label: maintenanceOrderStatusFr(status),
+        })),
+      },
+      {
+        id: "observationComment",
+        label: "Observation",
+        kind: "text",
+        placeholder: "Commentaire d'observation",
+      },
+      {
+        id: "managerApproval",
+        label: "Visa responsable",
+        kind: "text",
+        placeholder: "Visa / validation",
+      },
+    ],
+    [],
+  );
+
+  const handleBulkEdit = React.useCallback(
+    async (field: string, value: string) => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0 || bulkEditPending) return;
+      const previous = rows;
+      setRows((prev) =>
+        prev.map((row) => {
+          if (!selectedIds.has(row.id)) return row;
+          if (field === "status") return { ...row, status: value as MaintenanceOrderStatus };
+          if (field === "observationComment") return { ...row, observationComment: value.trim() || null };
+          if (field === "managerApproval") return { ...row, managerApproval: value.trim() || null };
+          return row;
+        }),
+      );
+      setBulkEditPending(true);
+      const res = await bulkUpdateMaintenanceOrdersAction(ids, field, value);
+      setBulkEditPending(false);
+      if (!res.ok) {
+        setRows(previous);
+        window.alert(res.error);
+        return;
+      }
+      if (res.updated === 0) {
+        setRows(previous);
+        window.alert("Aucun ordre n’a pu être mis à jour.");
+        return;
+      }
+      setBulkEditOpen(false);
+      setSelectedIds(new Set());
+      if (res.skipped > 0) {
+        window.alert(`${res.updated} ordre(s) mis à jour. ${res.skipped} ignoré(s).`);
+      }
+      router.refresh();
+    },
+    [bulkEditPending, rows, selectedIds, router],
+  );
+
   return (
     <GmaoModuleShell>
       <ModuleFilterBar
@@ -292,6 +359,7 @@ export function MaintenanceOrdersModuleClient({
         onBulkReopen={readOnly ? undefined : handleBulkReopen}
         reopenPending={reopenPending}
         onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
+        onBulkEdit={readOnly ? undefined : () => setBulkEditOpen(true)}
         readOnly={readOnly}
         pagination={pagination}
         previousHref={hrefWithPage(pathname, filterSearch, Math.max(1, pagination.page - 1))}
@@ -317,6 +385,15 @@ export function MaintenanceOrdersModuleClient({
 
       {!readOnly ? (
         <>
+          <BulkEditDialog
+            open={bulkEditOpen}
+            onOpenChange={setBulkEditOpen}
+            selectedCount={selectedIds.size}
+            fields={bulkFields}
+            pending={bulkEditPending}
+            onApply={handleBulkEdit}
+          />
+
           <MaintenanceOrderEditDialog
             order={editOrder}
             machines={machines}

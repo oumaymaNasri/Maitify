@@ -1,16 +1,18 @@
 "use client";
 
-import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
+import { FailureCause, InterventionType, MaintenanceWorkflowStatus, OperationType } from "@prisma/client";
 import { FileSpreadsheet, Folders, ShieldCheck, Wrench, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
 import {
+  bulkUpdateMaintenanceLogsAction,
   deleteMaintenanceLogAction,
   deleteMaintenanceLogsBulkAction,
   setPreventiveRealizedBulkAction,
 } from "@/app/actions/maintenance-log";
+import { BulkEditDialog, type BulkEditField } from "@/components/gmao/bulk-edit-dialog";
 import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
@@ -26,7 +28,10 @@ import { applyPeriodPreset, parsePeriodPreset, type PeriodPreset } from "@/lib/g
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { cn } from "@/lib/utils";
 import { formatDateFrMedium } from "@/lib/utils/format-date";
+import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
+import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
+import { mapOperationToLegacyType } from "@/lib/validations/maintenance-log";
 
 const InterventionDetailSheet = dynamic(
   () => import("@/components/interventions/intervention-detail-sheet").then((m) => ({ default: m.InterventionDetailSheet })),
@@ -52,6 +57,53 @@ const STATUS_OPTIONS = [
   { value: MaintenanceWorkflowStatus.OPEN, label: "À faire" },
   { value: MaintenanceWorkflowStatus.COMPLETED, label: maintenanceWorkflowStatusFr(MaintenanceWorkflowStatus.COMPLETED) },
 ] as const;
+
+function applyInterventionBulkPatch(
+  row: InterventionListVm,
+  field: string,
+  value: string,
+  technicians: TechnicianOption[],
+): InterventionListVm {
+  switch (field) {
+    case "technicianId": {
+      const id = value.trim() || null;
+      return {
+        ...row,
+        technicianId: id,
+        technicianName: id ? technicians.find((t) => t.id === id)?.label ?? row.technicianName : null,
+      };
+    }
+    case "sectorMaintenance":
+      return { ...row, sectorMaintenance: value.trim() || null };
+    case "service":
+      return { ...row, service: value.trim() || null };
+    case "operation":
+      return { ...row, operation: value.trim() || null };
+    case "type":
+      return { ...row, type: value as InterventionType };
+    case "operationType":
+      return {
+        ...row,
+        operationType: value as OperationType,
+        type: mapOperationToLegacyType(value as OperationType),
+      };
+    case "workflowStatus":
+      return { ...row, workflowStatus: value as MaintenanceWorkflowStatus };
+    case "failureCause":
+      return { ...row, failureCause: (value.trim() as FailureCause) || null };
+    case "preventiveRealized":
+      if (row.type !== InterventionType.PREVENTIVE) return row;
+      if (value === "true") {
+        return { ...row, preventiveRealized: true, workflowStatus: MaintenanceWorkflowStatus.COMPLETED };
+      }
+      if (value === "false") {
+        return { ...row, preventiveRealized: false, workflowStatus: MaintenanceWorkflowStatus.OPEN };
+      }
+      return { ...row, preventiveRealized: null };
+    default:
+      return row;
+  }
+}
 
 function tabFromType(type: TypeFilter): TabId {
   if (type === InterventionType.PREVENTIVE) return "PREVENTIVE";
@@ -143,6 +195,7 @@ export function InterventionsModuleClient({
   const [editRow, setEditRow] = React.useState<InterventionListVm | null>(null);
   const [deleteRow, setDeleteRow] = React.useState<InterventionListVm | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = React.useState(false);
   const [bulkPending, setBulkPending] = React.useState(false);
 
   React.useEffect(() => {
@@ -299,6 +352,108 @@ export function InterventionsModuleClient({
     [bulkPending, rows, selectedIds, router],
   );
 
+  const bulkFields = React.useMemo<BulkEditField[]>(
+    () => [
+      {
+        id: "technicianId",
+        label: "Intervenant",
+        kind: "search",
+        allowClear: true,
+        placeholder: "Rechercher un intervenant…",
+        options: [
+          { value: "", label: "Aucun intervenant" },
+          ...technicians.map((t) => ({ value: t.id, label: t.label })),
+        ],
+      },
+      {
+        id: "sectorMaintenance",
+        label: "Secteur",
+        kind: "text",
+        placeholder: "Secteur",
+        options: sectors.map((sector) => ({ value: sector, label: sector })),
+      },
+      { id: "service", label: "Service", kind: "text", placeholder: "Service" },
+      {
+        id: "type",
+        label: "Type de maintenance",
+        kind: "select",
+        options: Object.values(InterventionType).map((type) => ({
+          value: type,
+          label: interventionTypeFr(type),
+        })),
+      },
+      {
+        id: "workflowStatus",
+        label: "Statut",
+        kind: "select",
+        options: Object.values(MaintenanceWorkflowStatus).map((status) => ({
+          value: status,
+          label: maintenanceWorkflowStatusFr(status),
+        })),
+      },
+      {
+        id: "operationType",
+        label: "Type d'opération",
+        kind: "select",
+        options: Object.values(OperationType).map((type) => ({
+          value: type,
+          label: operationTypeFr(type),
+        })),
+      },
+      { id: "operation", label: "Opération", kind: "text", placeholder: "Opération" },
+      {
+        id: "failureCause",
+        label: "Cause de défaillance",
+        kind: "select",
+        allowClear: true,
+        options: Object.values(FailureCause).map((cause) => ({
+          value: cause,
+          label: failureCauseFr(cause),
+        })),
+      },
+      {
+        id: "preventiveRealized",
+        label: "Réalisation (préventif)",
+        kind: "select",
+        allowClear: true,
+        options: [
+          { value: "true", label: "Réalisée" },
+          { value: "false", label: "Non réalisée" },
+        ],
+      },
+    ],
+    [sectors, technicians],
+  );
+
+  const handleBulkEdit = React.useCallback(
+    async (field: string, value: string) => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0 || bulkPending) return;
+      const previous = rows;
+      setRows((prev) => prev.map((row) => (selectedIds.has(row.id) ? applyInterventionBulkPatch(row, field, value, technicians) : row)));
+      setBulkPending(true);
+      const res = await bulkUpdateMaintenanceLogsAction(ids, field, value);
+      setBulkPending(false);
+      if (!res.ok) {
+        setRows(previous);
+        window.alert(res.error);
+        return;
+      }
+      if (res.updated === 0) {
+        setRows(previous);
+        window.alert("Aucune ligne n’a pu être mise à jour (ordre clôturé ou valeur incompatible).");
+        return;
+      }
+      setBulkEditOpen(false);
+      setSelectedIds(new Set());
+      if (res.skipped > 0) {
+        window.alert(`${res.updated} ligne(s) mise(s) à jour. ${res.skipped} ignorée(s).`);
+      }
+      router.refresh();
+    },
+    [bulkPending, rows, selectedIds, technicians, router],
+  );
+
   const { visibleRows, preventiveCount, correctiveCount, allCount } = {
     visibleRows: rows,
     preventiveCount: totals.preventive,
@@ -427,6 +582,7 @@ export function InterventionsModuleClient({
         onEdit={readOnly ? () => {} : setEditRow}
         onDelete={readOnly ? () => {} : setDeleteRow}
         onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
+        onBulkEdit={readOnly ? undefined : () => setBulkEditOpen(true)}
         onBulkSetRealized={handleBulkSetRealized}
         bulkPending={bulkPending}
         readOnly={readOnly}
@@ -456,6 +612,15 @@ export function InterventionsModuleClient({
 
       {!readOnly ? (
         <>
+          <BulkEditDialog
+            open={bulkEditOpen}
+            onOpenChange={setBulkEditOpen}
+            selectedCount={selectedIds.size}
+            fields={bulkFields}
+            pending={bulkPending}
+            onApply={handleBulkEdit}
+          />
+
           <InterventionEditDialog
             intervention={editRow}
             open={Boolean(editRow)}

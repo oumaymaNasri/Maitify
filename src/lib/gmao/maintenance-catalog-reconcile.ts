@@ -173,6 +173,47 @@ export async function assertOrderWritableById(db: Db, orderId: string) {
   }
 }
 
+/** IDs d'interventions encore modifiables (OM du jour non clôturé). */
+export async function filterWritableMaintenanceLogIds(db: Db, ids: string[]): Promise<{
+  writableIds: string[];
+  skipped: number;
+}> {
+  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+  if (unique.length === 0) return { writableIds: [], skipped: 0 };
+
+  const logs = await db.maintenanceLog.findMany({
+    where: { id: { in: unique } },
+    select: {
+      id: true,
+      date: true,
+      maintenanceOrder: { select: { status: true } },
+    },
+  });
+
+  const dayKeys = Array.from(new Set(logs.map((log) => calendarDayKey(log.date))));
+  const closedDaily = dayKeys.length
+    ? await db.maintenanceOrder.findMany({
+        where: {
+          status: MaintenanceOrderStatus.COMPLETED,
+          OR: [{ dayKey: { in: dayKeys } }, { reference: { in: dayKeys.map((key) => `OM-${key}`) } }],
+        },
+        select: { dayKey: true, reference: true },
+      })
+    : [];
+  const closedDayKeys = new Set(
+    closedDaily.map((order) => order.dayKey ?? order.reference.replace(/^OM-/, "")),
+  );
+
+  const writableIds = logs
+    .filter((log) => {
+      if (log.maintenanceOrder?.status === MaintenanceOrderStatus.COMPLETED) return false;
+      return !closedDayKeys.has(calendarDayKey(log.date));
+    })
+    .map((log) => log.id);
+
+  return { writableIds, skipped: unique.length - writableIds.length };
+}
+
 export async function assertLogWritable(db: Db, logId: string) {
   const log = await db.maintenanceLog.findUnique({
     where: { id: logId },

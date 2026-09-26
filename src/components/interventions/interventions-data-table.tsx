@@ -7,7 +7,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { CheckCircle2, Columns3, Edit2, Eye, GripVertical, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Columns3, Edit2, Eye, GripVertical, PencilLine, Trash2, XCircle } from "lucide-react";
 import * as React from "react";
 
 import { GmaoRowCheckbox, GmaoTablePagination } from "@/components/gmao/gmao-table";
@@ -97,6 +97,7 @@ type InterventionsDataTableProps = {
   onEdit: (row: InterventionListVm) => void;
   onDelete: (row: InterventionListVm) => void;
   onBulkDelete: () => void;
+  onBulkEdit?: () => void;
   onBulkSetRealized?: (realized: boolean) => void;
   bulkPending?: boolean;
   readOnly?: boolean;
@@ -117,6 +118,7 @@ export function InterventionsDataTable({
   onEdit,
   onDelete,
   onBulkDelete,
+  onBulkEdit,
   onBulkSetRealized,
   bulkPending = false,
   readOnly = false,
@@ -345,6 +347,18 @@ export function InterventionsDataTable({
               </span>
             ) : null}
           </p>
+          {onBulkEdit && !readOnly ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 rounded-lg bg-[#1F76FB] hover:bg-[#1a65d6]"
+              disabled={bulkPending}
+              onClick={onBulkEdit}
+            >
+              <PencilLine className="mr-1.5 h-3.5 w-3.5" />
+              Modifier la sélection
+            </Button>
+          ) : null}
           {onBulkSetRealized ? (
             <>
               <Button

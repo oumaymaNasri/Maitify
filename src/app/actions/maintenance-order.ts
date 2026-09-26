@@ -2,6 +2,7 @@
 
 import { AlertSeverity, AlertType, MaintenanceOrderStatus, Prisma } from "@prisma/client";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { z } from "zod";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { requireManageAction } from "@/lib/auth/session-server";
@@ -396,5 +397,78 @@ export async function closeOrdersPeriodAction(formData: FormData): Promise<
     return { ok: true, ...result };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Clôture impossible." };
+  }
+}
+
+const ORDER_BULK_MAX = 2000;
+const ORDER_BULK_CHUNK = 200;
+
+const maintenanceOrderBulkFieldSchema = z.enum(["status", "observationComment", "managerApproval"]);
+
+function orderNullableText(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+export async function bulkUpdateMaintenanceOrdersAction(
+  ids: string[],
+  field: string,
+  value: string,
+): Promise<{ ok: true; updated: number; skipped: number } | { ok: false; error: string }> {
+  const auth = requireManageAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const parsedField = maintenanceOrderBulkFieldSchema.safeParse(field);
+  if (!parsedField.success) return { ok: false, error: "Colonne non modifiable en masse." };
+
+  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean))).slice(0, ORDER_BULK_MAX);
+  if (unique.length === 0) return { ok: false, error: "Aucun ordre sélectionné." };
+
+  let data: Prisma.MaintenanceOrderUpdateManyMutationInput;
+  if (parsedField.data === "status") {
+    const status = value.trim() as MaintenanceOrderStatus;
+    if (!Object.values(MaintenanceOrderStatus).includes(status)) {
+      return { ok: false, error: "Statut invalide." };
+    }
+    data = { status };
+  } else if (parsedField.data === "observationComment") {
+    data = { observationComment: orderNullableText(value) };
+  } else {
+    data = { managerApproval: orderNullableText(value) };
+  }
+
+  try {
+    let updated = 0;
+    for (let i = 0; i < unique.length; i += ORDER_BULK_CHUNK) {
+      const chunk = unique.slice(i, i + ORDER_BULK_CHUNK);
+      const result = await prisma.maintenanceOrder.updateMany({
+        where: { id: { in: chunk } },
+        data,
+      });
+      updated += result.count;
+    }
+
+    if (parsedField.data === "status" && updated > 0) {
+      await prisma.gmaoAlert.create({
+        data: {
+          type: AlertType.MAINTENANCE_ORDER,
+          severity: AlertSeverity.INFO,
+          title: `${updated} ordre(s) mis à jour en masse`,
+          message: `Modification groupée du statut par ${auth.user.email}.`,
+          metadata: {
+            action: "bulk-edit",
+            field: parsedField.data,
+            value: value.trim(),
+            orderIds: unique,
+            actor: auth.user.email,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    }
+
+    revalidateMaintenanceOrderPaths();
+    return { ok: true, updated, skipped: Math.max(0, unique.length - updated) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Mise à jour groupée impossible." };
   }
 }
