@@ -300,6 +300,8 @@ model MaintenanceLog {
   preventiveOil         Boolean?
   preventiveControl     Boolean? @map("preventive_control")
   preventiveNonConforme Boolean? @map("preventive_non_conforme")
+  /// Validation terrain : true = réalisée, false = non réalisée, null = pas encore validée
+  preventiveRealized    Boolean? @map("preventive_realized")
 
   maintenanceOrderLineId String?               @unique @map("maintenance_order_line_id")
   maintenanceOrderLine   MaintenanceOrderLine? @relation(fields: [maintenanceOrderLineId], references: [id], onDelete: SetNull)
@@ -321,6 +323,7 @@ model MaintenanceLog {
   @@index([machineId, date])
   @@index([machineId, date, type])
   @@index([type, date])
+  @@index([type, preventiveRealized])
   @@index([technicianId, date])
   @@index([importMatricule])
   @@index([sectorMaintenance])

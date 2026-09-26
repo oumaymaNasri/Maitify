@@ -456,3 +456,40 @@ export async function getMaintenanceLogDetailAction(id: string) {
     return { ok: false as const, error: e instanceof Error ? e.message : "Erreur chargement." };
   }
 }
+
+export async function setPreventiveRealizedAction(
+  id: string,
+  realized: boolean | null,
+): Promise<MaintenanceLogActionResult> {
+  const auth = requireSessionAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!id?.trim()) return { ok: false, error: "Intervention introuvable." };
+
+  try {
+    const log = await prisma.maintenanceLog.findUnique({
+      where: { id },
+      select: { id: true, type: true, technicianId: true },
+    });
+    if (!log) return { ok: false, error: "Intervention introuvable." };
+    if (log.type !== "PREVENTIVE") {
+      return { ok: false, error: "La validation ne s’applique qu’aux maintenances préventives." };
+    }
+    if (auth.user.role === "TECHNICIEN") {
+      if (!auth.user.technicianId || log.technicianId !== auth.user.technicianId) {
+        return { ok: false, error: "Accès refusé." };
+      }
+    }
+
+    await prisma.maintenanceLog.update({
+      where: { id },
+      data: {
+        preventiveRealized: realized,
+        workflowStatus: realized === true ? MaintenanceWorkflowStatus.COMPLETED : MaintenanceWorkflowStatus.OPEN,
+      },
+    });
+    revalidateMaintenancePaths();
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Enregistrement impossible." };
+  }
+}

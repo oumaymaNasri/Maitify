@@ -29,6 +29,8 @@ export type InterventionListVm = {
   difficulties: string | null;
   sparePartsLabel: string | null;
   importSource: string | null;
+  /** true = réalisée, false = non réalisée, null = pas encore validée (préventives uniquement) */
+  preventiveRealized: boolean | null;
 };
 
 export type InterventionSpareLineVm = {

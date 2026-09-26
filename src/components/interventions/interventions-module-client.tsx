@@ -21,6 +21,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { hrefWithPage, pageSizeQueryValue } from "@/lib/db/pagination";
+import { applyPeriodPreset, parsePeriodPreset, type PeriodPreset } from "@/lib/gmao/period-range";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { cn } from "@/lib/utils";
 import { formatDateFrMedium } from "@/lib/utils/format-date";
@@ -41,6 +42,7 @@ const DeleteConfirmDialog = dynamic(
 
 type StatusFilter = "ALL" | MaintenanceWorkflowStatus;
 type TypeFilter = "ALL" | InterventionType;
+type RealizedFilter = "ALL" | "DONE" | "NOT_DONE" | "PENDING";
 type ListTabId = "PREVENTIVE" | "CORRECTIVE" | "ALL";
 type TabId = ListTabId | "IMPORT";
 
@@ -64,6 +66,8 @@ export type InterventionsListQuery = {
   technicianId: string;
   dateFrom: string;
   dateTo: string;
+  period: PeriodPreset;
+  realized: RealizedFilter;
   sort: string;
   dir: "asc" | "desc";
   view?: "import" | "";
@@ -99,6 +103,8 @@ export function buildMaintenanceListSearch(query: InterventionsListQuery): strin
   if (query.technicianId && query.technicianId !== "ALL") params.set("technicianId", query.technicianId);
   if (query.dateFrom) params.set("dateFrom", query.dateFrom);
   if (query.dateTo) params.set("dateTo", query.dateTo);
+  if (query.period && query.period !== "all") params.set("period", query.period);
+  if (query.realized && query.realized !== "ALL") params.set("realized", query.realized);
   if (query.sort && query.sort !== "date") params.set("sort", query.sort);
   if (query.dir && query.dir !== "desc") params.set("dir", query.dir);
   if (query.view === "import") params.set("view", "import");
@@ -215,6 +221,18 @@ export function InterventionsModuleClient({
         options: [{ value: "ALL", label: "Tous" }, ...sectors.map((s) => ({ value: s, label: s }))],
       },
       {
+        id: "realized",
+        label: "Réalisation",
+        value: query.realized || "ALL",
+        onChange: (v: string) => patchQuery({ realized: v as RealizedFilter }),
+        options: [
+          { value: "ALL", label: "Toutes" },
+          { value: "DONE", label: "Réalisées" },
+          { value: "NOT_DONE", label: "Non réalisées" },
+          { value: "PENDING", label: "À valider" },
+        ],
+      },
+      {
         id: "technician",
         label: "Intervenant",
         value: query.technicianId || "ALL",
@@ -225,7 +243,7 @@ export function InterventionsModuleClient({
         ],
       },
     ],
-    [query.type, query.status, query.sector, query.technicianId, sectors, technicians, patchQuery, selectTab],
+    [query.type, query.status, query.realized, query.sector, query.technicianId, sectors, technicians, patchQuery, selectTab],
   );
 
   const handleDeleted = React.useCallback((id: string) => {
@@ -316,6 +334,26 @@ export function InterventionsModuleClient({
         filters={filters}
         extras={
           <>
+            <div className="w-[10.5rem] min-w-[10.5rem] shrink-0">
+              <Label htmlFor="period-preset" className="text-[11px] font-medium text-slate-700">
+                Période
+              </Label>
+              <select
+                id="period-preset"
+                value={query.period}
+                onChange={(e) => {
+                  const period = parsePeriodPreset(e.target.value);
+                  const range = applyPeriodPreset(period, query.dateFrom, query.dateTo);
+                  patchQuery({ period, dateFrom: range.dateFrom, dateTo: range.dateTo });
+                }}
+                className="mt-0.5 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-800"
+              >
+                <option value="all">Toutes</option>
+                <option value="week">Cette semaine</option>
+                <option value="month">Ce mois</option>
+                <option value="custom">Intervalle personnalisé</option>
+              </select>
+            </div>
             <div className="w-[10.25rem] min-w-[10.25rem] shrink-0">
               <Label htmlFor="date-from" className="text-[11px] font-medium text-slate-700">
                 Date du
@@ -324,7 +362,7 @@ export function InterventionsModuleClient({
                 id="date-from"
                 type="date"
                 value={query.dateFrom}
-                onChange={(e) => patchQuery({ dateFrom: e.target.value })}
+                onChange={(e) => patchQuery({ period: "custom", dateFrom: e.target.value })}
                 className="mt-0.5 h-9 border-slate-200 bg-white"
               />
             </div>
@@ -336,7 +374,7 @@ export function InterventionsModuleClient({
                 id="date-to"
                 type="date"
                 value={query.dateTo}
-                onChange={(e) => patchQuery({ dateTo: e.target.value })}
+                onChange={(e) => patchQuery({ period: "custom", dateTo: e.target.value })}
                 className="mt-0.5 h-9 border-slate-200 bg-white"
               />
             </div>
@@ -362,6 +400,9 @@ export function InterventionsModuleClient({
         pagination={pagination}
         previousHref={hrefWithPage(pathname, buildMaintenanceListSearch(query), Math.max(1, pagination.page - 1))}
         nextHref={hrefWithPage(pathname, buildMaintenanceListSearch(query), pagination.page + 1)}
+        onPreventiveRealizedChange={(id, realized) => {
+          setRows((prev) => prev.map((r) => (r.id === id ? { ...r, preventiveRealized: realized } : r)));
+        }}
       />
         </>
       )}

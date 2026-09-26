@@ -14,6 +14,7 @@ import { GmaoRowCheckbox, GmaoTablePagination } from "@/components/gmao/gmao-tab
 import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW, GMAO_TABLE_SCROLL, GMAO_TABLE_WRAP } from "@/components/gmao/table-styles";
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { InterventionFicheButton } from "@/components/interventions/intervention-fiche-button";
+import { PreventiveRealizedCheckboxes } from "@/components/interventions/preventive-realized-checkboxes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,8 +31,8 @@ import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "nutrifish.gmao.interventions.table.v1";
-const ROW_HEIGHT = 40;
+const STORAGE_KEY = "nutrifish.gmao.interventions.table.v2";
+const ROW_HEIGHT = 52;
 
 const COLUMN_LABELS: Record<string, string> = {
   select: "Sélection",
@@ -51,6 +52,7 @@ const COLUMN_LABELS: Record<string, string> = {
   workPerformed: "Rapport d'intervention",
   difficulties: "Difficultés rencontrées",
   sparePartsLabel: "Pièce de rechange et consommables",
+  preventiveRealized: "Réalisation",
   actions: "Actions",
 };
 
@@ -102,6 +104,7 @@ type InterventionsDataTableProps = {
   pagination?: { page: number; pageCount: number; pageSize?: number };
   previousHref?: string;
   nextHref?: string;
+  onPreventiveRealizedChange?: (id: string, realized: boolean | null) => void;
 };
 
 export function InterventionsDataTable({
@@ -119,6 +122,7 @@ export function InterventionsDataTable({
   pagination,
   previousHref,
   nextHref,
+  onPreventiveRealizedChange,
 }: InterventionsDataTableProps) {
   const persisted = React.useMemo(() => loadTableState(), []);
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(persisted.columnOrder ?? DEFAULT_ORDER);
@@ -235,6 +239,22 @@ export function InterventionsDataTable({
       { accessorKey: "difficulties", header: "Difficultés rencontrées", size: 180, cell: ({ row }) => <CellText value={row.original.difficulties} /> },
       { accessorKey: "sparePartsLabel", header: "Pièce de rechange et consommables", size: 240, cell: ({ row }) => <CellText value={row.original.sparePartsLabel} /> },
       {
+        id: "preventiveRealized",
+        header: "Réalisation",
+        size: 148,
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.type === "PREVENTIVE" && onPreventiveRealizedChange ? (
+            <PreventiveRealizedCheckboxes
+              id={row.original.id}
+              realized={row.original.preventiveRealized}
+              onUpdated={onPreventiveRealizedChange}
+            />
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          ),
+      },
+      {
         id: "actions",
         header: "Actions",
         size: 148,
@@ -261,7 +281,7 @@ export function InterventionsDataTable({
       },
     );
     return cols;
-  }, [allVisibleSelected, someVisibleSelected, selectedIds, readOnly, onView, onEdit, onDelete, toggleAllVisible, toggleRow]);
+  }, [allVisibleSelected, someVisibleSelected, selectedIds, readOnly, onView, onEdit, onDelete, onPreventiveRealizedChange, toggleAllVisible, toggleRow]);
 
   const table = useReactTable({
     data: interventions,

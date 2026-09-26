@@ -31,6 +31,7 @@ const listSelect = {
   failureDescription: true,
   workPerformed: true,
   failureCause: true,
+  preventiveRealized: true,
   machineId: true,
   machine: { select: { name: true, location: true, legacyMatricule: true } },
   technicianId: true,
@@ -52,6 +53,7 @@ export type InterventionListFilters = {
   technicianId?: string | null;
   dateFrom?: string | null;
   dateTo?: string | null;
+  realized?: "ALL" | "DONE" | "NOT_DONE" | "PENDING" | null;
   sort?: InterventionSortKey | null;
   dir?: "asc" | "desc" | null;
 };
@@ -76,6 +78,7 @@ function mapListRows(
     failureDescription: string | null;
     workPerformed: string;
     failureCause: FailureCause | null;
+    preventiveRealized: boolean | null;
     machineId: string;
     machine: { name: string; location: string; legacyMatricule: number | null };
     technicianId: string | null;
@@ -97,7 +100,12 @@ function mapListRows(
     operation: clipText(r.operation, 120),
     operationType: r.operationType,
     type: r.type,
-    workflowStatus: workflowStatusForLog(r.type, r.date),
+    workflowStatus:
+      r.type === "PREVENTIVE" && r.preventiveRealized != null
+        ? r.preventiveRealized
+          ? MaintenanceWorkflowStatus.COMPLETED
+          : MaintenanceWorkflowStatus.OPEN
+        : workflowStatusForLog(r.type, r.date),
     failureCause: r.failureCause,
     failureCauseLabel: clipText(r.failureCauseLabel, 120),
     linkedFailureCause: clipText(r.linkedFailureCause),
@@ -106,6 +114,7 @@ function mapListRows(
     difficulties: clipText(r.difficulties),
     sparePartsLabel: clipText(r.sparePartsLabel),
     importSource: null,
+    preventiveRealized: r.preventiveRealized,
   }));
 }
 
@@ -148,6 +157,11 @@ function filterWhere(filters?: InterventionListFilters): Prisma.MaintenanceLogWh
   if (filters?.dateTo) {
     const d = new Date(`${filters.dateTo}T23:59:59.999Z`);
     if (!Number.isNaN(d.getTime())) and.push({ date: { lte: d } });
+  }
+  if (filters?.realized && filters.realized !== "ALL") {
+    if (filters.realized === "DONE") and.push({ type: "PREVENTIVE", preventiveRealized: true });
+    else if (filters.realized === "NOT_DONE") and.push({ type: "PREVENTIVE", preventiveRealized: false });
+    else and.push({ type: "PREVENTIVE", preventiveRealized: null });
   }
   if (!and.length) return {};
   return { AND: and };
@@ -284,6 +298,7 @@ function catalogCacheKey(technicianId?: string | null, filters?: InterventionLis
     technicianId: filters?.technicianId ?? "ALL",
     dateFrom: filters?.dateFrom ?? "",
     dateTo: filters?.dateTo ?? "",
+    realized: filters?.realized ?? "ALL",
     sort: filters?.sort ?? "date",
     dir: filters?.dir ?? "desc",
   });
@@ -297,7 +312,7 @@ export function getInterventionsInventoryCached(
 ) {
   return unstable_cache(
     () => fetchInterventionsInventory(technicianId, page, limit, filters),
-    [CACHE_TAGS.interventions, "catalog-v3", catalogCacheKey(technicianId, filters, page, limit)],
+    [CACHE_TAGS.interventions, "catalog-v4", catalogCacheKey(technicianId, filters, page, limit)],
     { revalidate: 60, tags: [CACHE_TAGS.interventions] },
   )();
 }

@@ -11,6 +11,7 @@ import {
 } from "@/lib/gmao/interventions-query";
 import { parsePageSize } from "@/lib/db/pagination";
 import { getSession } from "@/lib/auth/session-server";
+import { applyPeriodPreset, parsePeriodPreset } from "@/lib/gmao/period-range";
 import { InterventionType, MaintenanceWorkflowStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,8 @@ type PageProps = {
     technicianId?: string;
     dateFrom?: string;
     dateTo?: string;
+    period?: string;
+    realized?: string;
     sort?: string;
     dir?: string;
     view?: string;
@@ -40,6 +43,11 @@ function parseType(raw?: string): InterventionType | "ALL" {
 
 function parseStatus(raw?: string): MaintenanceWorkflowStatus | "ALL" {
   if (raw === "OPEN" || raw === "COMPLETED") return raw;
+  return "ALL";
+}
+
+function parseRealized(raw?: string): "ALL" | "DONE" | "NOT_DONE" | "PENDING" {
+  if (raw === "DONE" || raw === "NOT_DONE" || raw === "PENDING") return raw;
   return "ALL";
 }
 
@@ -63,13 +71,16 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
     const q = (searchParams?.q ?? "").trim();
     const sector = searchParams?.sector ?? "ALL";
     const technicianId = isTechnician ? "ALL" : (searchParams?.technicianId ?? "ALL");
-    const dateFrom = searchParams?.dateFrom ?? "";
-    const dateTo = searchParams?.dateTo ?? "";
+    const period = parsePeriodPreset(searchParams?.period);
+    const realized = parseRealized(searchParams?.realized);
+    const range = applyPeriodPreset(period, searchParams?.dateFrom ?? "", searchParams?.dateTo ?? "");
+    const dateFrom = range.dateFrom;
+    const dateTo = range.dateTo;
     const page = Math.max(1, Number.parseInt(searchParams?.page ?? "1", 10) || 1);
     const pageSize = parsePageSize(searchParams?.pageSize);
     const importView = searchParams?.view === "import" && !isTechnician;
 
-    const listFilters = { q, type, status, sector, technicianId, dateFrom, dateTo, sort, dir };
+    const listFilters = { q, type, status, sector, technicianId, dateFrom, dateTo, realized, sort, dir };
 
     const [inventory, machineRows, techRows, sectors] = await Promise.all([
       importView
@@ -118,6 +129,8 @@ export default async function InterventionsPage({ searchParams }: PageProps) {
           technicianId,
           dateFrom,
           dateTo,
+          period,
+          realized,
           sort,
           dir,
           view: searchParams?.view === "import" ? "import" : "",
