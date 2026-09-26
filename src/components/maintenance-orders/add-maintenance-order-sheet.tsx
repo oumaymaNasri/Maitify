@@ -131,7 +131,7 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
       <SheetContent side="right" className="flex w-full flex-col overflow-y-auto border-slate-200 sm:max-w-lg">
         <SheetHeader className="space-y-1 border-b border-slate-100 pb-4">
           <SheetTitle className="text-lg text-slate-900">Nouvel ordre de maintenance journalier</SheetTitle>
-          <SheetDescription>Bon de travail du jour — FOR-MNT-02. Un seul OM par date, préventif et correctif confondus.</SheetDescription>
+          <SheetDescription>Bon de travail du jour — FOR-MNT-02. Un seul OM par date.</SheetDescription>
         </SheetHeader>
 
         <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-5 py-5">

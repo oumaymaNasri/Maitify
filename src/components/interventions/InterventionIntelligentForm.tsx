@@ -10,7 +10,7 @@ import { SparePartSearchSelect } from "@/components/interventions/spare-part-sea
 import { TouchSignaturePad } from "@/components/interventions/TouchSignaturePad";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -341,7 +341,6 @@ export function InterventionIntelligentForm({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Identification</CardTitle>
-          <CardDescription>Type, date et ordre de maintenance — le n° d’OM est identifié automatiquement</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="workflowStatus" value="COMPLETED" />
@@ -373,11 +372,6 @@ export function InterventionIntelligentForm({
                 Corrective
               </button>
             </div>
-            <p className="text-xs text-slate-500">
-              {interventionKind === "PREVENTIVE"
-                ? "L’OM du planning préventif pré-remplit la machine et les tâches prévues."
-                : "L’intervention sera rattachée à l’OM journalier de la date choisie."}
-            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="date">Date / heure *</Label>
@@ -623,10 +617,6 @@ export function InterventionIntelligentForm({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Pièces de rechange utilisées</CardTitle>
-          <CardDescription>
-            Recherche optimisée dans le stock. À la validation, un mouvement SORTIE est enregistré et le stock global
-            est décrémenté. Signature tactile obligatoire si au moins une pièce est consommée.
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {lines.map((row, idx) => {
@@ -677,10 +667,6 @@ export function InterventionIntelligentForm({
           <Button type="button" variant="secondary" size="sm" onClick={() => setLines((prev) => [...prev, { partId: "", quantity: 1 }])}>
             Ajouter une pièce
           </Button>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Les étiquettes de stock reflètent l&apos;état au chargement de la page. En cas de conflit temps réel avec un
-            autre poste, le serveur refusera la transaction si la quantité n&apos;est plus disponible.
-          </p>
         </CardContent>
       </Card>
 

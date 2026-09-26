@@ -149,8 +149,8 @@ export function MachineFormSheet({
       <SheetContent side="right" className="flex w-full flex-col overflow-y-auto border-slate-200 bg-white sm:max-w-lg">
         <SheetHeader>
           <SheetTitle className="text-slate-900">{isEdit ? "Modifier l'équipement" : "Nouvel équipement"}</SheetTitle>
-          <SheetDescription className="text-slate-600">
-            Validation Zod — enregistrement sécurisé dans le parc GMAO.
+          <SheetDescription className="sr-only">
+            {isEdit ? "Modifier l'équipement" : "Nouvel équipement"}
           </SheetDescription>
         </SheetHeader>
 

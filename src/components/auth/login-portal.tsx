@@ -78,7 +78,7 @@ export function LoginPortal() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/50 backdrop-blur-md transition-all duration-300 sm:p-8">
           <div className="mb-6 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#94BFFF]">NutriFish Pro</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Portail GMAO</h1>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">NutriFish GMAO</h1>
             <p className="mt-2 text-sm text-slate-400">Choisissez votre espace de travail</p>
           </div>
 
@@ -133,7 +133,7 @@ export function LoginPortal() {
                   type="email"
                   autoComplete="username"
                   required
-                  placeholder="maintenance@nutrifish.tn"
+                  placeholder="votre.email@nutrifish.tn"
                   className="h-11 w-full rounded-lg border border-white/10 bg-white/5 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 transition-all duration-300 focus:border-[#1F76FB]/60 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[#1F76FB]/30"
                 />
               </div>
@@ -182,19 +182,6 @@ export function LoginPortal() {
               )}
             </button>
           </form>
-
-          <div className="mt-5 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-[11px] leading-relaxed text-slate-400">
-            <p className="font-semibold text-slate-300">Comptes de démonstration</p>
-            <p className="mt-1">
-              Directeur : <span className="text-slate-200">maintenance@nutrifish.tn</span>
-            </p>
-            <p>
-              Technicien : <span className="text-slate-200">technicien@nutrifish.local</span>
-            </p>
-            <p className="mt-1">
-              Mot de passe (les deux) : <span className="font-mono text-slate-200">Gmao2026!</span>
-            </p>
-          </div>
         </div>
       </div>
     </main>
