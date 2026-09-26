@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 
 import { createMachineAction, updateMachineAction } from "@/app/actions/machine";
 import type { MachineCardVm } from "@/components/machines/machine-card";
-import { MachineImageBlock } from "@/components/machines/machine-image-block";
+import { MachineImageFields } from "@/components/machines/machine-image-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,8 +34,6 @@ import { maintenanceFrequencyFr } from "@/lib/view/gmao-labels";
 import { machineAssetStatusFr } from "@/lib/view/machine-labels";
 import { cn } from "@/lib/utils";
 
-const MAX_IMAGE_BYTES = 1_200_000;
-
 type MachineFormSheetProps = {
   mode?: "create" | "edit";
   machine?: MachineCardVm | null;
@@ -60,7 +58,6 @@ export function MachineFormSheet({
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
 
-  const [preview, setPreview] = React.useState<string | null>(machine?.coverImageUrl ?? null);
   const [imageDataUrl, setImageDataUrl] = React.useState("");
 
   const form = useForm<MachineFormInput>({
@@ -88,7 +85,6 @@ export function MachineFormSheet({
         description: machine.description ?? "",
         imageUrl: machine.imageUrl ?? machine.coverImageUrl ?? "",
       });
-      setPreview(machine.coverImageUrl ?? machine.imageUrl ?? null);
       setImageDataUrl("");
     }
     if (open && !machine && !isEdit) {
@@ -100,28 +96,9 @@ export function MachineFormSheet({
         description: "",
         imageUrl: "",
       });
-      setPreview(null);
       setImageDataUrl("");
     }
   }, [open, machine, isEdit, form]);
-
-  const onImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/") || file.size > MAX_IMAGE_BYTES) {
-      form.setError("imageDataUrl", { message: "Image invalide ou trop volumineuse." });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      setPreview(result);
-      setImageDataUrl(result);
-      form.setValue("imageDataUrl", result);
-      form.clearErrors("imageDataUrl");
-    };
-    reader.readAsDataURL(file);
-  };
 
   const onSubmit = form.handleSubmit(async (values) => {
     const fd = new FormData();
@@ -237,30 +214,20 @@ export function MachineFormSheet({
             <Textarea id="machine-desc" {...form.register("description")} rows={3} disabled={pending} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="machine-image-url">URL de l&apos;image de l&apos;équipement</Label>
-            <Input
-              id="machine-image-url"
-              type="url"
-              placeholder="https://… ou /images/machine.jpg"
-              {...form.register("imageUrl")}
-              disabled={pending}
-              className="rounded-xl border-slate-100"
-            />
-            {form.formState.errors.imageUrl ? (
-              <p className="text-xs text-rose-600">{form.formState.errors.imageUrl.message}</p>
-            ) : null}
-            <MachineImageBlock
-              imageUrl={form.watch("imageUrl")?.trim() || preview}
-              alt={form.watch("name") || "Aperçu machine"}
-              className="mb-0 mt-2"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="machine-image">Photo (fichier local, optionnel)</Label>
-            <Input id="machine-image" type="file" accept="image/*" onChange={onImageChange} disabled={pending} />
-          </div>
+          <MachineImageFields
+            key={open && machine ? machine.id : "machine-sheet-new"}
+            idPrefix="machine-sheet"
+            imageUrl={form.watch("imageUrl") ?? ""}
+            onImageUrlChange={(v) => form.setValue("imageUrl", v, { shouldDirty: true })}
+            imageDataUrl={imageDataUrl}
+            onImageDataUrlChange={(v) => {
+              setImageDataUrl(v);
+              form.setValue("imageDataUrl", v || undefined);
+            }}
+            alt={form.watch("name") || "Aperçu machine"}
+            disabled={pending}
+            urlError={form.formState.errors.imageUrl?.message}
+          />
 
           {form.formState.errors.root ? (
             <p className="text-sm text-rose-600">{form.formState.errors.root.message}</p>

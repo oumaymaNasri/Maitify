@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { createMachineAction } from "@/app/actions/machine";
+import { MachineImageFields } from "@/components/machines/machine-image-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,15 +30,13 @@ import { maintenanceFrequencyFr } from "@/lib/view/gmao-labels";
 import { machineAssetStatusFr } from "@/lib/view/machine-labels";
 import { cn } from "@/lib/utils";
 
-const MAX_IMAGE_BYTES = 1_200_000;
-
 export function AddMachineSheet() {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [preview, setPreview] = React.useState<string | null>(null);
-  const [imageDataUrl, setImageDataUrl] = React.useState<string>("");
+  const [imageUrl, setImageUrl] = React.useState("");
+  const [imageDataUrl, setImageDataUrl] = React.useState("");
   const [assetStatus, setAssetStatus] = React.useState<MachineAssetStatus>(MachineAssetStatus.OPERATIONAL);
   const [maintenanceSector, setMaintenanceSector] = React.useState<MaintenanceFrequency>(
     MaintenanceFrequency.HEBDOMADAIRE,
@@ -45,33 +44,8 @@ export function AddMachineSheet() {
 
   const reset = () => {
     setError(null);
-    setPreview(null);
+    setImageUrl("");
     setImageDataUrl("");
-  };
-
-  const onImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      setPreview(null);
-      setImageDataUrl("");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      setError("Format image requis (JPEG, PNG, WebP).");
-      return;
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setError("Image trop volumineuse (max ~1 Mo).");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      setPreview(result);
-      setImageDataUrl(result);
-      setError(null);
-    };
-    reader.readAsDataURL(file);
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -82,6 +56,7 @@ export function AddMachineSheet() {
     const fd = new FormData(form);
     fd.set("assetStatus", assetStatus);
     fd.set("maintenanceSector", maintenanceSector);
+    if (imageUrl.trim()) fd.set("imageUrl", imageUrl.trim());
     if (imageDataUrl) fd.set("imageDataUrl", imageDataUrl);
 
     const res = await createMachineAction(fd);
@@ -158,22 +133,16 @@ export function AddMachineSheet() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="machine-image">Photo équipement</Label>
-            <Input
-              id="machine-image"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={onImageChange}
-              disabled={pending}
-            />
-            {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="Aperçu" className="mt-2 aspect-video w-full rounded-lg border object-cover" />
-            ) : (
-              <p className="text-xs text-muted-foreground">JPEG / PNG / WebP — optionnel</p>
-            )}
-          </div>
+          <MachineImageFields
+            key={open ? "add-machine-open" : "add-machine-closed"}
+            idPrefix="add-machine"
+            imageUrl={imageUrl}
+            onImageUrlChange={setImageUrl}
+            imageDataUrl={imageDataUrl}
+            onImageDataUrlChange={setImageDataUrl}
+            alt="Aperçu machine"
+            disabled={pending}
+          />
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <SheetFooter className="mt-auto gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>

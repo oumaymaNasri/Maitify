@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 
 import { updateMachineAction } from "@/app/actions/machine";
 import type { MachineCardVm } from "@/components/machines/machine-card";
-import { MachineImageBlock } from "@/components/machines/machine-image-block";
+import { MachineImageFields } from "@/components/machines/machine-image-fields";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +39,7 @@ type MachineEditDialogProps = {
 };
 
 export function MachineEditDialog({ machine, open, onOpenChange, onUpdated }: MachineEditDialogProps) {
+  const [imageDataUrl, setImageDataUrl] = React.useState("");
   const form = useForm<MachineEditFormInput>({
     resolver: zodResolver(machineEditFormSchema),
     defaultValues: {
@@ -65,6 +66,7 @@ export function MachineEditDialog({ machine, open, onOpenChange, onUpdated }: Ma
           machine.targetAvailability != null ? Math.round(machine.targetAvailability * 100) : 95,
         imageUrl: machine.imageUrl ?? machine.coverImageUrl ?? "",
       });
+      setImageDataUrl("");
     }
   }, [open, machine, form]);
 
@@ -84,6 +86,7 @@ export function MachineEditDialog({ machine, open, onOpenChange, onUpdated }: Ma
     if (values.imageUrl?.trim()) {
       fd.set("imageUrl", values.imageUrl.trim());
     }
+    if (imageDataUrl) fd.set("imageDataUrl", imageDataUrl);
 
     const res = await updateMachineAction(fd);
     if (!res.ok) {
@@ -103,8 +106,9 @@ export function MachineEditDialog({ machine, open, onOpenChange, onUpdated }: Ma
       assetStatus: values.assetStatus,
       targetAvailability:
         values.targetAvailabilityPct != null ? values.targetAvailabilityPct / 100 : machine.targetAvailability,
-      imageUrl: values.imageUrl?.trim() || null,
-      coverImageUrl: values.imageUrl?.trim() || null,
+      imageUrl: imageDataUrl || values.imageUrl?.trim() || null,
+      coverImageUrl: imageDataUrl || values.imageUrl?.trim() || null,
+      hasCoverImage: Boolean(imageDataUrl || values.imageUrl?.trim()),
     });
     onOpenChange(false);
   });
@@ -222,25 +226,17 @@ export function MachineEditDialog({ machine, open, onOpenChange, onUpdated }: Ma
             </div>
           </div>
 
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="edit-image-url">URL de l&apos;image de l&apos;équipement</Label>
-            <Input
-              id="edit-image-url"
-              type="url"
-              placeholder="https://… ou /images/machine.jpg"
-              {...form.register("imageUrl")}
-              disabled={pending}
-              className="rounded-xl border-slate-100"
-            />
-            {form.formState.errors.imageUrl ? (
-              <p className="text-xs text-rose-600">{form.formState.errors.imageUrl.message}</p>
-            ) : null}
-            <MachineImageBlock
-              imageUrl={form.watch("imageUrl")?.trim() || null}
-              alt={form.watch("name") || "Aperçu machine"}
-              className="mb-0 mt-2"
-            />
-          </div>
+          <MachineImageFields
+            key={machine?.id ?? "edit-machine"}
+            idPrefix="edit-machine"
+            imageUrl={form.watch("imageUrl") ?? ""}
+            onImageUrlChange={(v) => form.setValue("imageUrl", v, { shouldDirty: true })}
+            imageDataUrl={imageDataUrl}
+            onImageDataUrlChange={setImageDataUrl}
+            alt={form.watch("name") || "Aperçu machine"}
+            disabled={pending}
+            urlError={form.formState.errors.imageUrl?.message}
+          />
 
           {form.formState.errors.root ? (
             <p className="text-sm text-rose-600">{form.formState.errors.root.message}</p>

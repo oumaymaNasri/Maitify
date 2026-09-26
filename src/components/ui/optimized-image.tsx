@@ -43,7 +43,11 @@ export function OptimizedImage({
   if (isDataUrl(src)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt} className={cn(className, fill && "h-full w-full object-cover")} />
+      <img
+        src={src}
+        alt={alt}
+        className={cn(className, fill && "absolute inset-0 h-full w-full object-cover")}
+      />
     );
   }
 

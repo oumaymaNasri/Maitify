@@ -23,9 +23,9 @@ function parseLegacyMatricule(raw: string | undefined): number | null {
 }
 
 function resolveStoredImageUrl(data: { imageUrl?: string; imageDataUrl?: string }): string | undefined {
-  const url = data.imageUrl?.trim();
-  if (url) return url;
-  return data.imageDataUrl?.trim() || undefined;
+  const uploaded = data.imageDataUrl?.trim();
+  if (uploaded) return uploaded;
+  return data.imageUrl?.trim() || undefined;
 }
 
 function parseFormPayload(formData: FormData) {
