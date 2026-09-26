@@ -56,8 +56,8 @@ export function AddMachineSheet() {
     const fd = new FormData(form);
     fd.set("assetStatus", assetStatus);
     fd.set("maintenanceSector", maintenanceSector);
-    if (imageUrl.trim()) fd.set("imageUrl", imageUrl.trim());
     if (imageDataUrl) fd.set("imageDataUrl", imageDataUrl);
+    else if (imageUrl.trim()) fd.set("imageUrl", imageUrl.trim());
 
     const res = await createMachineAction(fd);
     setPending(false);

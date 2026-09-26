@@ -23,6 +23,10 @@ function isLocalPath(src: string) {
   return src.startsWith("/") && !src.startsWith("//");
 }
 
+function isBlobUrl(src: string) {
+  return src.startsWith("blob:");
+}
+
 function isRemoteUrl(src: string) {
   return src.startsWith("http://") || src.startsWith("https://");
 }
@@ -40,7 +44,7 @@ export function OptimizedImage({
 }: OptimizedImageProps) {
   if (!src) return null;
 
-  if (isDataUrl(src)) {
+  if (isDataUrl(src) || isBlobUrl(src)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img

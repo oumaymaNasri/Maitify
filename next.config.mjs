@@ -5,6 +5,9 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ["exceljs"],
+    serverActions: {
+      bodySizeLimit: "4mb",
+    },
   },
   // OneDrive / chemins synchronisés : évite chunks incomplets en dev
   webpack: (config, { dev, isServer }) => {

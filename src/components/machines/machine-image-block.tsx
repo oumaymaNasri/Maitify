@@ -12,7 +12,10 @@ type MachineImageBlockProps = {
 };
 
 export function MachineImageBlock({ imageUrl, alt, className }: MachineImageBlockProps) {
-  if (imageUrl) {
+  const src = imageUrl?.trim() || "";
+  const isInline = src.startsWith("data:") || src.startsWith("blob:");
+
+  if (src && isInline) {
     return (
       <div
         className={cn(
@@ -20,7 +23,22 @@ export function MachineImageBlock({ imageUrl, alt, className }: MachineImageBloc
           className,
         )}
       >
-        <OptimizedImage src={imageUrl} alt={alt} fill sizes="(max-width: 640px) 100vw, 480px" className="object-cover" />
+        {/* data-URL / blob : aperçu immédiat, next/image incompatible */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={alt} className="absolute inset-0 h-full w-full object-cover" />
+      </div>
+    );
+  }
+
+  if (src) {
+    return (
+      <div
+        className={cn(
+          "relative mb-4 h-48 w-full overflow-hidden rounded-xl border border-slate-100 shadow-sm",
+          className,
+        )}
+      >
+        <OptimizedImage src={src} alt={alt} fill sizes="(max-width: 640px) 100vw, 480px" className="object-cover" />
       </div>
     );
   }

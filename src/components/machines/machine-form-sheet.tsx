@@ -108,8 +108,8 @@ export function MachineFormSheet({
     fd.set("maintenanceSector", values.maintenanceSector);
     fd.set("assetStatus", values.assetStatus);
     fd.set("description", values.description ?? "");
-    if (values.imageUrl?.trim()) fd.set("imageUrl", values.imageUrl.trim());
     if (imageDataUrl) fd.set("imageDataUrl", imageDataUrl);
+    else if (values.imageUrl?.trim()) fd.set("imageUrl", values.imageUrl.trim());
 
     const res = isEdit ? await updateMachineAction(fd) : await createMachineAction(fd);
     if (!res.ok) {

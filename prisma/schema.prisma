@@ -242,7 +242,7 @@ model MachinePhoto {
   id        String   @id @default(cuid())
   machineId String
   machine   Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
-  url       String
+    url       String   @db.Text
   caption   String?
   sortOrder  Int      @default(0)
   createdAt DateTime @default(now())

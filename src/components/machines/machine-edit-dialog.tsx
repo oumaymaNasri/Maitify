@@ -83,10 +83,11 @@ export function MachineEditDialog({ machine, open, onOpenChange, onUpdated }: Ma
     if (values.targetAvailabilityPct != null) {
       fd.set("targetAvailabilityPct", String(values.targetAvailabilityPct));
     }
-    if (values.imageUrl?.trim()) {
+    if (imageDataUrl) {
+      fd.set("imageDataUrl", imageDataUrl);
+    } else if (values.imageUrl?.trim()) {
       fd.set("imageUrl", values.imageUrl.trim());
     }
-    if (imageDataUrl) fd.set("imageDataUrl", imageDataUrl);
 
     const res = await updateMachineAction(fd);
     if (!res.ok) {

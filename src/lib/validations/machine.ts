@@ -45,5 +45,6 @@ export type CreateMachineInput = z.infer<typeof createMachineSchema>;
 
 export const updateMachineSchema = machineFormSchema.extend({
   id: z.string().min(1, "Identifiant requis."),
+  targetAvailabilityPct: z.number().min(0).max(100).optional(),
 });
 export type UpdateMachineInput = z.infer<typeof updateMachineSchema>;

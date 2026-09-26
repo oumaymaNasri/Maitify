@@ -31,7 +31,9 @@ function resolveStoredImageUrl(data: { imageUrl?: string; imageDataUrl?: string 
 function parseFormPayload(formData: FormData) {
   const legacyRaw = formData.get("legacyMatricule")?.toString().trim();
   const targetRaw = formData.get("targetAvailabilityPct")?.toString().trim();
+  const targetNum = targetRaw ? Number(targetRaw) : NaN;
   const imageUrlRaw = formData.get("imageUrl")?.toString().trim();
+  const imageDataRaw = formData.get("imageDataUrl")?.toString().trim();
 
   return {
     id: formData.get("id")?.toString(),
@@ -40,10 +42,10 @@ function parseFormPayload(formData: FormData) {
     location: formData.get("location")?.toString() ?? "",
     maintenanceSector: formData.get("maintenanceSector")?.toString() ?? "HEBDOMADAIRE",
     assetStatus: formData.get("assetStatus")?.toString() ?? "OPERATIONAL",
-    targetAvailabilityPct: targetRaw === "" ? undefined : targetRaw,
+    targetAvailabilityPct: Number.isFinite(targetNum) ? targetNum : undefined,
     description: formData.get("description")?.toString() ?? "",
     imageUrl: imageUrlRaw === "" ? undefined : imageUrlRaw,
-    imageDataUrl: formData.get("imageDataUrl")?.toString() || undefined,
+    imageDataUrl: imageDataRaw || undefined,
   };
 }
 

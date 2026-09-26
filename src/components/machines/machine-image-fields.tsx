@@ -6,27 +6,7 @@ import * as React from "react";
 import { MachineImageBlock } from "@/components/machines/machine-image-block";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const MAX_IMAGE_KB = 900;
-
-async function readLocalImageFile(file: File): Promise<{ ok: true; dataUrl: string } | { ok: false; error: string }> {
-  if (!file.type.startsWith("image/")) {
-    return { ok: false, error: "Format image requis (JPEG, PNG, WebP, GIF)." };
-  }
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result ?? "");
-      if (!dataUrl.startsWith("data:image/") || dataUrl.length > MAX_IMAGE_KB * 1024) {
-        resolve({ ok: false, error: "Image trop volumineuse (max. ~900 Ko)." });
-        return;
-      }
-      resolve({ ok: true, dataUrl });
-    };
-    reader.onerror = () => resolve({ ok: false, error: "Lecture du fichier impossible." });
-    reader.readAsDataURL(file);
-  });
-}
+import { compressImageFileToDataUrl } from "@/lib/media/compress-client-image";
 
 type MachineImageFieldsProps = {
   idPrefix: string;
@@ -53,50 +33,88 @@ export function MachineImageFields({
   const urlId = `${idPrefix}-image-url`;
   const [fileName, setFileName] = React.useState("");
   const [fileError, setFileError] = React.useState<string | null>(null);
+  const [converting, setConverting] = React.useState(false);
+  const [blobPreview, setBlobPreview] = React.useState<string | null>(null);
 
-  const preview = imageDataUrl.trim() || imageUrl.trim() || null;
+  React.useEffect(() => {
+    return () => {
+      if (blobPreview) URL.revokeObjectURL(blobPreview);
+    };
+  }, [blobPreview]);
+
+  const encoded = imageDataUrl.trim() || (imageUrl.startsWith("data:image/") ? imageUrl : "");
+  const preview = blobPreview || encoded || imageUrl.trim() || null;
+  const urlIsData = imageUrl.startsWith("data:image/");
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    const res = await readLocalImageFile(file);
-    if (!res.ok) {
-      setFileError(res.error);
-      e.target.value = "";
-      return;
-    }
-    setFileError(null);
+    if (blobPreview) URL.revokeObjectURL(blobPreview);
+    const instant = URL.createObjectURL(file);
+    setBlobPreview(instant);
     setFileName(file.name);
-    onImageDataUrlChange(res.dataUrl);
+    setFileError(null);
+    setConverting(true);
+    try {
+      const dataUrl = await compressImageFileToDataUrl(file);
+      onImageDataUrlChange(dataUrl);
+      onImageUrlChange(dataUrl);
+    } catch (err) {
+      onImageDataUrlChange("");
+      setFileError(err instanceof Error ? err.message : "Conversion de l'image impossible.");
+    } finally {
+      setConverting(false);
+    }
   };
 
   return (
     <div className="space-y-3">
       <div className="space-y-2">
         <Label htmlFor={urlId}>URL de l&apos;image de l&apos;équipement</Label>
-        <Input
-          id={urlId}
-          type="text"
-          inputMode="url"
-          autoComplete="off"
-          placeholder="https://… ou /images/machine.jpg"
-          value={imageUrl}
-          disabled={disabled}
-          onChange={(e) => {
-            const next = e.target.value;
-            onImageUrlChange(next);
-            if (!next.startsWith("data:image/")) {
-              onImageDataUrlChange("");
-              setFileName("");
-              setFileError(null);
-            }
-          }}
-          className="rounded-xl border-slate-200"
-        />
+        {urlIsData ? (
+          <Input
+            id={urlId}
+            type="text"
+            readOnly
+            disabled={disabled}
+            value={`data:image/jpeg;base64,… (${Math.max(1, Math.round(imageUrl.length / 1024))} Ko)`}
+            className="rounded-xl border-slate-200 bg-slate-50 font-mono text-xs"
+          />
+        ) : (
+          <Input
+            id={urlId}
+            type="text"
+            inputMode="url"
+            autoComplete="off"
+            placeholder="https://… ou /images/machine.jpg"
+            value={imageUrl}
+            disabled={disabled}
+            onChange={(e) => {
+              const next = e.target.value;
+              onImageUrlChange(next);
+              if (!next.startsWith("data:image/")) {
+                onImageDataUrlChange("");
+                setFileName("");
+                setFileError(null);
+                if (blobPreview) {
+                  URL.revokeObjectURL(blobPreview);
+                  setBlobPreview(null);
+                }
+              }
+            }}
+            className="rounded-xl border-slate-200"
+          />
+        )}
+        {urlIsData ? (
+          <p className="text-xs text-emerald-700">
+            Fichier converti en Base64 — référence valide injectée, prête à l’enregistrement (ce n’est pas un chemin
+            C:\fakepath).
+          </p>
+        ) : (
+          <p className="text-xs text-slate-500">Collez un lien public, ou chargez un fichier ci-dessous.</p>
+        )}
         {urlError ? <p className="text-xs text-rose-600">{urlError}</p> : null}
-        <p className="text-xs text-slate-500">
-          Collez un lien, ou chargez une photo depuis l&apos;appareil. Le fichier choisi s&apos;affiche ci-dessous et est enregistré à la validation.
-        </p>
       </div>
 
       <div className="space-y-2">
@@ -107,12 +125,17 @@ export function MachineImageFields({
             id={fileId}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif,image/*"
-            disabled={disabled}
+            disabled={disabled || converting}
             onChange={(e) => void onFileChange(e)}
             className="h-10 cursor-pointer rounded-xl border-slate-200 bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-[#E8F1FF] file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-[#0B2A5B]"
           />
         </div>
-        {fileName ? <p className="text-xs text-slate-600">{fileName} — aperçu mis à jour ci-dessous.</p> : null}
+        {fileName ? (
+          <p className="text-xs text-slate-600">
+            {fileName}
+            {converting ? " — conversion en cours…" : " — image convertie et prévisualisée."}
+          </p>
+        ) : null}
         {fileError ? <p className="text-xs text-rose-600">{fileError}</p> : null}
       </div>
 
