@@ -7,7 +7,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Columns3, Edit2, Eye, GripVertical, Trash2 } from "lucide-react";
+import { CheckCircle2, Columns3, Edit2, Eye, GripVertical, Trash2, XCircle } from "lucide-react";
 import * as React from "react";
 
 import { GmaoRowCheckbox, GmaoTablePagination } from "@/components/gmao/gmao-table";
@@ -97,6 +97,8 @@ type InterventionsDataTableProps = {
   onEdit: (row: InterventionListVm) => void;
   onDelete: (row: InterventionListVm) => void;
   onBulkDelete: () => void;
+  onBulkSetRealized?: (realized: boolean) => void;
+  bulkPending?: boolean;
   readOnly?: boolean;
   totals: { total: number; catalogTotal: number };
   serverSort: ServerSortProps;
@@ -115,6 +117,8 @@ export function InterventionsDataTable({
   onEdit,
   onDelete,
   onBulkDelete,
+  onBulkSetRealized,
+  bulkPending = false,
   readOnly = false,
   totals,
   serverSort,
@@ -163,16 +167,15 @@ export function InterventionsDataTable({
   );
 
   const columns = React.useMemo<ColumnDef<InterventionListVm>[]>(() => {
-    const cols: ColumnDef<InterventionListVm>[] = [];
-    if (!readOnly) {
-      cols.push({
+    const cols: ColumnDef<InterventionListVm>[] = [
+      {
         id: "select",
         header: () => (
           <GmaoRowCheckbox
             checked={allVisibleSelected}
             indeterminate={someVisibleSelected && !allVisibleSelected}
             onChange={toggleAllVisible}
-            ariaLabel="Sélectionner toutes les lignes"
+            ariaLabel="Sélectionner toutes les lignes affichées"
           />
         ),
         cell: ({ row }) => (
@@ -185,8 +188,8 @@ export function InterventionsDataTable({
         size: 44,
         enableResizing: false,
         enableSorting: false,
-      });
-    }
+      },
+    ];
     cols.push(
       { accessorKey: "importMatricule", header: "Matricule", size: 110, cell: ({ row }) => <CellText value={row.original.importMatricule} className="font-mono text-xs" /> },
       {
@@ -323,9 +326,68 @@ export function InterventionsDataTable({
     }
   }
 
+  const selectedPreventiveCount = React.useMemo(
+    () => interventions.filter((r) => selectedIds.has(r.id) && r.type === "PREVENTIVE").length,
+    [interventions, selectedIds],
+  );
+
   return (
     <div className="space-y-3">
     <div className={cn(embedded ? "overflow-hidden rounded-xl border border-slate-100 bg-white" : GMAO_TABLE_WRAP)}>
+      {selectedIds.size > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#1F76FB]/20 bg-[#E8F1FF] px-3 py-2">
+          <p className="mr-auto text-sm text-slate-800">
+            <span className="font-semibold tabular-nums">{selectedIds.size}</span> sélectionnée(s)
+            {selectedPreventiveCount !== selectedIds.size ? (
+              <span className="text-slate-600">
+                {" "}
+                · {selectedPreventiveCount.toLocaleString("fr-FR")} préventive(s)
+              </span>
+            ) : null}
+          </p>
+          {onBulkSetRealized ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700"
+                disabled={bulkPending || selectedPreventiveCount === 0}
+                onClick={() => onBulkSetRealized(true)}
+              >
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                Marquer les sélections comme Réalisées
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50"
+                disabled={bulkPending || selectedPreventiveCount === 0}
+                onClick={() => onBulkSetRealized(false)}
+              >
+                <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                Marquer comme Non réalisées
+              </Button>
+            </>
+          ) : null}
+          {!readOnly ? (
+            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-rose-600" disabled={bulkPending} onClick={onBulkDelete}>
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Supprimer ({selectedIds.size})
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 rounded-lg"
+            disabled={bulkPending}
+            onClick={() => onSelectedIdsChange(new Set())}
+          >
+            Annuler
+          </Button>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <p className="text-xs text-slate-500">
           {totals.catalogTotal.toLocaleString("fr-FR")} maintenances au total
@@ -334,11 +396,6 @@ export function InterventionsDataTable({
             : ` · ${totals.total.toLocaleString("fr-FR")} lignes dans le tableau`}
         </p>
         <div className="flex items-center gap-2">
-          {!readOnly && selectedIds.size > 0 ? (
-            <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-rose-600" onClick={onBulkDelete}>
-              Supprimer ({selectedIds.size})
-            </Button>
-          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg">
@@ -398,15 +455,19 @@ export function InterventionsDataTable({
                       style={{ width: header.getSize() }}
                       className="relative border-b border-r border-slate-200 bg-slate-50 px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-600"
                     >
-                      <button
-                        type="button"
-                        className={cn("flex w-full items-center gap-1 text-left", canSort && "hover:text-[#1F76FB]")}
-                        onClick={() => cycleSort(id)}
-                      >
-                        {id !== "select" ? <GripVertical className="h-3 w-3 shrink-0 text-slate-300" /> : null}
-                        <span className="truncate">{flexRender(header.column.columnDef.header, header.getContext())}</span>
-                        {isSorted ? <span className="text-[#1F76FB]">{serverSort.dir === "asc" ? "↑" : "↓"}</span> : null}
-                      </button>
+                      {id === "select" ? (
+                        <div className="flex justify-center">{flexRender(header.column.columnDef.header, header.getContext())}</div>
+                      ) : (
+                        <button
+                          type="button"
+                          className={cn("flex w-full items-center gap-1 text-left", canSort && "hover:text-[#1F76FB]")}
+                          onClick={() => cycleSort(id)}
+                        >
+                          <GripVertical className="h-3 w-3 shrink-0 text-slate-300" />
+                          <span className="truncate">{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                          {isSorted ? <span className="text-[#1F76FB]">{serverSort.dir === "asc" ? "↑" : "↓"}</span> : null}
+                        </button>
+                      )}
                       {header.column.getCanResize() ? (
                         <div
                           onMouseDown={header.getResizeHandler()}
@@ -442,7 +503,8 @@ export function InterventionsDataTable({
                       data-index={virtualRow.index}
                       className={cn(
                         "hover:bg-[#F3F8FF]",
-                        virtualRow.index % 2 === 0 ? "bg-white" : "bg-slate-50/60",
+                        selectedIds.has(row.original.id) && "bg-[#E8F1FF]",
+                        !selectedIds.has(row.original.id) && (virtualRow.index % 2 === 0 ? "bg-white" : "bg-slate-50/60"),
                       )}
                       style={{ height: ROW_HEIGHT }}
                     >

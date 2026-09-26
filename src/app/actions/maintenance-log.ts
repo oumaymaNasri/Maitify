@@ -493,3 +493,39 @@ export async function setPreventiveRealizedAction(
     return { ok: false, error: e instanceof Error ? e.message : "Enregistrement impossible." };
   }
 }
+
+const BULK_REALIZED_MAX = 2000;
+
+export async function setPreventiveRealizedBulkAction(
+  ids: string[],
+  realized: boolean,
+): Promise<{ ok: true; updated: number; skipped: number } | { ok: false; error: string }> {
+  const auth = requireSessionAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean))).slice(0, BULK_REALIZED_MAX);
+  if (unique.length === 0) return { ok: false, error: "Aucune maintenance sélectionnée." };
+
+  const where: Prisma.MaintenanceLogWhereInput = {
+    id: { in: unique },
+    type: "PREVENTIVE",
+  };
+  if (auth.user.role === "TECHNICIEN") {
+    if (!auth.user.technicianId) return { ok: false, error: "Profil technicien non lié au compte." };
+    where.technicianId = auth.user.technicianId;
+  }
+
+  try {
+    const result = await prisma.maintenanceLog.updateMany({
+      where,
+      data: {
+        preventiveRealized: realized,
+        workflowStatus: realized ? MaintenanceWorkflowStatus.COMPLETED : MaintenanceWorkflowStatus.OPEN,
+      },
+    });
+    revalidateMaintenancePaths();
+    return { ok: true, updated: result.count, skipped: Math.max(0, unique.length - result.count) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Mise à jour groupée impossible." };
+  }
+}

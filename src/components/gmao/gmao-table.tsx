@@ -44,7 +44,11 @@ export function GmaoRowCheckbox({
       ref={ref}
       type="checkbox"
       checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        e.stopPropagation();
+        onChange(e.target.checked);
+      }}
       aria-label={ariaLabel}
       className="h-4 w-4 rounded border-slate-300 text-[#1F76FB] focus:ring-[#1F76FB]"
     />

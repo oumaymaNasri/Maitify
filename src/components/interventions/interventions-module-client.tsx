@@ -9,6 +9,7 @@ import * as React from "react";
 import {
   deleteMaintenanceLogAction,
   deleteMaintenanceLogsBulkAction,
+  setPreventiveRealizedBulkAction,
 } from "@/app/actions/maintenance-log";
 import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
@@ -142,6 +143,7 @@ export function InterventionsModuleClient({
   const [editRow, setEditRow] = React.useState<InterventionListVm | null>(null);
   const [deleteRow, setDeleteRow] = React.useState<InterventionListVm | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [bulkPending, setBulkPending] = React.useState(false);
 
   React.useEffect(() => {
     setRows(initialRows);
@@ -261,6 +263,41 @@ export function InterventionsModuleClient({
     setRows((prev) => prev.filter((r) => !removed.has(r.id)));
     setSelectedIds(new Set());
   }, []);
+
+  const handleBulkSetRealized = React.useCallback(
+    async (realized: boolean) => {
+      const ids = Array.from(selectedIds);
+      if (ids.length === 0 || bulkPending) return;
+      const previous = new Map(rows.map((r) => [r.id, r]));
+      setRows((prev) =>
+        prev.map((r) =>
+          selectedIds.has(r.id) && r.type === "PREVENTIVE"
+            ? {
+                ...r,
+                preventiveRealized: realized,
+                workflowStatus: realized ? MaintenanceWorkflowStatus.COMPLETED : MaintenanceWorkflowStatus.OPEN,
+              }
+            : r,
+        ),
+      );
+      setBulkPending(true);
+      const res = await setPreventiveRealizedBulkAction(ids, realized);
+      setBulkPending(false);
+      if (!res.ok) {
+        setRows(Array.from(previous.values()));
+        window.alert(res.error);
+        return;
+      }
+      if (res.updated === 0) {
+        setRows(Array.from(previous.values()));
+        window.alert("Aucune maintenance préventive n’a pu être mise à jour dans la sélection.");
+        return;
+      }
+      setSelectedIds(new Set());
+      router.refresh();
+    },
+    [bulkPending, rows, selectedIds, router],
+  );
 
   const { visibleRows, preventiveCount, correctiveCount, allCount } = {
     visibleRows: rows,
@@ -390,6 +427,8 @@ export function InterventionsModuleClient({
         onEdit={readOnly ? () => {} : setEditRow}
         onDelete={readOnly ? () => {} : setDeleteRow}
         onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
+        onBulkSetRealized={handleBulkSetRealized}
+        bulkPending={bulkPending}
         readOnly={readOnly}
         serverSort={{
           sort: query.sort,
