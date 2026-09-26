@@ -2,7 +2,7 @@
 
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
-import { Edit2, Eye, Trash2 } from "lucide-react";
+import { Edit2, Eye, RotateCcw, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import {
@@ -11,7 +11,7 @@ import {
   GmaoStandardTable,
   GmaoTablePagination,
 } from "@/components/gmao/gmao-table";
-import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_VIEW } from "@/components/gmao/table-styles";
+import { GMAO_ICON_DELETE, GMAO_ICON_EDIT, GMAO_ICON_REOPEN, GMAO_ICON_VIEW } from "@/components/gmao/table-styles";
 import { MaintenanceOrderPdfButton } from "@/components/maintenance-orders/maintenance-order-pdf-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,9 @@ type MaintenanceOrdersDataTableProps = {
   onView: (order: MaintenanceOrderRow) => void;
   onEdit: (order: MaintenanceOrderRow) => void;
   onDelete: (order: MaintenanceOrderRow) => void;
+  onReopen?: (order: MaintenanceOrderRow) => void;
+  onBulkReopen?: () => void;
+  reopenPending?: boolean;
   onBulkDelete: () => void;
   isPending?: boolean;
   readOnly?: boolean;
@@ -55,6 +58,9 @@ export function MaintenanceOrdersDataTable({
   onView,
   onEdit,
   onDelete,
+  onReopen,
+  onBulkReopen,
+  reopenPending = false,
   onBulkDelete,
   isPending,
   readOnly = false,
@@ -160,7 +166,7 @@ export function MaintenanceOrdersDataTable({
             </Button>
             {!readOnly ? (
               <>
-                {row.original.status !== "COMPLETED" ? (
+                {row.original.status === "ACTIVE" ? (
                   <>
                     <Button type="button" variant="ghost" size="icon" className={GMAO_ICON_EDIT} onClick={() => onEdit(row.original)} aria-label="Modifier">
                       <Edit2 className="h-4 w-4" />
@@ -169,6 +175,19 @@ export function MaintenanceOrdersDataTable({
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </>
+                ) : onReopen ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={GMAO_ICON_REOPEN}
+                    disabled={reopenPending}
+                    onClick={() => onReopen(row.original)}
+                    aria-label="Réouvrir l'ordre de maintenance"
+                    title="Réouvrir l'ordre de maintenance"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
                 ) : null}
               </>
             ) : null}
@@ -178,7 +197,7 @@ export function MaintenanceOrdersDataTable({
       },
     );
     return cols;
-  }, [allVisibleSelected, onDelete, onEdit, onSelectedIdsChange, onView, readOnly, selectedIds, someVisibleSelected, toggleAllVisible]);
+  }, [allVisibleSelected, onDelete, onEdit, onReopen, onSelectedIdsChange, onView, readOnly, reopenPending, selectedIds, someVisibleSelected, toggleAllVisible]);
 
   const table = useReactTable({
     data: orders,
@@ -191,7 +210,27 @@ export function MaintenanceOrdersDataTable({
 
   return (
     <div className="space-y-3">
-      {!readOnly ? <GmaoBulkSelectBar count={selectedIds.size} onBulkDelete={onBulkDelete} /> : null}
+      {!readOnly ? (
+        <GmaoBulkSelectBar
+          count={selectedIds.size}
+          onBulkDelete={onBulkDelete}
+          extraActions={
+            onBulkReopen && orders.some((o) => selectedIds.has(o.id) && o.status !== "ACTIVE") ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={reopenPending}
+                onClick={onBulkReopen}
+                className="rounded-xl border-amber-200 bg-white text-amber-800 hover:bg-amber-50"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Réouvrir la sélection
+              </Button>
+            ) : null
+          }
+        />
+      ) : null}
       <GmaoStandardTable
         table={table}
         emptyMessage="Aucun ordre de maintenance journalier."

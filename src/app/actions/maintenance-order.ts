@@ -1,6 +1,6 @@
 "use server";
 
-import { MaintenanceOrderStatus } from "@prisma/client";
+import { AlertSeverity, AlertType, MaintenanceOrderStatus, Prisma } from "@prisma/client";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
@@ -294,6 +294,93 @@ export async function completeMaintenanceOrderLine(
   });
 
   revalidateMaintenanceOrderPaths();
+}
+
+export async function reopenMaintenanceOrderAction(id: string): Promise<MaintenanceOrderActionResult> {
+  const auth = requireManageAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!id?.trim()) return { ok: false, error: "Ordre introuvable." };
+
+  try {
+    const order = await prisma.maintenanceOrder.findUnique({
+      where: { id },
+      select: { id: true, reference: true, status: true },
+    });
+    if (!order) return { ok: false, error: "Ordre introuvable." };
+    if (order.status === MaintenanceOrderStatus.ACTIVE) {
+      return { ok: true, id: order.id };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.maintenanceOrder.update({
+        where: { id: order.id },
+        data: { status: MaintenanceOrderStatus.ACTIVE },
+      });
+      await tx.gmaoAlert.create({
+        data: {
+          type: AlertType.MAINTENANCE_ORDER,
+          severity: AlertSeverity.INFO,
+          title: `OM réouvert : ${order.reference}`,
+          message: `L'ordre ${order.reference} est passé de Clôturé à Actif (${auth.user.email}). Les modifications et le suivi sont de nouveau possibles.`,
+          metadata: {
+            action: "reopen",
+            orderId: order.id,
+            reference: order.reference,
+            actor: auth.user.email,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    });
+
+    revalidateMaintenanceOrderPaths();
+    return { ok: true, id: order.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Réouverture impossible." };
+  }
+}
+
+export async function reopenMaintenanceOrdersBulkAction(
+  ids: string[],
+): Promise<{ ok: true; updated: number; ids: string[] } | { ok: false; error: string }> {
+  const auth = requireManageAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+  if (unique.length === 0) return { ok: false, error: "Aucun ordre sélectionné." };
+
+  try {
+    const closed = await prisma.maintenanceOrder.findMany({
+      where: { id: { in: unique }, status: { not: MaintenanceOrderStatus.ACTIVE } },
+      select: { id: true, reference: true },
+    });
+    if (closed.length === 0) {
+      return { ok: false, error: "Aucun ordre clôturé dans la sélection." };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.maintenanceOrder.updateMany({
+        where: { id: { in: closed.map((o) => o.id) } },
+        data: { status: MaintenanceOrderStatus.ACTIVE },
+      });
+      await tx.gmaoAlert.create({
+        data: {
+          type: AlertType.MAINTENANCE_ORDER,
+          severity: AlertSeverity.INFO,
+          title: `${closed.length} ordre(s) de maintenance réouvert(s)`,
+          message: `Réouverture groupée par ${auth.user.email} : ${closed.map((o) => o.reference).join(", ")}.`,
+          metadata: {
+            action: "reopen-bulk",
+            orderIds: closed.map((o) => o.id),
+            actor: auth.user.email,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    });
+
+    revalidateMaintenanceOrderPaths();
+    return { ok: true, updated: closed.length, ids: closed.map((o) => o.id) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Réouverture groupée impossible." };
+  }
 }
 
 export async function closeOrdersPeriodAction(formData: FormData): Promise<

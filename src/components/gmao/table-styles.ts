@@ -16,3 +16,5 @@ export const GMAO_ICON_EDIT =
   "h-8 w-8 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-[#1F76FB]";
 export const GMAO_ICON_DELETE =
   "h-8 w-8 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600";
+export const GMAO_ICON_REOPEN =
+  "h-8 w-8 rounded-xl text-amber-700 hover:bg-amber-50";

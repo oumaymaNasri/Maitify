@@ -154,9 +154,11 @@ function GmaoPageSizeSelect({ pageSize }: { pageSize: number }) {
 export function GmaoBulkSelectBar({
   count,
   onBulkDelete,
+  extraActions,
 }: {
   count: number;
   onBulkDelete: () => void;
+  extraActions?: React.ReactNode;
 }) {
   if (count <= 0) return null;
   return (
@@ -165,16 +167,19 @@ export function GmaoBulkSelectBar({
         <span className="tabular-nums text-[#1F76FB]">{count}</span> élément
         {count > 1 ? "s" : ""} sélectionné{count > 1 ? "s" : ""}
       </p>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={onBulkDelete}
-        className="rounded-xl border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
-      >
-        <Trash2 className="mr-2 h-4 w-4" />
-        Supprimer la sélection
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        {extraActions}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={onBulkDelete}
+          className="rounded-xl border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Supprimer la sélection
+        </Button>
+      </div>
     </div>
   );
 }

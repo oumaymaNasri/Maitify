@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
-import { deleteMaintenanceOrderAction, deleteMaintenanceOrdersBulkAction } from "@/app/actions/maintenance-order";
+import { deleteMaintenanceOrderAction, deleteMaintenanceOrdersBulkAction, reopenMaintenanceOrderAction, reopenMaintenanceOrdersBulkAction } from "@/app/actions/maintenance-order";
 import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
 import type { MachineOption } from "@/components/maintenance-orders/add-maintenance-order-sheet";
@@ -73,6 +73,7 @@ export function MaintenanceOrdersModuleClient({
   const [editOrder, setEditOrder] = React.useState<MaintenanceOrderRow | null>(null);
   const [deleteOrder, setDeleteOrder] = React.useState<MaintenanceOrderRow | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [reopenPending, setReopenPending] = React.useState(false);
   const [, startFilterTransition] = React.useTransition();
 
   const filterSearch = React.useMemo(() => {
@@ -184,6 +185,48 @@ export function MaintenanceOrdersModuleClient({
     setViewOrderId((prev) => (prev && removed.has(prev) ? null : prev));
   }, []);
 
+  const applyReopened = React.useCallback(
+    (ids: string[]) => {
+      const reopened = new Set(ids);
+      setRows((prev) =>
+        prev
+          .map((o) => (reopened.has(o.id) ? { ...o, status: MaintenanceOrderStatus.ACTIVE } : o))
+          .filter((o) => initialFilters.status === "ALL" || o.status === initialFilters.status),
+      );
+      router.refresh();
+    },
+    [initialFilters.status, router],
+  );
+
+  const handleReopen = React.useCallback(
+    async (order: MaintenanceOrderRow) => {
+      if (reopenPending || order.status === MaintenanceOrderStatus.ACTIVE) return;
+      setReopenPending(true);
+      const res = await reopenMaintenanceOrderAction(order.id);
+      setReopenPending(false);
+      if (!res.ok) {
+        window.alert(res.error);
+        return;
+      }
+      applyReopened([order.id]);
+    },
+    [applyReopened, reopenPending],
+  );
+
+  const handleBulkReopen = React.useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0 || reopenPending) return;
+    setReopenPending(true);
+    const res = await reopenMaintenanceOrdersBulkAction(ids);
+    setReopenPending(false);
+    if (!res.ok) {
+      window.alert(res.error);
+      return;
+    }
+    applyReopened(res.ids);
+    setSelectedIds(new Set());
+  }, [applyReopened, reopenPending, selectedIds]);
+
   return (
     <GmaoModuleShell>
       <ModuleFilterBar
@@ -245,6 +288,9 @@ export function MaintenanceOrdersModuleClient({
         onView={(order) => setViewOrderId(order.id)}
         onEdit={readOnly ? () => {} : setEditOrder}
         onDelete={readOnly ? () => {} : setDeleteOrder}
+        onReopen={readOnly ? undefined : handleReopen}
+        onBulkReopen={readOnly ? undefined : handleBulkReopen}
+        reopenPending={reopenPending}
         onBulkDelete={readOnly ? () => {} : () => setBulkDeleteOpen(true)}
         readOnly={readOnly}
         pagination={pagination}
@@ -255,6 +301,14 @@ export function MaintenanceOrdersModuleClient({
       <MaintenanceOrderDetailSheet
         orderId={viewOrderId}
         orderReference={viewOrder?.reference ?? ""}
+        orderStatus={viewOrder?.status}
+        canReopen={!readOnly && viewOrder?.status !== MaintenanceOrderStatus.ACTIVE}
+        reopenPending={reopenPending}
+        onReopen={
+          viewOrder && !readOnly
+            ? () => handleReopen(viewOrder)
+            : undefined
+        }
         open={Boolean(viewOrderId)}
         onOpenChange={(open) => {
           if (!open) setViewOrderId(null);

@@ -1,11 +1,12 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 import * as React from "react";
 
 import { getMaintenanceOrderDetailAction } from "@/app/actions/maintenance-order";
 import { MaintenanceOrderPdfButton } from "@/components/maintenance-orders/maintenance-order-pdf-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { MaintenanceOrderDetailVm } from "@/lib/gmao/maintenance-order-detail-query";
@@ -18,6 +19,10 @@ import { cn } from "@/lib/utils";
 type MaintenanceOrderDetailSheetProps = {
   orderId: string | null;
   orderReference: string;
+  orderStatus?: string;
+  canReopen?: boolean;
+  reopenPending?: boolean;
+  onReopen?: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
@@ -72,6 +77,10 @@ function InterventionLogsSection({
 export function MaintenanceOrderDetailSheet({
   orderId,
   orderReference,
+  orderStatus,
+  canReopen,
+  reopenPending,
+  onReopen,
   open,
   onOpenChange,
 }: MaintenanceOrderDetailSheetProps) {
@@ -116,12 +125,27 @@ export function MaintenanceOrderDetailSheet({
         ) : detail ? (
           <ScrollArea className="flex-1 pr-3">
             <div className="space-y-5 pb-8">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">Ordre journalier</Badge>
-                <Badge variant="outline">{maintenanceOrderStatusFr(detail.status)}</Badge>
+                <Badge variant="outline">
+                  {maintenanceOrderStatusFr((orderStatus ?? detail.status) as "ACTIVE" | "COMPLETED" | "CANCELLED")}
+                </Badge>
                 <Badge variant="outline">{detail.preventiveCount} préventive(s)</Badge>
                 <Badge variant="outline">{detail.correctiveCount} corrective(s)</Badge>
               </div>
+
+              {canReopen && onReopen ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={reopenPending}
+                  onClick={onReopen}
+                  className="rounded-xl border-amber-200 text-amber-800 hover:bg-amber-50"
+                >
+                  {reopenPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                  Réouvrir l&apos;ordre de maintenance
+                </Button>
+              ) : null}
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
                 <p>
