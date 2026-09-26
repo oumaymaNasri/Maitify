@@ -92,6 +92,7 @@ type ModuleFilterBarProps = {
   action?: React.ReactNode;
   exportActions?: React.ReactNode;
   extras?: React.ReactNode;
+  viewToggle?: React.ReactNode;
   layout?: "grid" | "inline";
   className?: string;
 };
@@ -108,6 +109,7 @@ function ModuleFilterBarInner({
   action,
   exportActions,
   extras,
+  viewToggle,
   layout = "inline",
   className,
 }: ModuleFilterBarProps) {
@@ -135,13 +137,14 @@ function ModuleFilterBarInner({
           : "mb-4 flex items-center justify-between gap-2 sm:flex-row",
         )}
       >
-        <div className="flex min-w-0 items-center gap-2 text-xs text-slate-600 sm:text-sm">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-600 sm:text-sm">
           {resultCount != null ? (
             <>
               <span className="font-semibold tabular-nums text-slate-900">{resultCount}</span>
               résultat(s)
             </>
           ) : null}
+          {viewToggle}
           {isFiltering ? <span className="text-xs text-[#1F76FB]">Filtrage…</span> : null}
         </div>
         <div className="flex shrink-0 flex-nowrap items-center gap-2">

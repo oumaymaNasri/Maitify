@@ -7,8 +7,11 @@ import * as React from "react";
 import { deleteTechnicianAction, deleteTechniciansBulkAction } from "@/app/actions/technician";
 import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
+import { CatalogViewToggle } from "@/components/gmao/catalog-view-toggle";
+import { TechniciansCatalogCards } from "@/components/gmao/catalog-section-cards";
 import { TechniciansDataTable } from "@/components/technicians/technicians-data-table";
 import { TechniciansExportButtons } from "@/components/technicians/technicians-export-buttons";
+import { useCatalogViewMode } from "@/lib/hooks/use-catalog-view-mode";
 import type { TechnicianRow } from "@/lib/gmao/technicians-query";
 import { technicianAvailabilityFr, technicianRoleFr, technicianSpecialtyFr } from "@/lib/view/gmao-labels";
 import { fuzzyMatch } from "@/lib/utils/fuzzy";
@@ -67,6 +70,7 @@ function buildSearchRows(technicians: TechnicianRow[]): TechnicianSearchRow[] {
 }
 
 export function TechniciansModuleClient({ technicians: initialRows }: { technicians: TechnicianRow[] }) {
+  const [viewMode, setViewMode] = useCatalogViewMode("nutrifish.gmao.view.technicians");
   const [rows, setRows] = React.useState(initialRows);
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [status, setStatus] = React.useState<AvailabilityFilter>("ALL");
@@ -152,6 +156,15 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
     setViewTechnician((prev) => (prev && removed.has(prev.id) ? null : prev));
   }, []);
 
+  const toggleSelect = React.useCallback((id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
   return (
     <GmaoModuleShell>
       <ModuleFilterBar
@@ -161,6 +174,7 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
         searchInputId="technicians-search"
         searchPlaceholder="Nom, prénom ou matricule…"
         resultCount={filtered.length}
+        viewToggle={<CatalogViewToggle value={viewMode} onChange={setViewMode} />}
         action={
           <AddTechnicianSheet
             onCreated={(created) => {
@@ -172,15 +186,27 @@ export function TechniciansModuleClient({ technicians: initialRows }: { technici
         filters={filters}
       />
 
-      <TechniciansDataTable
-        technicians={filtered}
-        selectedIds={selectedIds}
-        onSelectedIdsChange={setSelectedIds}
-        onView={setViewTechnician}
-        onEdit={setEditTechnician}
-        onDelete={setDeleteTechnician}
-        onBulkDelete={() => setBulkDeleteOpen(true)}
-      />
+      {viewMode === "cards" ? (
+        <TechniciansCatalogCards
+          technicians={filtered}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onEdit={setEditTechnician}
+          onDelete={setDeleteTechnician}
+          onView={setViewTechnician}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+        />
+      ) : (
+        <TechniciansDataTable
+          technicians={filtered}
+          selectedIds={selectedIds}
+          onSelectedIdsChange={setSelectedIds}
+          onView={setViewTechnician}
+          onEdit={setEditTechnician}
+          onDelete={setDeleteTechnician}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+        />
+      )}
 
       <TechnicianDetailSheet
         technicianId={viewTechnician?.id ?? null}

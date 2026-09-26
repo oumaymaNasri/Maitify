@@ -2,14 +2,18 @@
 
 import dynamic from "next/dynamic";
 import { ArrowDownLeft, Package } from "lucide-react";
+import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import { deletePartAction, deletePartsBulkAction } from "@/app/actions/part";
 import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
+import { CatalogViewToggle } from "@/components/gmao/catalog-view-toggle";
+import { PartsCatalogCards } from "@/components/gmao/catalog-section-cards";
 import { StockExportButtons } from "@/components/stock/stock-export-buttons";
 import { StockInventoryGrid } from "@/components/stock/stock-inventory-grid";
 import { StockMovementsTable } from "@/components/stock/stock-movements-table";
+import { useCatalogViewMode } from "@/lib/hooks/use-catalog-view-mode";
 import type { StockMovementRow } from "@/lib/gmao/stock-movements-query";
 import type { MachineOption, PartInventoryRow } from "@/lib/gmao/stock-parts-query";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
@@ -70,6 +74,8 @@ export function StockModuleClient({
   machines,
   pagination,
 }: StockModuleClientProps) {
+  const pathname = usePathname();
+  const [viewMode, setViewMode] = useCatalogViewMode("nutrifish.gmao.view.parts");
   const [activeTab, setActiveTab] = React.useState<StockTab>("inventory");
   const [parts, setParts] = React.useState(initialParts);
   const [movements, setMovements] = React.useState(initialMovements);
@@ -185,7 +191,33 @@ export function StockModuleClient({
     );
   }, []);
 
+  const toggleSelect = React.useCallback((id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
   const resultCount = activeTab === "inventory" ? filteredParts.length : filteredMovements.length;
+  const partsPager = {
+    total: pagination?.total ?? filteredParts.length,
+    noun: "pièce(s)",
+    page: pagination?.page,
+    pageCount: pagination?.pageCount,
+    pageSize: pagination?.pageSize,
+    previousHref:
+      pagination && pagination.page > 1
+        ? pagination.page - 1 > 1
+          ? `${pathname}?page=${pagination.page - 1}`
+          : pathname
+        : undefined,
+    nextHref:
+      pagination && pagination.pageCount && pagination.page < pagination.pageCount
+        ? `${pathname}?page=${pagination.page + 1}`
+        : undefined,
+  };
 
   return (
     <GmaoModuleShell>
@@ -240,6 +272,9 @@ export function StockModuleClient({
             : "Recherche : pièce, motif, type…"
         }
         resultCount={resultCount}
+        viewToggle={
+          activeTab === "inventory" ? <CatalogViewToggle value={viewMode} onChange={setViewMode} /> : null
+        }
         action={
           activeTab === "inventory" ? (
             <AddPartSheet
@@ -257,16 +292,29 @@ export function StockModuleClient({
       />
 
       {activeTab === "inventory" ? (
-        <StockInventoryGrid
-          parts={filteredParts}
-          selectedIds={selectedIds}
-          onSelectedIdsChange={setSelectedIds}
-          onEdit={setEditPart}
-          onDelete={setDeletePart}
-          onAdjust={setAdjustPart}
-          onBulkDelete={() => setBulkDeleteOpen(true)}
-          pagination={pagination}
-        />
+        viewMode === "cards" ? (
+          <PartsCatalogCards
+            parts={filteredParts}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onEdit={setEditPart}
+            onDelete={setDeletePart}
+            onAdjust={setAdjustPart}
+            onBulkDelete={() => setBulkDeleteOpen(true)}
+            pagination={partsPager}
+          />
+        ) : (
+          <StockInventoryGrid
+            parts={filteredParts}
+            selectedIds={selectedIds}
+            onSelectedIdsChange={setSelectedIds}
+            onEdit={setEditPart}
+            onDelete={setDeletePart}
+            onAdjust={setAdjustPart}
+            onBulkDelete={() => setBulkDeleteOpen(true)}
+            pagination={pagination}
+          />
+        )
       ) : (
         <StockMovementsTable movements={filteredMovements} />
       )}

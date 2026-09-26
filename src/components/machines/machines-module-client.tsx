@@ -2,14 +2,18 @@
 
 import { MachineAssetStatus, MaintenanceFrequency } from "@prisma/client";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import { deleteMachineAction, deleteMachinesBulkAction } from "@/app/actions/machine";
 import { GmaoModuleShell } from "@/components/gmao/premium/module-shell";
 import { ModuleFilterBar } from "@/components/gmao/premium/module-filter-bar";
+import { CatalogViewToggle } from "@/components/gmao/catalog-view-toggle";
+import { MachinesCatalogCards } from "@/components/gmao/catalog-section-cards";
 import type { MachineCardVm } from "@/components/machines/machine-card";
 import { MachinesDataTable } from "@/components/machines/machines-data-table";
 import { MachinesExportButtons } from "@/components/machines/machines-export-buttons";
+import { useCatalogViewMode } from "@/lib/hooks/use-catalog-view-mode";
 import { machineImageApiUrl } from "@/lib/media/image-api";
 import { useDetailQueryParam } from "@/lib/navigation/use-detail-query-param";
 import { maintenanceFrequencyFr } from "@/lib/view/gmao-labels";
@@ -65,6 +69,8 @@ export function MachinesModuleClient({
   machines: MachineCardVm[];
   pagination?: { page: number; pageCount: number; total: number; pageSize?: number };
 }) {
+  const pathname = usePathname();
+  const [viewMode, setViewMode] = useCatalogViewMode("nutrifish.gmao.view.machines");
   const [rows, setRows] = React.useState(initialMachines);
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [equipmentId, setEquipmentId] = React.useState("ALL");
@@ -186,6 +192,33 @@ export function MachinesModuleClient({
     setSelectedIds(new Set());
   }, []);
 
+  const toggleSelect = React.useCallback((id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const pager = {
+    total: pagination?.total ?? filtered.length,
+    noun: "équipement(s)",
+    page: pagination?.page,
+    pageCount: pagination?.pageCount,
+    pageSize: pagination?.pageSize,
+    previousHref:
+      pagination && pagination.page > 1
+        ? pagination.page - 1 > 1
+          ? `${pathname}?page=${pagination.page - 1}`
+          : pathname
+        : undefined,
+    nextHref:
+      pagination && pagination.pageCount && pagination.page < pagination.pageCount
+        ? `${pathname}?page=${pagination.page + 1}`
+        : undefined,
+  };
+
   return (
     <GmaoModuleShell>
       <ModuleFilterBar
@@ -195,6 +228,7 @@ export function MachinesModuleClient({
         searchInputId="machines-equipment-search"
         searchPlaceholder="Nom, matricule ou ID…"
         resultCount={pagination?.total ?? filtered.length}
+        viewToggle={<CatalogViewToggle value={viewMode} onChange={setViewMode} />}
         action={
           <MachineFormSheet
             onCreated={(created) => {
@@ -206,15 +240,27 @@ export function MachinesModuleClient({
         filters={filters}
       />
 
-      <MachinesDataTable
-        machines={filtered}
-        selectedIds={selectedIds}
-        onSelectedIdsChange={setSelectedIds}
-        onEdit={setEditMachine}
-        onDelete={setDeleteMachine}
-        onBulkDelete={() => setBulkDeleteOpen(true)}
-        pagination={pagination}
-      />
+      {viewMode === "cards" ? (
+        <MachinesCatalogCards
+          machines={filtered}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onEdit={setEditMachine}
+          onDelete={setDeleteMachine}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+          pagination={pager}
+        />
+      ) : (
+        <MachinesDataTable
+          machines={filtered}
+          selectedIds={selectedIds}
+          onSelectedIdsChange={setSelectedIds}
+          onEdit={setEditMachine}
+          onDelete={setDeleteMachine}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+          pagination={pagination}
+        />
+      )}
 
       <MachineEditDialog
         machine={editMachine}
