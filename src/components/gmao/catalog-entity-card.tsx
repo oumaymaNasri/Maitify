@@ -3,10 +3,11 @@
 import type { LucideIcon } from "lucide-react";
 import { Edit2, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import * as React from "react";
 
 import { GmaoRowCheckbox } from "@/components/gmao/gmao-table";
-import { OptimizedImage } from "@/components/ui/optimized-image";
 import { Button } from "@/components/ui/button";
+import { isUsableImageSrc } from "@/lib/media/is-usable-image-src";
 import { cn } from "@/lib/utils";
 
 export type CatalogCardMeta = {
@@ -43,6 +44,15 @@ export function CatalogEntityCard({
   onEdit,
   onDelete,
 }: CatalogEntityCardProps) {
+  const usableSrc = isUsableImageSrc(imageUrl) ? imageUrl!.trim() : "";
+  const [broken, setBroken] = React.useState(false);
+
+  React.useEffect(() => {
+    setBroken(false);
+  }, [usableSrc]);
+
+  const showPhoto = Boolean(usableSrc) && !broken;
+
   return (
     <article
       className={cn(
@@ -50,17 +60,17 @@ export function CatalogEntityCard({
         selected ? "border-[#1F76FB] shadow-md" : "border-slate-200 hover:border-slate-300 hover:shadow-md",
       )}
     >
-      <div className="relative aspect-[16/10] w-full bg-slate-100">
-        {imageUrl ? (
-          <OptimizedImage
-            src={imageUrl}
+      <div className="relative h-48 w-full overflow-hidden bg-slate-100">
+        {showPhoto ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={usableSrc}
             alt={title}
-            fill
-            sizes="(max-width: 768px) 100vw, 33vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            onError={() => setBroken(true)}
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-slate-400">
             <FallbackIcon className="h-10 w-10 text-[#1F76FB]/45" strokeWidth={1.25} />
             <span className="text-xs font-medium">Aucune image disponible</span>
           </div>

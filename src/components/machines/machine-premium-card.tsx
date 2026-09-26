@@ -8,7 +8,6 @@ import { MachineQrDialog } from "@/components/machines/machine-qr-dialog";
 import type { MachineCardVm } from "@/components/machines/machine-card";
 import { MachineFormSheet } from "@/components/machines/machine-form-sheet";
 import { DeleteConfirmDialog } from "@/components/gmao/premium/delete-confirm-dialog";
-import { OptimizedImage } from "@/components/ui/optimized-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { maintenanceFrequencyFr } from "@/lib/view/gmao-labels";
@@ -18,6 +17,7 @@ import {
   machineStatusBadgeClass,
 } from "@/lib/view/machine-labels";
 import { machineImageApiUrl } from "@/lib/media/image-api";
+import { isUsableImageSrc } from "@/lib/media/is-usable-image-src";
 import { cn } from "@/lib/utils";
 
 type MachinePremiumCardProps = {
@@ -29,6 +29,13 @@ type MachinePremiumCardProps = {
 function MachinePremiumCardInner({ machine, onView, onDeleted }: MachinePremiumCardProps) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [imageBroken, setImageBroken] = React.useState(false);
+  const imageSrc = machine.hasCoverImage ? machineImageApiUrl(machine.id) : "";
+  const showPhoto = isUsableImageSrc(imageSrc) && !imageBroken;
+
+  React.useEffect(() => {
+    setImageBroken(false);
+  }, [imageSrc]);
 
   return (
     <>
@@ -38,19 +45,19 @@ function MachinePremiumCardInner({ machine, onView, onDeleted }: MachinePremiumC
           "hover:border-slate-300 hover:shadow-md",
         )}
       >
-        <div className="relative aspect-[16/10] w-full bg-slate-100">
-          {machine.hasCoverImage ? (
-            <OptimizedImage
-              src={machineImageApiUrl(machine.id)}
+        <div className="relative h-48 w-full overflow-hidden bg-slate-100">
+          {showPhoto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageSrc}
               alt={machine.name}
-              fill
-              sizes="(max-width: 768px) 100vw, 33vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              onError={() => setImageBroken(true)}
             />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
-              <Settings2 className="h-10 w-10 opacity-40" />
-              <span className="text-xs">Aucune photo</span>
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-slate-400">
+              <Settings2 className="h-10 w-10 text-[#1F76FB]/45" strokeWidth={1.25} />
+              <span className="text-xs font-medium">Aucune image disponible</span>
             </div>
           )}
           <div className="absolute left-2 top-2">

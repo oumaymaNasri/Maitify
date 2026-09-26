@@ -5,6 +5,7 @@ import type { LiveAlertVm } from "@/components/dashboard/dashboard-live-alerts";
 import { getMttrMonthlySeries } from "@/lib/gmao/chart-series";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { prisma } from "@/lib/db/prisma";
+import { resolveMachineImageUrl } from "@/lib/gmao/machine-image";
 import { startOfTodayTunis } from "@/lib/gmao/intervention-status";
 
 type DailyAggRow = { day_key: string; interventions: number; pannes: number; minutes: number };
@@ -217,14 +218,14 @@ async function fetchFeaturedMachine(): Promise<FeaturedMachineVm | null> {
       description: true,
       legacyMatricule: true,
       galleryImageUrls: true,
-      photos: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true } },
+      photos: { take: 8, orderBy: { sortOrder: "asc" }, select: { url: true } },
       _count: { select: { maintenanceLogs: true } },
     },
   });
 
   if (!machine) return null;
 
-  const cover = machine.photos[0]?.url ?? machine.galleryImageUrls[0] ?? null;
+  const cover = resolveMachineImageUrl(machine.photos, machine.galleryImageUrls);
   const targetPct = machine.targetAvailability != null ? `${Math.round(machine.targetAvailability * 100)}%` : "95%";
 
   const specs = [

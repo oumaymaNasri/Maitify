@@ -6,6 +6,7 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import type { PaginatedResult } from "@/lib/db/pagination";
 import { clampPagination, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
+import { resolveMachineImageUrl } from "@/lib/gmao/machine-image";
 
 export const MACHINES_PAGE_SIZE = 50;
 
@@ -19,6 +20,7 @@ const machineListSelect = {
   qrCode: true,
   maintenanceSector: true,
   galleryImageUrls: true,
+  photos: { take: 8, orderBy: { sortOrder: "asc" }, select: { url: true } },
   _count: { select: { photos: true, maintenanceLogs: true } },
 } as const;
 
@@ -32,6 +34,7 @@ function mapMachineCard(m: {
   qrCode: string | null;
   maintenanceSector: MaintenanceFrequency;
   galleryImageUrls: string[];
+  photos: { url: string }[];
   _count: { photos: number; maintenanceLogs: number };
 }): MachineCardVm {
   return {
@@ -42,7 +45,7 @@ function mapMachineCard(m: {
     targetAvailability: m.targetAvailability ?? null,
     assetStatus: m.assetStatus,
     maintenanceSector: m.maintenanceSector,
-    hasCoverImage: m._count.photos > 0 || m.galleryImageUrls.some((u) => Boolean(u?.trim())),
+    hasCoverImage: Boolean(resolveMachineImageUrl(m.photos, m.galleryImageUrls)),
     interventionCount: m._count.maintenanceLogs,
     galleryCount: m._count.photos,
     qrCode: m.qrCode,
@@ -133,6 +136,7 @@ export function getMachinesInventoryCached(
     () => fetchMachinesPage(page, pageSize, filters),
     [
       CACHE_TAGS.machines,
+      "cards-v2",
       String(page),
       String(pageSize),
       filters?.q ?? "",
@@ -146,7 +150,7 @@ export function getMachinesInventoryCached(
 }
 
 export function getAllMachinesInventoryCached() {
-  return unstable_cache(() => fetchAllMachinesInventory(), [CACHE_TAGS.machines, "all-v1"], {
+  return unstable_cache(() => fetchAllMachinesInventory(), [CACHE_TAGS.machines, "all-v2"], {
     revalidate: 120,
     tags: [CACHE_TAGS.machines],
   })();

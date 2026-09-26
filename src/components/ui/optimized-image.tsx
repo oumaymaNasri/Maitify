@@ -31,7 +31,11 @@ function isRemoteUrl(src: string) {
   return src.startsWith("http://") || src.startsWith("https://");
 }
 
-/** next/image avec lazy-load ; data-URL en img natif ; URLs distantes via Image (unoptimized). */
+function isAppApiPath(src: string) {
+  return src.startsWith("/api/");
+}
+
+/** next/image pour fichiers statiques ; <img> natif pour data-URL, blob, et routes /api (auth + non optimisables). */
 export function OptimizedImage({
   src,
   alt,
@@ -44,14 +48,12 @@ export function OptimizedImage({
 }: OptimizedImageProps) {
   if (!src) return null;
 
-  if (isDataUrl(src) || isBlobUrl(src)) {
+  const fillClass = fill ? "absolute inset-0 h-full w-full object-cover" : "h-48 w-full object-cover";
+
+  if (isDataUrl(src) || isBlobUrl(src) || isAppApiPath(src)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt}
-        className={cn(className, fill && "absolute inset-0 h-full w-full object-cover")}
-      />
+      <img src={src} alt={alt} className={cn(fillClass, className)} />
     );
   }
 

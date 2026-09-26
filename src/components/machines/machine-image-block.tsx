@@ -1,8 +1,9 @@
 "use client";
 
 import { Factory } from "lucide-react";
+import * as React from "react";
 
-import { OptimizedImage } from "@/components/ui/optimized-image";
+import { isUsableImageSrc } from "@/lib/media/is-usable-image-src";
 import { cn } from "@/lib/utils";
 
 type MachineImageBlockProps = {
@@ -12,33 +13,28 @@ type MachineImageBlockProps = {
 };
 
 export function MachineImageBlock({ imageUrl, alt, className }: MachineImageBlockProps) {
-  const src = imageUrl?.trim() || "";
-  const isInline = src.startsWith("data:") || src.startsWith("blob:");
+  const src = isUsableImageSrc(imageUrl) ? imageUrl!.trim() : "";
+  const [broken, setBroken] = React.useState(false);
 
-  if (src && isInline) {
+  React.useEffect(() => {
+    setBroken(false);
+  }, [src]);
+
+  if (src && !broken) {
     return (
       <div
         className={cn(
-          "relative mb-4 h-48 w-full overflow-hidden rounded-xl border border-slate-100 shadow-sm",
+          "relative mb-4 h-48 w-full overflow-hidden rounded-xl border border-slate-100 bg-slate-100 shadow-sm",
           className,
         )}
       >
-        {/* data-URL / blob : aperçu immédiat, next/image incompatible */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="absolute inset-0 h-full w-full object-cover" />
-      </div>
-    );
-  }
-
-  if (src) {
-    return (
-      <div
-        className={cn(
-          "relative mb-4 h-48 w-full overflow-hidden rounded-xl border border-slate-100 shadow-sm",
-          className,
-        )}
-      >
-        <OptimizedImage src={src} alt={alt} fill sizes="(max-width: 640px) 100vw, 480px" className="object-cover" />
+        <img
+          src={src}
+          alt={alt}
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={() => setBroken(true)}
+        />
       </div>
     );
   }

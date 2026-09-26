@@ -1,9 +1,9 @@
 "use client";
 
 import { CalendarClock, MapPin, Settings2 } from "lucide-react";
+import * as React from "react";
 
 import { MachineQrDialog } from "@/components/machines/machine-qr-dialog";
-import { OptimizedImage } from "@/components/ui/optimized-image";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { machineImageApiUrl } from "@/lib/media/image-api";
+import { isUsableImageSrc } from "@/lib/media/is-usable-image-src";
 import { cn } from "@/lib/utils";
 import {
   formatLastIntervention,
@@ -48,6 +49,14 @@ export type MachineCardVm = {
 };
 
 export function MachineCard({ machine, className }: { machine: MachineCardVm; className?: string }) {
+  const [imageBroken, setImageBroken] = React.useState(false);
+  const imageSrc = machine.hasCoverImage ? machineImageApiUrl(machine.id) : "";
+  const showPhoto = isUsableImageSrc(imageSrc) && !imageBroken;
+
+  React.useEffect(() => {
+    setImageBroken(false);
+  }, [imageSrc]);
+
   return (
     <Card
       className={cn(
@@ -55,22 +64,22 @@ export function MachineCard({ machine, className }: { machine: MachineCardVm; cl
         className,
       )}
     >
-      <div className="relative aspect-[16/10] w-full bg-muted">
-        {machine.hasCoverImage ? (
-          <OptimizedImage
-            src={machineImageApiUrl(machine.id)}
+      <div className="relative h-48 w-full overflow-hidden bg-slate-100">
+        {showPhoto ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageSrc}
             alt={machine.name}
-            fill
-            sizes="(max-width: 768px) 100vw, 33vw"
-            className="transition-transform duration-300 group-hover:scale-[1.02]"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            onError={() => setImageBroken(true)}
           />
         ) : (
           <div
-            className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-100 text-slate-600"
+            className="flex h-full w-full flex-col items-center justify-center gap-2 bg-slate-100 text-slate-400"
             aria-hidden
           >
-            <Settings2 className="h-10 w-10 opacity-25" />
-            <span className="text-xs font-medium">Aucune photo</span>
+            <Settings2 className="h-10 w-10 text-[#1F76FB]/45" strokeWidth={1.25} />
+            <span className="text-xs font-medium">Aucune image disponible</span>
           </div>
         )}
         <div className="absolute left-2 top-2">

@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { clampPagination, DEFAULT_PAGE_SIZE, paginatedMeta, type PaginatedResult } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
+import { isUsableImageSrc } from "@/lib/media/is-usable-image-src";
 
 export type PartMachineVm = {
   id: string;
@@ -66,7 +67,7 @@ function mapPartRow(p: {
     reference: p.reference,
     quantity: p.quantity,
     minStock: p.minStock,
-    hasImage: Boolean(p.imageUrl?.trim()),
+    hasImage: isUsableImageSrc(p.imageUrl),
     machines,
     isLowStock: p.quantity <= p.minStock,
   };
