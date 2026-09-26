@@ -18,6 +18,7 @@ type SearchableVirtualSelectProps = {
   name?: string;
   value: string;
   onValueChange: (value: string) => void;
+  onQueryChange?: (query: string) => void;
   options: VirtualSelectOption[];
   placeholder?: string;
   disabled?: boolean;
@@ -29,6 +30,7 @@ function SearchableVirtualSelectInner({
   name,
   value,
   onValueChange,
+  onQueryChange,
   options,
   placeholder = "Rechercher…",
   disabled,
@@ -80,6 +82,7 @@ function SearchableVirtualSelectInner({
         value={open ? query : selected?.label ?? query}
         onChange={(e) => {
           setQuery(e.target.value);
+          onQueryChange?.(e.target.value);
           setOpen(true);
         }}
         onFocus={() => {
@@ -115,6 +118,7 @@ function SearchableVirtualSelectInner({
                     style={{ height: item.size, transform: `translateY(${item.start}px)` }}
                     onClick={() => {
                       onValueChange(option.value);
+                      onQueryChange?.(option.label);
                       setOpen(false);
                     }}
                   >

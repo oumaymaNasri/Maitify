@@ -267,6 +267,16 @@ export async function fetchAllInterventionsInventory(
   return mapListRows(rows);
 }
 
+export async function fetchInterventionListByIds(ids: string[]): Promise<InterventionListVm[]> {
+  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+  if (unique.length === 0) return [];
+  const rows = await prisma.maintenanceLog.findMany({
+    where: { id: { in: unique } },
+    select: listSelect,
+  });
+  return mapListRows(rows);
+}
+
 export async function fetchInterventionSectors(): Promise<string[]> {
   const rows = await prisma.maintenanceLog.findMany({
     where: { sectorMaintenance: { not: null } },
@@ -312,7 +322,7 @@ export function getInterventionsInventoryCached(
 ) {
   return unstable_cache(
     () => fetchInterventionsInventory(technicianId, page, limit, filters),
-    [CACHE_TAGS.interventions, "catalog-v4", catalogCacheKey(technicianId, filters, page, limit)],
+    [CACHE_TAGS.interventions, "catalog-v5", catalogCacheKey(technicianId, filters, page, limit)],
     { revalidate: 60, tags: [CACHE_TAGS.interventions] },
   )();
 }

@@ -197,10 +197,33 @@ export function InterventionsModuleClient({
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [bulkEditOpen, setBulkEditOpen] = React.useState(false);
   const [bulkPending, setBulkPending] = React.useState(false);
+  const bulkOverlayRef = React.useRef<Map<string, InterventionListVm> | null>(null);
 
   React.useEffect(() => {
-    setRows(initialRows);
     setQuery(initialQuery);
+    const overlay = bulkOverlayRef.current;
+    if (overlay && overlay.size > 0) {
+      const caughtUp = Array.from(overlay.entries()).every(([id, local]) => {
+        const server = initialRows.find((row) => row.id === id);
+        return (
+          !server ||
+          (server.technicianId === local.technicianId &&
+            server.sectorMaintenance === local.sectorMaintenance &&
+            server.service === local.service &&
+            server.type === local.type &&
+            server.technicianName === local.technicianName &&
+            server.failureCause === local.failureCause)
+        );
+      });
+      if (caughtUp) {
+        bulkOverlayRef.current = null;
+        setRows(initialRows);
+      } else {
+        setRows(initialRows.map((row) => overlay.get(row.id) ?? row));
+      }
+      return;
+    }
+    setRows(initialRows);
   }, [initialRows, initialQuery]);
 
   const patchQuery = React.useCallback(
@@ -426,30 +449,36 @@ export function InterventionsModuleClient({
   );
 
   const handleBulkEdit = React.useCallback(
-    async (field: string, value: string) => {
+    async (field: string, value: string): Promise<{ ok: true } | { ok: false; error: string }> => {
       const ids = Array.from(selectedIds);
-      if (ids.length === 0 || bulkPending) return;
+      if (ids.length === 0) return { ok: false, error: "Cochez au moins une ligne dans le tableau." };
+      if (bulkPending) return { ok: false, error: "Une mise à jour est déjà en cours." };
       const previous = rows;
       setRows((prev) => prev.map((row) => (selectedIds.has(row.id) ? applyInterventionBulkPatch(row, field, value, technicians) : row)));
       setBulkPending(true);
-      const res = await bulkUpdateMaintenanceLogsAction(ids, field, value);
-      setBulkPending(false);
-      if (!res.ok) {
+      try {
+        const res = await bulkUpdateMaintenanceLogsAction({ ids, field, value });
+        if (!res.ok) {
+          setRows(previous);
+          return { ok: false, error: res.error };
+        }
+        if (res.updated === 0) {
+          setRows(previous);
+          return { ok: false, error: "Aucune ligne n’a pu être mise à jour." };
+        }
+        const byId = new Map(res.items.map((item) => [item.id, item]));
+        bulkOverlayRef.current = byId;
+        setRows((prev) => prev.map((row) => byId.get(row.id) ?? row));
+        setBulkEditOpen(false);
+        setSelectedIds(new Set());
+        router.refresh();
+        return { ok: true };
+      } catch (error) {
         setRows(previous);
-        window.alert(res.error);
-        return;
+        return { ok: false, error: error instanceof Error ? error.message : "Mise à jour groupée impossible." };
+      } finally {
+        setBulkPending(false);
       }
-      if (res.updated === 0) {
-        setRows(previous);
-        window.alert("Aucune ligne n’a pu être mise à jour (ordre clôturé ou valeur incompatible).");
-        return;
-      }
-      setBulkEditOpen(false);
-      setSelectedIds(new Set());
-      if (res.skipped > 0) {
-        window.alert(`${res.updated} ligne(s) mise(s) à jour. ${res.skipped} ignorée(s).`);
-      }
-      router.refresh();
     },
     [bulkPending, rows, selectedIds, technicians, router],
   );

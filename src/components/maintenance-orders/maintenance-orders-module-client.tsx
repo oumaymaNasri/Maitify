@@ -77,6 +77,7 @@ export function MaintenanceOrdersModuleClient({
   const [bulkEditOpen, setBulkEditOpen] = React.useState(false);
   const [bulkEditPending, setBulkEditPending] = React.useState(false);
   const [reopenPending, setReopenPending] = React.useState(false);
+  const bulkOverlayRef = React.useRef<Map<string, MaintenanceOrderRow> | null>(null);
   const [, startFilterTransition] = React.useTransition();
 
   const filterSearch = React.useMemo(() => {
@@ -138,6 +139,25 @@ export function MaintenanceOrdersModuleClient({
   useDetailQueryParam(openDetailById);
 
   React.useEffect(() => {
+    const overlay = bulkOverlayRef.current;
+    if (overlay && overlay.size > 0) {
+      const caughtUp = Array.from(overlay.entries()).every(([id, local]) => {
+        const server = initialRows.find((row) => row.id === id);
+        return (
+          !server ||
+          (server.status === local.status &&
+            server.observationComment === local.observationComment &&
+            server.managerApproval === local.managerApproval)
+        );
+      });
+      if (caughtUp) {
+        bulkOverlayRef.current = null;
+        setRows(initialRows);
+      } else {
+        setRows(initialRows.map((row) => overlay.get(row.id) ?? row));
+      }
+      return;
+    }
     setRows(initialRows);
   }, [initialRows]);
 
@@ -258,9 +278,10 @@ export function MaintenanceOrdersModuleClient({
   );
 
   const handleBulkEdit = React.useCallback(
-    async (field: string, value: string) => {
+    async (field: string, value: string): Promise<{ ok: true } | { ok: false; error: string }> => {
       const ids = Array.from(selectedIds);
-      if (ids.length === 0 || bulkEditPending) return;
+      if (ids.length === 0) return { ok: false, error: "Cochez au moins une ligne dans le tableau." };
+      if (bulkEditPending) return { ok: false, error: "Une mise à jour est déjà en cours." };
       const previous = rows;
       setRows((prev) =>
         prev.map((row) => {
@@ -272,24 +293,25 @@ export function MaintenanceOrdersModuleClient({
         }),
       );
       setBulkEditPending(true);
-      const res = await bulkUpdateMaintenanceOrdersAction(ids, field, value);
-      setBulkEditPending(false);
-      if (!res.ok) {
+      try {
+        const res = await bulkUpdateMaintenanceOrdersAction({ ids, field, value });
+        if (!res.ok) {
+          setRows(previous);
+          return { ok: false, error: res.error };
+        }
+        const byId = new Map(res.items.map((item) => [item.id, item]));
+        bulkOverlayRef.current = byId;
+        setRows((prev) => prev.map((row) => byId.get(row.id) ?? row));
+        setBulkEditOpen(false);
+        setSelectedIds(new Set());
+        router.refresh();
+        return { ok: true };
+      } catch (error) {
         setRows(previous);
-        window.alert(res.error);
-        return;
+        return { ok: false, error: error instanceof Error ? error.message : "Mise à jour groupée impossible." };
+      } finally {
+        setBulkEditPending(false);
       }
-      if (res.updated === 0) {
-        setRows(previous);
-        window.alert("Aucun ordre n’a pu être mis à jour.");
-        return;
-      }
-      setBulkEditOpen(false);
-      setSelectedIds(new Set());
-      if (res.skipped > 0) {
-        window.alert(`${res.updated} ordre(s) mis à jour. ${res.skipped} ignoré(s).`);
-      }
-      router.refresh();
     },
     [bulkEditPending, rows, selectedIds, router],
   );

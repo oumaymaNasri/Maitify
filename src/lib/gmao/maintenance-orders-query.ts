@@ -150,6 +150,16 @@ export async function fetchMaintenanceOrders(): Promise<MaintenanceOrderRow[]> {
   return page.items;
 }
 
+export async function fetchMaintenanceOrdersByIds(ids: string[]): Promise<MaintenanceOrderRow[]> {
+  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+  if (unique.length === 0) return [];
+  const rows = await prisma.maintenanceOrder.findMany({
+    where: { id: { in: unique } },
+    select: orderListSelect,
+  });
+  return mapOrderRows(rows);
+}
+
 export function getMaintenanceOrdersCached(
   filters?: MaintenanceOrderListFilters,
   page = 1,
@@ -162,7 +172,7 @@ export function getMaintenanceOrdersCached(
   const dateTo = filters?.dateTo ?? "";
   return unstable_cache(
     () => fetchMaintenanceOrdersPage(filters, page, pageSize),
-    [CACHE_TAGS.maintenanceOrders, "v7", String(page), String(pageSize), q, status, machineId, dateFrom, dateTo],
+    [CACHE_TAGS.maintenanceOrders, "v8", String(page), String(pageSize), q, status, machineId, dateFrom, dateTo],
     { revalidate: 60, tags: [CACHE_TAGS.maintenanceOrders] },
   )();
 }

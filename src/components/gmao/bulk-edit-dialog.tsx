@@ -40,8 +40,20 @@ type BulkEditDialogProps = {
   selectedCount: number;
   fields: BulkEditField[];
   pending?: boolean;
-  onApply: (fieldId: string, value: string) => Promise<void> | void;
+  onApply: (fieldId: string, value: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
+
+function resolveSearchValue(raw: string, options: BulkEditFieldOption[]): string | null {
+  const needle = raw.trim().toLowerCase();
+  if (!needle) return "";
+  const byValue = options.find((opt) => opt.value === raw.trim());
+  if (byValue) return byValue.value;
+  const exact = options.filter((opt) => opt.label.trim().toLowerCase() === needle && opt.value);
+  if (exact.length === 1) return exact[0]!.value;
+  const partial = options.filter((opt) => opt.value && opt.label.toLowerCase().includes(needle));
+  if (partial.length === 1) return partial[0]!.value;
+  return null;
+}
 
 export function BulkEditDialog({
   open,
@@ -54,6 +66,7 @@ export function BulkEditDialog({
 }: BulkEditDialogProps) {
   const [fieldId, setFieldId] = React.useState(fields[0]?.id ?? "");
   const [value, setValue] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
 
   const field = fields.find((item) => item.id === fieldId) ?? fields[0];
@@ -62,11 +75,13 @@ export function BulkEditDialog({
     if (!open) return;
     setFieldId(fields[0]?.id ?? "");
     setValue("");
+    setSearchQuery("");
     setError(null);
-  }, [open, fields]);
+  }, [open]);
 
   React.useEffect(() => {
     setValue("");
+    setSearchQuery("");
     setError(null);
   }, [fieldId]);
 
@@ -78,21 +93,43 @@ export function BulkEditDialog({
     return list;
   }, [field]);
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  async function apply() {
     if (!field || pending) return;
-    if (field.kind !== "text" && field.kind !== "search" && options.length > 0 && value === "" && !field.allowClear) {
+    if (selectedCount === 0) {
+      setError("Cochez au moins une ligne dans le tableau.");
+      return;
+    }
+
+    let nextValue = value;
+    if (field.kind === "search") {
+      const resolved = resolveSearchValue(value || searchQuery, options);
+      if (resolved === null) {
+        setError("Choisissez un intervenant dans la liste.");
+        return;
+      }
+      nextValue = resolved;
+    } else if (field.kind === "select" && nextValue === "" && !field.allowClear) {
       setError("Choisissez une valeur.");
       return;
     }
+
     setError(null);
-    await onApply(field.id, value);
+    const result = await onApply(field.id, nextValue);
+    if (!result.ok) {
+      setError(result.error);
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void apply();
+          }}
+          className="grid gap-4"
+        >
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
@@ -126,6 +163,7 @@ export function BulkEditDialog({
                 id="bulk-edit-value"
                 value={value}
                 onValueChange={setValue}
+                onQueryChange={setSearchQuery}
                 options={options}
                 placeholder={field.placeholder ?? "Rechercher…"}
                 disabled={pending}
@@ -174,7 +212,15 @@ export function BulkEditDialog({
             <Button type="button" variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit" className="bg-[#1F76FB] hover:bg-[#1a65d6]" disabled={pending || selectedCount === 0}>
+            <Button
+              type="submit"
+              className="bg-[#1F76FB] hover:bg-[#1a65d6]"
+              disabled={pending || selectedCount === 0}
+              onClick={(event) => {
+                event.preventDefault();
+                void apply();
+              }}
+            >
               <PencilLine className="mr-2 h-4 w-4" />
               {pending ? "Mise à jour…" : "Appliquer à la sélection"}
             </Button>

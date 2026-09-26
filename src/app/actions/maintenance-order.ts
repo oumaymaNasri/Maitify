@@ -7,7 +7,7 @@ import { z } from "zod";
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { requireManageAction } from "@/lib/auth/session-server";
 import { fetchMaintenanceOrderDetail } from "@/lib/gmao/maintenance-order-detail-query";
-import { fetchMaintenanceOrders } from "@/lib/gmao/maintenance-orders-query";
+import { fetchMaintenanceOrders, fetchMaintenanceOrdersByIds } from "@/lib/gmao/maintenance-orders-query";
 import { calendarDayKey } from "@/lib/gmao/intervention-status";
 import {
   assertOrderWritableById,
@@ -410,20 +410,24 @@ function orderNullableText(value: string): string | null {
   return trimmed ? trimmed : null;
 }
 
-export async function bulkUpdateMaintenanceOrdersAction(
-  ids: string[],
-  field: string,
-  value: string,
-): Promise<{ ok: true; updated: number; skipped: number } | { ok: false; error: string }> {
+export async function bulkUpdateMaintenanceOrdersAction(input: {
+  ids: string[];
+  field: string;
+  value: string;
+}): Promise<
+  | { ok: true; updated: number; skipped: number; items: Awaited<ReturnType<typeof fetchMaintenanceOrdersByIds>> }
+  | { ok: false; error: string }
+> {
   const auth = requireManageAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const parsedField = maintenanceOrderBulkFieldSchema.safeParse(field);
+  const parsedField = maintenanceOrderBulkFieldSchema.safeParse(input.field);
   if (!parsedField.success) return { ok: false, error: "Colonne non modifiable en masse." };
 
-  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean))).slice(0, ORDER_BULK_MAX);
+  const unique = Array.from(new Set((input.ids ?? []).map((id) => id.trim()).filter(Boolean))).slice(0, ORDER_BULK_MAX);
   if (unique.length === 0) return { ok: false, error: "Aucun ordre sélectionné." };
 
+  const value = input.value ?? "";
   let data: Prisma.MaintenanceOrderUpdateManyMutationInput;
   if (parsedField.data === "status") {
     const status = value.trim() as MaintenanceOrderStatus;
@@ -448,7 +452,11 @@ export async function bulkUpdateMaintenanceOrdersAction(
       updated += result.count;
     }
 
-    if (parsedField.data === "status" && updated > 0) {
+    if (updated === 0) {
+      return { ok: false, error: "Aucun ordre n’a pu être mis à jour." };
+    }
+
+    if (parsedField.data === "status") {
       await prisma.gmaoAlert.create({
         data: {
           type: AlertType.MAINTENANCE_ORDER,
@@ -466,8 +474,10 @@ export async function bulkUpdateMaintenanceOrdersAction(
       });
     }
 
+    const items = await fetchMaintenanceOrdersByIds(unique);
     revalidateMaintenanceOrderPaths();
-    return { ok: true, updated, skipped: Math.max(0, unique.length - updated) };
+    revalidatePath("/maintenance-orders", "page");
+    return { ok: true, updated, skipped: Math.max(0, unique.length - updated), items };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Mise à jour groupée impossible." };
   }

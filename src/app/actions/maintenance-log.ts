@@ -20,11 +20,11 @@ import { requireManageAction, requireSessionAction } from "@/lib/auth/session-se
 import { createStockMovementFromIntervention } from "@/lib/gmao/stock-movement-helper";
 import { prisma } from "@/lib/db/prisma";
 import { fetchInterventionDetail } from "@/lib/gmao/intervention-detail-query";
+import { fetchInterventionListByIds } from "@/lib/gmao/interventions-query";
 import { attachLogToDailyOrder, type DailyOrderLink } from "@/lib/gmao/maintenance-order-from-logs";
 import {
   assertDailyOrderWritable,
   assertLogWritable,
-  filterWritableMaintenanceLogIds,
   findExistingIntervention,
 } from "@/lib/gmao/maintenance-catalog-reconcile";
 import { completeMaintenanceOrderLine } from "@/app/actions/maintenance-order";
@@ -33,6 +33,7 @@ import {
   maintenanceLogPayloadSchema,
   mapOperationToLegacyType,
 } from "@/lib/validations/maintenance-log";
+import { failureCauseFr } from "@/lib/view/gmao-labels";
 
 export type CreateMaintenanceLogResult =
   | { ok: true; id: string; om?: DailyOrderLink }
@@ -583,10 +584,10 @@ function buildMaintenanceLogBulkData(
     }
     case "failureCause": {
       const raw = value.trim();
-      if (!raw) return { failureCause: null };
+      if (!raw) return { failureCause: null, failureCauseLabel: null };
       const failureCause = parseFailureCause(raw);
       if (!failureCause) return null;
-      return { failureCause };
+      return { failureCause, failureCauseLabel: failureCauseFr(failureCause) };
     }
     case "preventiveRealized": {
       if (value === "true") {
@@ -602,52 +603,77 @@ function buildMaintenanceLogBulkData(
   }
 }
 
-export async function bulkUpdateMaintenanceLogsAction(
-  ids: string[],
-  field: string,
-  value: string,
-): Promise<{ ok: true; updated: number; skipped: number } | { ok: false; error: string }> {
+export type BulkUpdateLogsResult =
+  | { ok: true; updated: number; skipped: number; items: Awaited<ReturnType<typeof fetchInterventionListByIds>> }
+  | { ok: false; error: string };
+
+async function resolveTechnicianId(value: string): Promise<string | null | undefined> {
+  const raw = value.trim();
+  if (!raw) return null;
+  const byId = await prisma.technician.findUnique({ where: { id: raw }, select: { id: true } });
+  if (byId) return byId.id;
+  const techs = await prisma.technician.findMany({
+    select: { id: true, firstName: true, lastName: true },
+  });
+  const needle = raw.toLowerCase();
+  const exact = techs.filter((t) => `${t.firstName} ${t.lastName}`.trim().toLowerCase() === needle);
+  if (exact.length === 1) return exact[0]!.id;
+  const partial = techs.filter((t) => `${t.firstName} ${t.lastName}`.toLowerCase().includes(needle));
+  if (partial.length === 1) return partial[0]!.id;
+  return undefined;
+}
+
+export async function bulkUpdateMaintenanceLogsAction(input: {
+  ids: string[];
+  field: string;
+  value: string;
+}): Promise<BulkUpdateLogsResult> {
   const auth = requireManageAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const parsedField = maintenanceLogBulkFieldSchema.safeParse(field);
+  const parsedField = maintenanceLogBulkFieldSchema.safeParse(input.field);
   if (!parsedField.success) return { ok: false, error: "Colonne non modifiable en masse." };
 
-  const unique = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean))).slice(0, BULK_EDIT_MAX);
+  const unique = Array.from(new Set((input.ids ?? []).map((id) => id.trim()).filter(Boolean))).slice(0, BULK_EDIT_MAX);
   if (unique.length === 0) return { ok: false, error: "Aucune ligne sélectionnée." };
+
+  let value = input.value ?? "";
+  if (parsedField.data === "technicianId") {
+    const resolved = await resolveTechnicianId(value);
+    if (resolved === undefined) return { ok: false, error: "Intervenant introuvable. Choisissez-le dans la liste." };
+    value = resolved ?? "";
+  }
 
   const data = buildMaintenanceLogBulkData(parsedField.data, value);
   if (!data) return { ok: false, error: "Valeur invalide pour cette colonne." };
 
-  if (parsedField.data === "technicianId") {
-    const technicianId = value.trim();
-    if (technicianId) {
-      const exists = await prisma.technician.findUnique({ where: { id: technicianId }, select: { id: true } });
-      if (!exists) return { ok: false, error: "Intervenant introuvable." };
-    }
-  }
-
   try {
-    const { writableIds } = await filterWritableMaintenanceLogIds(prisma, unique);
-    if (writableIds.length === 0) {
-      return { ok: false, error: "Aucune ligne sélectionnée n’est modifiable (ordre clôturé)." };
+    const existing = await prisma.maintenanceLog.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, type: true },
+    });
+    let targetIds = existing.map((row) => row.id);
+    if (parsedField.data === "preventiveRealized") {
+      targetIds = existing.filter((row) => row.type === InterventionType.PREVENTIVE).map((row) => row.id);
     }
-
-    const where: Prisma.MaintenanceLogWhereInput = { id: { in: writableIds } };
-    if (parsedField.data === "preventiveRealized") where.type = InterventionType.PREVENTIVE;
+    if (targetIds.length === 0) {
+      return { ok: false, error: "Aucune ligne sélectionnée n’a pu être mise à jour." };
+    }
 
     let updated = 0;
-    for (let i = 0; i < writableIds.length; i += BULK_CHUNK) {
-      const chunk = writableIds.slice(i, i + BULK_CHUNK);
+    for (let i = 0; i < targetIds.length; i += BULK_CHUNK) {
+      const chunk = targetIds.slice(i, i + BULK_CHUNK);
       const result = await prisma.maintenanceLog.updateMany({
-        where: { ...where, id: { in: chunk } },
+        where: { id: { in: chunk } },
         data,
       });
       updated += result.count;
     }
 
+    const items = await fetchInterventionListByIds(targetIds);
     revalidateMaintenancePaths();
-    return { ok: true, updated, skipped: Math.max(0, unique.length - updated) };
+    revalidatePath("/interventions", "page");
+    return { ok: true, updated, skipped: Math.max(0, unique.length - updated), items };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Mise à jour groupée impossible." };
   }
