@@ -3,7 +3,7 @@ import { AlertSeverity, AlertType, InterventionType, MaintenanceOrderStatus, typ
 import { prisma } from "@/lib/db/prisma";
 import { calendarDayKey } from "@/lib/gmao/intervention-status";
 import { maintenanceNotifyEmail } from "@/lib/gmao/director-contact";
-import { mailerDiagnostics, sendNotificationEmail } from "@/lib/notify/mailer";
+import { mailerDiagnostics } from "@/lib/notify/mailer";
 import { formatDateFrShort } from "@/lib/utils/format-date";
 
 export type ReminderWindow = "J0" | "J1";
@@ -162,35 +162,6 @@ function renderEmail(window: ReminderWindow, payload: Omit<PreventiveReminderPay
   return { ...copy, text, html };
 }
 
-function asMeta(metadata: unknown): Record<string, unknown> {
-  return metadata && typeof metadata === "object" && !Array.isArray(metadata)
-    ? (metadata as Record<string, unknown>)
-    : {};
-}
-
-function mailAlreadySent(metadata: unknown): boolean {
-  return asMeta(metadata).emailed === true;
-}
-
-async function persistMailResult(
-  alertId: string,
-  base: Record<string, unknown>,
-  mail: { ok: true; provider: string } | { ok: false; error: string },
-) {
-  await prisma.gmaoAlert.update({
-    where: { id: alertId },
-    data: {
-      metadata: {
-        ...base,
-        emailed: mail.ok,
-        mailProvider: mail.ok ? mail.provider : undefined,
-        mailError: mail.ok ? null : mail.error,
-        mailedAt: mail.ok ? new Date().toISOString() : undefined,
-      } as Prisma.InputJsonValue,
-    },
-  });
-}
-
 export async function dispatchPreventiveReminder(
   window: ReminderWindow,
   dayKey: string,
@@ -201,7 +172,7 @@ export async function dispatchPreventiveReminder(
   }
 
   const dedupeKey = `preventive-reminder:${window}:${payload.dayKey}`;
-  const email = renderEmail(window, payload);
+  const copy = renderEmail(window, payload);
   const href = `/maintenance-orders?q=${encodeURIComponent(payload.reference)}`;
   const metaBase = {
     orderId: payload.orderId,
@@ -211,75 +182,58 @@ export async function dispatchPreventiveReminder(
     href,
     taskCount: payload.tasks.length,
     dedupeKey,
+    emailDisabled: true,
   };
 
   const existing = await prisma.gmaoAlert.findUnique({ where: { dedupeKey } });
-  if (existing && mailAlreadySent(existing.metadata)) {
+  if (existing) {
     return {
       window,
       dayKey,
       reference: payload.reference,
       skipped: true,
-      reason: "Déjà envoyé",
+      reason: "Déjà notifié",
       alertId: existing.id,
-      emailed: true,
+      emailed: false,
       taskCount: payload.tasks.length,
     };
   }
 
-  let alert = existing;
-  if (!alert) {
-    try {
-      alert = await prisma.gmaoAlert.create({
-        data: {
-          type: AlertType.PREVENTIVE_REMINDER,
-          severity: email.severity,
-          title: email.title,
-          message: `${email.intro}\n${payload.tasks.map((t) => `• ${t.machineName} — ${t.tasks.join(", ")}`).join("\n")}`,
-          dedupeKey,
-          metadata: metaBase as Prisma.InputJsonValue,
-        },
-      });
-    } catch (e) {
-      const code = typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
-      if (code !== "P2002") throw e;
-      alert = await prisma.gmaoAlert.findUnique({ where: { dedupeKey } });
-      if (!alert) throw e;
-      if (mailAlreadySent(alert.metadata)) {
-        return {
-          window,
-          dayKey,
-          reference: payload.reference,
-          skipped: true,
-          reason: "Déjà envoyé",
-          alertId: alert.id,
-          emailed: true,
-          taskCount: payload.tasks.length,
-        };
-      }
+  try {
+    const alert = await prisma.gmaoAlert.create({
+      data: {
+        type: AlertType.PREVENTIVE_REMINDER,
+        severity: copy.severity,
+        title: copy.title,
+        message: `${copy.intro}\n${payload.tasks.map((t) => `• ${t.machineName} — ${t.tasks.join(", ")}`).join("\n")}`,
+        dedupeKey,
+        metadata: { ...metaBase, emailed: false } as Prisma.InputJsonValue,
+      },
+    });
+    return {
+      window,
+      dayKey,
+      reference: payload.reference,
+      skipped: false,
+      alertId: alert.id,
+      emailed: false,
+      taskCount: payload.tasks.length,
+    };
+  } catch (e) {
+    const code = typeof e === "object" && e && "code" in e ? String((e as { code?: string }).code) : "";
+    if (code === "P2002") {
+      return {
+        window,
+        dayKey,
+        reference: payload.reference,
+        skipped: true,
+        reason: "Déjà notifié",
+        emailed: false,
+        taskCount: payload.tasks.length,
+      };
     }
+    throw e;
   }
-
-  const mail = await sendNotificationEmail({
-    to: maintenanceNotifyEmail(),
-    subject: email.subject,
-    text: email.text,
-    html: email.html,
-  });
-
-  await persistMailResult(alert.id, { ...metaBase, ...asMeta(alert.metadata) }, mail);
-
-  return {
-    window,
-    dayKey,
-    reference: payload.reference,
-    skipped: false,
-    reason: mail.ok ? undefined : mail.error,
-    alertId: alert.id,
-    emailed: mail.ok,
-    mailError: mail.ok ? undefined : mail.error,
-    taskCount: payload.tasks.length,
-  };
 }
 
 export async function runPreventiveReminders(now = new Date()) {
