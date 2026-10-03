@@ -50,11 +50,13 @@ function resetTaskState(setters: {
   setTaskGraissage: (v: boolean) => void;
   setTaskHuile: (v: boolean) => void;
   setTaskControl: (v: boolean) => void;
+  setTaskNonConforme: (v: boolean) => void;
 }) {
   setters.setTaskNettoyage(false);
   setters.setTaskGraissage(false);
   setters.setTaskHuile(false);
   setters.setTaskControl(false);
+  setters.setTaskNonConforme(false);
 }
 
 export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenanceOrderSheetProps) {
@@ -66,13 +68,14 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
   const [taskGraissage, setTaskGraissage] = React.useState(false);
   const [taskHuile, setTaskHuile] = React.useState(false);
   const [taskControl, setTaskControl] = React.useState(false);
+  const [taskNonConforme, setTaskNonConforme] = React.useState(false);
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (!next) {
       setError(null);
       setSelectedMachineIds(new Set());
-      resetTaskState({ setTaskNettoyage, setTaskGraissage, setTaskHuile, setTaskControl });
+      resetTaskState({ setTaskNettoyage, setTaskGraissage, setTaskHuile, setTaskControl, setTaskNonConforme });
     }
   };
 
@@ -87,7 +90,7 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
     fd.set("taskGraissage", String(taskGraissage));
     fd.set("taskHuile", String(taskHuile));
     fd.set("taskControl", String(taskControl));
-    fd.set("taskNonConforme", "false");
+    fd.set("taskNonConforme", String(taskNonConforme));
 
     const res = await createMaintenanceOrderAction(fd);
     setPending(false);
@@ -186,9 +189,18 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
               />
               <MaintenanceTaskCheckbox
                 id="task-control"
-                label="Contrôle"
+                label="C"
+                hint="Conforme"
                 checked={taskControl}
                 onChange={setTaskControl}
+                disabled={pending}
+              />
+              <MaintenanceTaskCheckbox
+                id="task-nc"
+                label="N.C"
+                hint="Non conforme"
+                checked={taskNonConforme}
+                onChange={setTaskNonConforme}
                 disabled={pending}
               />
             </div>

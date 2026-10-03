@@ -52,7 +52,8 @@ function taskLabels(line: {
   if (line.taskNettoyage) labels.push("Nettoyage");
   if (line.taskGraissage) labels.push("Graissage");
   if (line.taskHuile) labels.push("Huile");
-  if (line.taskControl) labels.push("Contrôle");
+  if (line.taskControl) labels.push("C");
+  if (line.taskNonConforme) labels.push("N.C");
   return labels.length ? labels : ["Préventive"];
 }
 

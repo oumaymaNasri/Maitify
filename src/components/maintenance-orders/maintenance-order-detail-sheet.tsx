@@ -27,11 +27,11 @@ type MaintenanceOrderDetailSheetProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-function taskBadge(label: string, active: boolean) {
+function taskMarkCell(active: boolean) {
   return (
-    <Badge variant={active ? "default" : "outline"} className={cn("text-xs", !active && "text-slate-400")}>
-      {label}: {active ? "OUI" : "NON"}
-    </Badge>
+    <span className={cn("font-semibold tabular-nums", active ? "text-emerald-700" : "text-slate-300")}>
+      {active ? "X" : "—"}
+    </span>
   );
 }
 
@@ -159,28 +159,46 @@ export function MaintenanceOrderDetailSheet({
               {detail.lines.length > 0 ? (
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Plan préventif (machines & tâches)</p>
-                  <div className="space-y-3">
-                    {detail.lines.map((line) => (
-                      <div key={line.id} className="rounded-lg border border-slate-200 p-3 text-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium text-slate-900">{line.machineName}</p>
-                            <p className="text-xs text-slate-500">{line.machineLocation}</p>
-                          </div>
-                          {line.completed ? (
-                            <Badge className="bg-emerald-50 text-emerald-700">Exécuté</Badge>
-                          ) : (
-                            <Badge variant="outline">En attente</Badge>
-                          )}
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {taskBadge("Nettoyage", line.taskNettoyage)}
-                          {taskBadge("Graissage", line.taskGraissage)}
-                          {taskBadge("Huile", line.taskHuile)}
-                          {taskBadge("Contrôle", line.taskControl)}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto rounded-lg border border-slate-200">
+                    <table className="w-full min-w-[520px] border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          <th className="px-3 py-2">Machine</th>
+                          <th className="px-2 py-2 text-center">Nettoyage</th>
+                          <th className="px-2 py-2 text-center">Graissage</th>
+                          <th className="px-2 py-2 text-center">Huile</th>
+                          <th className="px-2 py-2 text-center" title="Conforme">
+                            C
+                          </th>
+                          <th className="px-2 py-2 text-center" title="Non conforme">
+                            N.C
+                          </th>
+                          <th className="px-3 py-2 text-right">Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detail.lines.map((line) => (
+                          <tr key={line.id} className="border-t border-slate-100">
+                            <td className="px-3 py-2">
+                              <p className="font-medium text-slate-900">{line.machineName}</p>
+                              <p className="text-xs text-slate-500">{line.machineLocation}</p>
+                            </td>
+                            <td className="px-2 py-2 text-center">{taskMarkCell(line.taskNettoyage)}</td>
+                            <td className="px-2 py-2 text-center">{taskMarkCell(line.taskGraissage)}</td>
+                            <td className="px-2 py-2 text-center">{taskMarkCell(line.taskHuile)}</td>
+                            <td className="px-2 py-2 text-center">{taskMarkCell(line.taskControl)}</td>
+                            <td className="px-2 py-2 text-center">{taskMarkCell(line.taskNonConforme)}</td>
+                            <td className="px-3 py-2 text-right">
+                              {line.completed ? (
+                                <Badge className="bg-emerald-50 text-emerald-700">Exécuté</Badge>
+                              ) : (
+                                <Badge variant="outline">En attente</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               ) : null}
