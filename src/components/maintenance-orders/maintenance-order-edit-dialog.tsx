@@ -66,7 +66,6 @@ export function MaintenanceOrderEditDialog({
   const [taskGraissage, setTaskGraissage] = React.useState(false);
   const [taskHuile, setTaskHuile] = React.useState(false);
   const [taskControl, setTaskControl] = React.useState(false);
-  const [taskNonConforme, setTaskNonConforme] = React.useState(false);
 
   React.useEffect(() => {
     if (!open || !order) return;
@@ -91,7 +90,6 @@ export function MaintenanceOrderEditDialog({
         setTaskGraissage(firstPending.taskGraissage);
         setTaskHuile(firstPending.taskHuile);
         setTaskControl(firstPending.taskControl);
-        setTaskNonConforme(firstPending.taskNonConforme);
       }
     });
   }, [open, order]);
@@ -116,7 +114,7 @@ export function MaintenanceOrderEditDialog({
     fd.set("taskGraissage", String(taskGraissage));
     fd.set("taskHuile", String(taskHuile));
     fd.set("taskControl", String(taskControl));
-    fd.set("taskNonConforme", String(taskNonConforme));
+    fd.set("taskNonConforme", "false");
 
     const res = await updateMaintenanceOrderAction(fd);
     setPending(false);
@@ -193,8 +191,7 @@ export function MaintenanceOrderEditDialog({
                 <MaintenanceTaskCheckbox id="edit-nettoyage" label="Nettoyage" checked={taskNettoyage} onChange={setTaskNettoyage} disabled={pending} />
                 <MaintenanceTaskCheckbox id="edit-graissage" label="Graissage" checked={taskGraissage} onChange={setTaskGraissage} disabled={pending} />
                 <MaintenanceTaskCheckbox id="edit-huile" label="Huile" checked={taskHuile} onChange={setTaskHuile} disabled={pending} />
-                <MaintenanceTaskCheckbox id="edit-control" label="Contrôle / C" hint="Conforme" checked={taskControl} onChange={setTaskControl} disabled={pending} />
-                <MaintenanceTaskCheckbox id="edit-nc" label="Non Conforme / N.C" hint="Autres défauts constatés" checked={taskNonConforme} onChange={setTaskNonConforme} disabled={pending} />
+                <MaintenanceTaskCheckbox id="edit-control" label="Contrôle" checked={taskControl} onChange={setTaskControl} disabled={pending} />
               </div>
             </div>
 

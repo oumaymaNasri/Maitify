@@ -15,7 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { formatDateFrLongWithTime } from "@/lib/utils/format-date";
+import { formatDateFrLongWithTime, formatDurationMinutes } from "@/lib/utils/format-date";
 import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
@@ -97,7 +97,7 @@ export function InterventionDetailSheet({ interventionId, open, onOpenChange }: 
               />
               <DetailBlock
                 label="Temps d'intervention"
-                value={detail.durationMinutes != null ? `${detail.durationMinutes} min` : null}
+                value={formatDurationMinutes(detail.durationMinutes, detail.durationUnit)}
               />
 
               {detail.sparePartLines.length > 0 ? (

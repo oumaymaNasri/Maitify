@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { authorizeApiRequest } from "@/lib/auth/session-server";
 import { fetchAllInterventionsInventory } from "@/lib/gmao/interventions-query";
-import { formatDateFrShort } from "@/lib/utils/format-date";
+import { formatDateFrShort, formatDurationMinutes } from "@/lib/utils/format-date";
 import { operationTypeFr } from "@/lib/view/gmao-labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
             r.technicianName ?? "—",
             operationTypeFr(r.operationType),
             maintenanceWorkflowStatusFr(r.workflowStatus),
-            r.durationMinutes != null ? String(r.durationMinutes) : "—",
+            r.durationMinutes != null ? formatDurationMinutes(r.durationMinutes, r.durationUnit) : "—",
             r.failureDescription ?? "—",
             r.workPerformed,
           ]
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
               <td>${r.technicianName ?? "—"}</td>
               <td>${operationTypeFr(r.operationType)}</td>
               <td>${maintenanceWorkflowStatusFr(r.workflowStatus)}</td>
-              <td>${r.durationMinutes ?? "—"}</td>
+              <td>${formatDurationMinutes(r.durationMinutes, r.durationUnit)}</td>
             </tr>`,
         )
         .join("");

@@ -1,6 +1,7 @@
 import type { InterventionDetailVm } from "@/components/interventions/intervention-types";
-import { OperationType, type FailureCause, type InterventionType } from "@prisma/client";
+import { FailureCause, InterventionType, OperationType } from "@prisma/client";
 
+import { formatDurationMinutes } from "@/lib/utils/format-date";
 import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
 
@@ -17,25 +18,32 @@ function formatDateFr(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" }).format(new Date(iso));
 }
 
-function formatDuration(minutes: number | null): string {
-  if (minutes == null) return "—";
-  return `${Math.max(0, Math.round(minutes))} min`;
+function formatDuration(minutes: number | null, unit?: InterventionDetailVm["durationUnit"]): string {
+  return formatDurationMinutes(minutes, unit);
 }
 
 const OPERATIONS: OperationType[] = [
-  OperationType.REMPLACEMENT,
-  OperationType.DIAGNOSTIC,
-  OperationType.AMELIORATION,
   OperationType.CONTROLE,
+  OperationType.CHANGEMENT,
+  OperationType.DIAGNOSTIC,
+  OperationType.REMPLACEMENT,
+  OperationType.AMELIORATION,
 ];
 
-const MAINT_TYPES: InterventionType[] = ["CORRECTIVE", "PREVENTIVE"];
+const MAINT_TYPES: InterventionType[] = [
+  InterventionType.PREVENTIVE,
+  InterventionType.CORRECTIVE,
+  InterventionType.PREDICTIVE,
+  InterventionType.AMELIORATION,
+  InterventionType.AUTONOME,
+];
 
 const CAUSES: FailureCause[] = [
-  "USURE_NORMALE",
-  "DEFAUT_UTILISATEUR",
-  "DEFAUT_PRODUIT",
-  "AUTRE",
+  FailureCause.USURE_NORMALE,
+  FailureCause.DEFAUT_UTILISATEUR,
+  FailureCause.DEFAUT_PRODUIT,
+  FailureCause.ENTRETIEN_MACHINE,
+  FailureCause.AUTRE,
 ];
 
 function checkCell(active: boolean, label: string): string {
@@ -168,7 +176,7 @@ export function buildInterventionFicheHtml(detail: InterventionDetailVm): string
     </table>
 
     <div class="footer-row">
-      <div class="time-box"><span class="inline-label">TEMPS D&apos;INTERVENTION:</span> ${esc(formatDuration(detail.durationMinutes))}</div>
+      <div class="time-box"><span class="inline-label">TEMPS D&apos;INTERVENTION:</span> ${esc(formatDuration(detail.durationMinutes, detail.durationUnit))}</div>
       <div class="signature-wrap">
         <div class="signature-label">Signature technicien</div>
         <div class="signature-box">

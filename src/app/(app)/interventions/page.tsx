@@ -37,7 +37,15 @@ type PageProps = {
 };
 
 function parseType(raw?: string): InterventionType | "ALL" {
-  if (raw === "PREVENTIVE" || raw === "CORRECTIVE" || raw === "AMELIORATION") return raw;
+  if (
+    raw === "PREVENTIVE" ||
+    raw === "CORRECTIVE" ||
+    raw === "AMELIORATION" ||
+    raw === "PREDICTIVE" ||
+    raw === "AUTONOME"
+  ) {
+    return raw;
+  }
   return "ALL";
 }
 

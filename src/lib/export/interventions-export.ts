@@ -1,6 +1,6 @@
 import type { InterventionListVm } from "@/components/interventions/intervention-types";
 import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
-import { formatDateFrShort } from "@/lib/utils/format-date";
+import { formatDateFrShort, formatDurationMinutes } from "@/lib/utils/format-date";
 import { interventionTypeFr } from "@/lib/view/labels";
 
 function escapeCsv(value: string | number | null | undefined): string {
@@ -44,7 +44,7 @@ function interventionExportRows(items: InterventionListVm[]): string[][] {
     interventionTypeFr(r.type),
     r.failureCauseLabel || (r.failureCause ? failureCauseFr(r.failureCause) : ""),
     r.linkedFailureCause ?? "",
-    r.durationMinutes != null ? `${r.durationMinutes} min` : "",
+    r.durationMinutes != null ? formatDurationMinutes(r.durationMinutes, r.durationUnit) : "",
     r.workPerformed,
     r.difficulties ?? "",
     r.sparePartsLabel ?? "",

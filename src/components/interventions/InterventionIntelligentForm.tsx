@@ -1,5 +1,6 @@
 "use client";
 
+import { DurationUnit, InterventionType } from "@prisma/client";
 import * as React from "react";
 
 import { createMaintenanceLogWithParts } from "@/app/actions/maintenance-log";
@@ -14,8 +15,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { ActiveMaintenanceOrderOption } from "@/lib/gmao/maintenance-orders-query";
 import { calendarDayKey } from "@/lib/gmao/intervention-status";
+import type { ActiveMaintenanceOrderOption } from "@/lib/gmao/maintenance-orders-query";
+import {
+  DURATION_UNIT_OPTIONS,
+  FAILURE_CAUSE_OPTIONS,
+  INTERVENTION_TYPE_OPTIONS,
+  OPERATION_TYPE_OPTIONS,
+  SECTOR_MAINTENANCE_OPTIONS,
+} from "@/lib/gmao/maintenance-form-options";
 import { formatDateFrShort } from "@/lib/utils/format-date";
 import { cn } from "@/lib/utils";
 
@@ -97,7 +105,8 @@ export function InterventionIntelligentForm({
   const [machineId, setMachineId] = React.useState("");
   const [technicianId, setTechnicianId] = React.useState(lockedTechnicianId ?? "");
   const [operationType, setOperationType] = React.useState("CONTROLE");
-  const [interventionKind, setInterventionKind] = React.useState<"PREVENTIVE" | "CORRECTIVE">("PREVENTIVE");
+  const [interventionKind, setInterventionKind] = React.useState<InterventionType>(InterventionType.PREVENTIVE);
+  const [durationUnit, setDurationUnit] = React.useState<DurationUnit>(DurationUnit.PER_MINUTE);
   const [dateValue, setDateValue] = React.useState(localNowForInput);
   const [omDateFilter, setOmDateFilter] = React.useState(() => localNowForInput().slice(0, 10));
   const [omMachineFilter, setOmMachineFilter] = React.useState("");
@@ -146,7 +155,7 @@ export function InterventionIntelligentForm({
     (
       order: ActiveMaintenanceOrderOption | null,
       nextMachineId: string,
-      kind: "PREVENTIVE" | "CORRECTIVE" = interventionKind,
+      kind: InterventionType = interventionKind,
     ) => {
       if (!order || !nextMachineId) {
         setMaintenanceOrderLineId("");
@@ -179,7 +188,7 @@ export function InterventionIntelligentForm({
   }, []);
 
   const applyOrder = React.useCallback(
-    (orderId: string, pickedByUser: boolean, kind: "PREVENTIVE" | "CORRECTIVE" = interventionKind) => {
+    (orderId: string, pickedByUser: boolean, kind: InterventionType = interventionKind) => {
       if (pickedByUser) omPickedByUser.current = true;
       setSelectedOrderId(orderId);
       if (!orderId) {
@@ -204,7 +213,7 @@ export function InterventionIntelligentForm({
         (order.lines.length === 1 ? order.lines[0] : null);
       if (preferred) {
         setMachineId(preferred.machineId);
-        applyLinePrefill(order, preferred.machineId, "PREVENTIVE");
+        applyLinePrefill(order, preferred.machineId, InterventionType.PREVENTIVE);
       } else {
         setMachineId("");
         setMaintenanceOrderLineId("");
@@ -222,13 +231,14 @@ export function InterventionIntelligentForm({
     if (interventionKind === "PREVENTIVE") applyLinePrefill(selectedOrder, nextMachineId);
   };
 
-  const setKind = (kind: "PREVENTIVE" | "CORRECTIVE") => {
+  const setKind = (kind: InterventionType) => {
     setInterventionKind(kind);
-    if (kind === "PREVENTIVE") {
+    if (kind === InterventionType.PREVENTIVE) {
       setOperationType("CONTROLE");
-      applyOrder(selectedOrderId, false, "PREVENTIVE");
+      applyOrder(selectedOrderId, false, InterventionType.PREVENTIVE);
     } else {
-      setOperationType("DIAGNOSTIC");
+      if (kind === InterventionType.AMELIORATION) setOperationType("AMELIORATION");
+      else if (operationType === "CONTROLE") setOperationType("DIAGNOSTIC");
       setMaintenanceOrderLineId("");
       resetPreventiveTasks();
     }
@@ -284,13 +294,13 @@ export function InterventionIntelligentForm({
     formData.set("photoAfter", photoAfterUrl);
     formData.set("linesJson", JSON.stringify(filtered));
     if (maintenanceOrderLineId) formData.set("maintenanceOrderLineId", maintenanceOrderLineId);
-    if (interventionKind === "PREVENTIVE") {
-      if (preventiveCleaning) formData.set("preventiveCleaning", "on");
-      if (preventiveLubrication) formData.set("preventiveLubrication", "on");
-      if (preventiveOil) formData.set("preventiveOil", "on");
-      if (preventiveControl) formData.set("preventiveControl", "on");
-      if (preventiveNonConforme) formData.set("preventiveNonConforme", "on");
-    }
+    formData.set("type", interventionKind);
+    formData.set("durationUnit", durationUnit);
+    if (preventiveCleaning) formData.set("preventiveCleaning", "on");
+    if (preventiveLubrication) formData.set("preventiveLubrication", "on");
+    if (preventiveOil) formData.set("preventiveOil", "on");
+    if (preventiveControl) formData.set("preventiveControl", "on");
+    if (preventiveNonConforme) formData.set("preventiveNonConforme", "on");
 
     startTransition(async () => {
       const result = await createMaintenanceLogWithParts(formData);
@@ -319,8 +329,9 @@ export function InterventionIntelligentForm({
         setSelectedOrderId("");
         setMachineId("");
         setMaintenanceOrderLineId("");
-        setInterventionKind("PREVENTIVE");
+        setInterventionKind(InterventionType.PREVENTIVE);
         setOperationType("CONTROLE");
+        setDurationUnit(DurationUnit.PER_MINUTE);
         setDateValue(localNowForInput());
         setOmDateFilter(localNowForInput().slice(0, 10));
         setOmMachineFilter("");
@@ -344,33 +355,28 @@ export function InterventionIntelligentForm({
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="workflowStatus" value="COMPLETED" />
+          <input type="hidden" name="type" value={interventionKind} />
           <div className="space-y-2 sm:col-span-2">
             <Label>Type de maintenance *</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setKind("PREVENTIVE")}
-                className={cn(
-                  "rounded-xl border px-3 py-3 text-sm font-semibold transition",
-                  interventionKind === "PREVENTIVE"
-                    ? "border-[#1F76FB] bg-[#E8F1FF] text-[#0B2A5B]"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-                )}
-              >
-                Préventive
-              </button>
-              <button
-                type="button"
-                onClick={() => setKind("CORRECTIVE")}
-                className={cn(
-                  "rounded-xl border px-3 py-3 text-sm font-semibold transition",
-                  interventionKind === "CORRECTIVE"
-                    ? "border-amber-400 bg-amber-50 text-amber-900"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-                )}
-              >
-                Corrective
-              </button>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {INTERVENTION_TYPE_OPTIONS.map((opt) => {
+                const active = interventionKind === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setKind(opt.value)}
+                    className={cn(
+                      "rounded-xl border px-3 py-3 text-sm font-semibold transition",
+                      active
+                        ? "border-[#1F76FB] bg-[#E8F1FF] text-[#0B2A5B]"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="space-y-2">
@@ -485,20 +491,31 @@ export function InterventionIntelligentForm({
               onChange={(e) => setOperationType(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              {interventionKind === "PREVENTIVE" ? (
-                <option value="CONTROLE">Contrôle (préventif)</option>
-              ) : (
-                <>
-                  <option value="DIAGNOSTIC">Diagnostic</option>
-                  <option value="REMPLACEMENT">Remplacement</option>
-                  <option value="AMELIORATION">Amélioration</option>
-                </>
-              )}
+              {OPERATION_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="durationMinutes">Durée (min)</Label>
-            <Input id="durationMinutes" name="durationMinutes" type="number" min={0} step={1} placeholder="Ex. 45" />
+            <Label htmlFor="durationMinutes">Temps de maintenance</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Input id="durationMinutes" name="durationMinutes" type="number" min={0} step={1} placeholder="Valeur" />
+              <select
+                id="durationUnit"
+                name="durationUnit"
+                value={durationUnit}
+                onChange={(e) => setDurationUnit(e.target.value as DurationUnit)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {DURATION_UNIT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="failureCause">Cause de défaillance</Label>
@@ -509,10 +526,11 @@ export function InterventionIntelligentForm({
               defaultValue=""
             >
               <option value="">—</option>
-              <option value="USURE_NORMALE">Usure normale</option>
-              <option value="DEFAUT_UTILISATEUR">Défaut utilisateur</option>
-              <option value="DEFAUT_PRODUIT">Défaut produit</option>
-              <option value="AUTRE">Autre</option>
+              {FAILURE_CAUSE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
         </CardContent>
@@ -525,7 +543,19 @@ export function InterventionIntelligentForm({
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="sectorMaintenance">Secteur maintenance</Label>
-            <Input id="sectorMaintenance" name="sectorMaintenance" autoComplete="off" />
+            <select
+              id="sectorMaintenance"
+              name="sectorMaintenance"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              defaultValue=""
+            >
+              <option value="">—</option>
+              {SECTOR_MAINTENANCE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="service">Service</Label>
@@ -556,12 +586,8 @@ export function InterventionIntelligentForm({
             <Textarea id="difficulties" name="difficulties" rows={3} />
           </div>
 
-          {interventionKind === "PREVENTIVE" ? (
-            <div className="rounded-lg border border-dashed p-3">
-              <p className="mb-3 text-sm font-medium">Tâches préventives prévues</p>
-              <p className="mb-3 text-xs text-slate-500">
-                Pré-remplies depuis l’OM de planning si une machine planifiée est sélectionnée.
-              </p>
+          <div className="rounded-lg border border-dashed p-3">
+              <p className="mb-3 text-sm font-medium">Tâches requises</p>
               <div className="flex flex-wrap gap-4 text-sm">
                 <label className="flex cursor-pointer items-center gap-2">
                   <input
@@ -597,7 +623,7 @@ export function InterventionIntelligentForm({
                     onChange={(e) => setPreventiveControl(e.target.checked)}
                     className="h-4 w-4 accent-primary"
                   />
-                  Contrôle / C
+                  Conforme
                 </label>
                 <label className="flex cursor-pointer items-center gap-2">
                   <input
@@ -606,11 +632,10 @@ export function InterventionIntelligentForm({
                     onChange={(e) => setPreventiveNonConforme(e.target.checked)}
                     className="h-4 w-4 accent-primary"
                   />
-                  Non conforme / N.C
+                  Non conforme
                 </label>
               </div>
             </div>
-          ) : null}
         </CardContent>
       </Card>
 

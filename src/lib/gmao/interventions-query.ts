@@ -1,4 +1,4 @@
-import type { FailureCause, InterventionType, OperationType, Prisma } from "@prisma/client";
+import type { DurationUnit, FailureCause, InterventionType, OperationType, Prisma } from "@prisma/client";
 import { MaintenanceWorkflowStatus } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
@@ -20,6 +20,7 @@ const listSelect = {
   operationType: true,
   type: true,
   durationMinutes: true,
+  durationUnit: true,
   importMatricule: true,
   linkedFailureCause: true,
   failureCauseLabel: true,
@@ -67,6 +68,7 @@ function mapListRows(
     operationType: OperationType;
     type: InterventionType;
     durationMinutes: number | null;
+    durationUnit: DurationUnit | null;
     importMatricule: string | null;
     linkedFailureCause: string | null;
     failureCauseLabel: string | null;
@@ -110,6 +112,7 @@ function mapListRows(
     failureCauseLabel: clipText(r.failureCauseLabel, 120),
     linkedFailureCause: clipText(r.linkedFailureCause),
     durationMinutes: r.durationMinutes,
+    durationUnit: r.durationUnit,
     workPerformed: clipText(r.workPerformed) ?? "",
     difficulties: clipText(r.difficulties),
     sparePartsLabel: clipText(r.sparePartsLabel),

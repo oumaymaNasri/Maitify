@@ -1,4 +1,4 @@
-import type { InterventionType, MaintenanceOrderStatus, MaintenanceWorkflowStatus } from "@prisma/client";
+import type { DurationUnit, InterventionType, MaintenanceOrderStatus, MaintenanceWorkflowStatus } from "@prisma/client";
 import { revalidateTag } from "next/cache";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
@@ -14,6 +14,7 @@ export type MaintenanceOrderLogVm = {
   machineLocation: string;
   technicianName: string | null;
   durationMinutes: number | null;
+  durationUnit: DurationUnit | null;
   workflowStatus: MaintenanceWorkflowStatus;
   workPerformed: string;
 };
@@ -51,6 +52,7 @@ function mapLog(log: {
   type: InterventionType;
   date: Date;
   durationMinutes: number | null;
+  durationUnit: DurationUnit | null;
   workflowStatus: MaintenanceWorkflowStatus;
   workPerformed: string;
   machine: { id: string; name: string; location: string };
@@ -67,6 +69,7 @@ function mapLog(log: {
       ? `${log.technician.firstName} ${log.technician.lastName}`.trim()
       : null,
     durationMinutes: log.durationMinutes,
+    durationUnit: log.durationUnit,
     workflowStatus: log.workflowStatus,
     workPerformed: log.workPerformed,
   };

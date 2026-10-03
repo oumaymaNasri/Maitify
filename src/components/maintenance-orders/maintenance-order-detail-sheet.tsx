@@ -64,7 +64,7 @@ function InterventionLogsSection({
                 </div>
               </div>
               <p className="mt-2 text-xs text-slate-600">
-                Technicien : {log.technicianName ?? "—"} · Temps : {formatDurationMinutes(log.durationMinutes)}
+                Technicien : {log.technicianName ?? "—"} · Temps : {formatDurationMinutes(log.durationMinutes, log.durationUnit)}
               </p>
             </div>
           ))}
@@ -177,8 +177,7 @@ export function MaintenanceOrderDetailSheet({
                           {taskBadge("Nettoyage", line.taskNettoyage)}
                           {taskBadge("Graissage", line.taskGraissage)}
                           {taskBadge("Huile", line.taskHuile)}
-                          {taskBadge("C", line.taskControl)}
-                          {taskBadge("N.C", line.taskNonConforme)}
+                          {taskBadge("Contrôle", line.taskControl)}
                         </div>
                       </div>
                     ))}

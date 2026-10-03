@@ -1,5 +1,7 @@
 import {
 
+  DurationUnit,
+
   FailureCause,
 
   InterventionType,
@@ -43,6 +45,8 @@ export const baseMaintenanceLogSchema = z.object({
   failureDescription: z.string().nullable().optional(),
 
   durationMinutes: z.number().int().min(0).nullable().optional(),
+
+  durationUnit: z.nativeEnum(DurationUnit).nullable().optional(),
 
   sectorMaintenance: z.string().nullable().optional(),
 
@@ -171,23 +175,16 @@ export type MaintenanceLogPayload = z.infer<typeof maintenanceLogPayloadSchema>;
 
 
 export function mapOperationToLegacyType(op: OperationType): InterventionType {
-
   switch (op) {
-
     case OperationType.AMELIORATION:
-
       return InterventionType.AMELIORATION;
-
     case OperationType.CONTROLE:
-
       return InterventionType.PREVENTIVE;
-
-    default:
-
+    case OperationType.CHANGEMENT:
       return InterventionType.CORRECTIVE;
-
+    default:
+      return InterventionType.CORRECTIVE;
   }
-
 }
 
 

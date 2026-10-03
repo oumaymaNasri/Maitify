@@ -122,6 +122,8 @@ function foldKey(value: string | undefined): string {
 function interventionTypeFromFr(value: string | undefined, fallback: InterventionType): InterventionType {
   const u = foldKey(value);
   if (u.includes("prevent")) return InterventionType.PREVENTIVE;
+  if (u.includes("predic")) return InterventionType.PREDICTIVE;
+  if (u.includes("auton")) return InterventionType.AUTONOME;
   if (u.includes("amel")) return InterventionType.AMELIORATION;
   if (u.includes("correct")) return InterventionType.CORRECTIVE;
   return fallback;
@@ -139,8 +141,8 @@ function normalizeSector(raw: string | undefined): string | null {
   if (!s) return null;
   const f = foldKey(s);
   if (!f) return null;
-  if (f.includes("eid") || f.includes("jour")) return "Journalière";
-  if (f.includes("poste")) return "Par Poste";
+  if (f.includes("eid") || f.includes("jour")) return "Journalier";
+  if (f.includes("poste")) return "Par poste";
   if (f.includes("prod")) return "C. Production";
   return s;
 }
@@ -174,6 +176,7 @@ function operationTypeFromFr(value: string | undefined, type: InterventionType):
     .toLowerCase();
   if (u.includes("remplac")) return OperationType.REMPLACEMENT;
   if (u.includes("amelior")) return OperationType.AMELIORATION;
+  if (u.includes("chang")) return OperationType.CHANGEMENT;
   if (u.includes("control") || u.includes("net") || u.includes("graiss")) return OperationType.CONTROLE;
   if (type === InterventionType.PREVENTIVE) return OperationType.CONTROLE;
   return OperationType.DIAGNOSTIC;
@@ -187,6 +190,7 @@ function failureCauseFromFr(causeLie: string | undefined, cause: string | undefi
   if (u.includes("usure")) return FailureCause.USURE_NORMALE;
   if (u.includes("utilisateur") || u.includes("defaut utilis")) return FailureCause.DEFAUT_UTILISATEUR;
   if (u.includes("defaut prod") || u.includes("fabrication")) return FailureCause.DEFAUT_PRODUIT;
+  if (u.includes("entretien")) return FailureCause.ENTRETIEN_MACHINE;
   if (norm(causeLie) || norm(cause)) return FailureCause.AUTRE;
   return null;
 }

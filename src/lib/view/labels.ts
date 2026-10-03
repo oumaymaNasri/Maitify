@@ -7,7 +7,11 @@ export function interventionTypeFr(t: InterventionType): string {
     case "PREVENTIVE":
       return "Préventive";
     case "AMELIORATION":
-      return "Amélioration";
+      return "Améliorative";
+    case "PREDICTIVE":
+      return "Prédictive";
+    case "AUTONOME":
+      return "Autonome";
     default:
       return t;
   }

@@ -1,10 +1,10 @@
 import type {
+  DurationUnit,
   FailureCause,
   InterventionType,
   MaintenanceWorkflowStatus,
   OperationType,
 } from "@prisma/client";
-
 export type InterventionListVm = {
   id: string;
   importMatricule: string | null;
@@ -25,6 +25,7 @@ export type InterventionListVm = {
   failureCauseLabel: string | null;
   linkedFailureCause: string | null;
   durationMinutes: number | null;
+  durationUnit: DurationUnit | null;
   workPerformed: string;
   difficulties: string | null;
   sparePartsLabel: string | null;
@@ -50,6 +51,7 @@ export type InterventionDetailVm = {
   workPerformed: string;
   difficulties: string | null;
   durationMinutes: number | null;
+  durationUnit: DurationUnit | null;
   failureCause: FailureCause | null;
   signature: string | null;
   sectorMaintenance: string | null;

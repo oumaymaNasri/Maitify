@@ -31,6 +31,7 @@ import { formatDateFrMedium } from "@/lib/utils/format-date";
 import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
+import { INTERVENTION_TYPE_OPTIONS } from "@/lib/gmao/maintenance-form-options";
 import { mapOperationToLegacyType } from "@/lib/validations/maintenance-log";
 
 const InterventionDetailSheet = dynamic(
@@ -276,11 +277,16 @@ export function InterventionsModuleClient({
       {
         id: "type",
         label: "Type de maintenance",
-        value: query.type === "PREVENTIVE" || query.type === "CORRECTIVE" ? query.type : "ALL",
-        onChange: (v: string) => selectTab(v as TabId),
+        value: query.type,
+        onChange: (v: string) => {
+          if (v === "PREVENTIVE" || v === "CORRECTIVE" || v === "ALL") selectTab(v as TabId);
+          else {
+            setTab("ALL");
+            patchQuery({ type: v as TypeFilter });
+          }
+        },
         options: [
-          { value: "PREVENTIVE", label: "Préventive" },
-          { value: "CORRECTIVE", label: "Corrective" },
+          ...INTERVENTION_TYPE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
           { value: "ALL", label: "Toutes" },
         ],
       },

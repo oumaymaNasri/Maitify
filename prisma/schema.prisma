@@ -43,6 +43,7 @@ enum MaintenanceFrequency {
   JOURNALIERE
   HEBDOMADAIRE
   MENSUELLE
+  PAR_POSTE
 }
 
 // ——— Enums interventions (bons de travail) ———
@@ -52,6 +53,7 @@ enum OperationType {
   DIAGNOSTIC
   AMELIORATION
   CONTROLE
+  CHANGEMENT
 }
 
 enum FailureCause {
@@ -59,6 +61,13 @@ enum FailureCause {
   DEFAUT_UTILISATEUR
   DEFAUT_PRODUIT
   AUTRE
+  ENTRETIEN_MACHINE
+}
+
+enum DurationUnit {
+  PER_MINUTE
+  MAINTENANCE_DAY
+  MASKED_TIME
 }
 
 enum MaintenanceWorkflowStatus {
@@ -82,6 +91,8 @@ enum InterventionType {
   CORRECTIVE
   PREVENTIVE
   AMELIORATION
+  PREDICTIVE
+  AUTONOME
 }
 
 // ——— Enums qualité eau ———
@@ -281,6 +292,7 @@ model MaintenanceLog {
   failureDescription String?                   @db.Text
   workPerformed      String                    @db.Text
   durationMinutes    Int?
+  durationUnit       DurationUnit?             @default(PER_MINUTE) @map("duration_unit")
   downtimeMinutes    Int?                      @map("downtime_minutes")
   failureCause       FailureCause?
   signature          String?                   @db.Text

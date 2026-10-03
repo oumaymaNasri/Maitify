@@ -109,6 +109,7 @@ function failureCauseFromFr(causeLie: string | undefined, cause: string | undefi
   if (u.includes("usure")) return FailureCause.USURE_NORMALE;
   if (u.includes("utilisateur") || u.includes("defaut utilis")) return FailureCause.DEFAUT_UTILISATEUR;
   if (u.includes("defaut prod") || u.includes("fabrication")) return FailureCause.DEFAUT_PRODUIT;
+  if (u.includes("entretien")) return FailureCause.ENTRETIEN_MACHINE;
   if (causeLie || cause) return FailureCause.AUTRE;
   return null;
 }

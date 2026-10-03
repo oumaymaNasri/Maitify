@@ -3,6 +3,7 @@
 import {
   AlertSeverity,
   AlertType,
+  DurationUnit,
   FailureCause,
   InterventionType,
   MachineAssetStatus,
@@ -54,6 +55,18 @@ function revalidateMaintenancePaths() {
 }
 
 const MAX_DATA_URL = 1_200_000;
+
+function parseDurationUnit(raw: string | undefined): DurationUnit {
+  const v = raw?.trim() as DurationUnit | undefined;
+  if (v && Object.values(DurationUnit).includes(v)) return v;
+  return DurationUnit.PER_MINUTE;
+}
+
+function parseInterventionType(raw: string | undefined, operationType: OperationType): InterventionType {
+  const v = raw?.trim() as InterventionType | undefined;
+  if (v && Object.values(InterventionType).includes(v)) return v;
+  return mapOperationToLegacyType(operationType);
+}
 
 function parseFailureCause(raw: string | undefined): FailureCause | null {
   if (!raw?.trim()) return null;
@@ -130,10 +143,15 @@ export async function createMaintenanceLogWithParts(formData: FormData): Promise
     machineId: formData.get("machineId")?.toString().trim() ?? "",
     technicianId,
     operationType: formData.get("operationType")?.toString(),
+    type: parseInterventionType(
+      formData.get("type")?.toString(),
+      (formData.get("operationType")?.toString() ?? "DIAGNOSTIC") as OperationType,
+    ),
     date,
     workPerformed,
     failureDescription: failureDescription || undefined,
     durationMinutes: durationMinutes !== null && Number.isFinite(durationMinutes) ? durationMinutes : null,
+    durationUnit: parseDurationUnit(formData.get("durationUnit")?.toString()),
     sectorMaintenance: formData.get("sectorMaintenance")?.toString().trim() || null,
     service: formData.get("service")?.toString().trim() || null,
     operation: formData.get("operation")?.toString().trim() || null,
@@ -167,7 +185,7 @@ export async function createMaintenanceLogWithParts(formData: FormData): Promise
   }
 
   const isCompleted = data.workflowStatus === MaintenanceWorkflowStatus.COMPLETED;
-  const logType = mapOperationToLegacyType(data.operationType);
+  const logType = data.type ?? mapOperationToLegacyType(data.operationType);
 
   try {
     await assertDailyOrderWritable(prisma, data.date);
@@ -202,11 +220,12 @@ export async function createMaintenanceLogWithParts(formData: FormData): Promise
           technicianId: data.technicianId,
           date: data.date,
           operationType: data.operationType,
-          type: mapOperationToLegacyType(data.operationType),
+          type: logType,
           workflowStatus: data.workflowStatus,
           workPerformed: data.workPerformed,
           failureDescription: data.failureDescription ?? null,
           durationMinutes: data.durationMinutes ?? null,
+          durationUnit: data.durationUnit ?? DurationUnit.PER_MINUTE,
           sectorMaintenance: data.sectorMaintenance ?? null,
           service: data.service ?? null,
           operation: data.operation ?? null,
@@ -286,7 +305,7 @@ export async function createMaintenanceLogWithParts(formData: FormData): Promise
       const om = await attachLogToDailyOrder(tx, {
         logId: log.id,
         date: data.date,
-        type: mapOperationToLegacyType(data.operationType),
+        type: logType,
         machineId: data.machineId,
         existingLineId: data.maintenanceOrderLineId?.trim() || null,
         preventiveCleaning: data.preventiveCleaning,
@@ -330,10 +349,15 @@ export async function updateMaintenanceLogAction(formData: FormData): Promise<Ma
     machineId: formData.get("machineId")?.toString().trim() ?? "",
     technicianId: formData.get("technicianId")?.toString().trim() ?? "",
     operationType: formData.get("operationType")?.toString(),
+    type: parseInterventionType(
+      formData.get("type")?.toString(),
+      (formData.get("operationType")?.toString() ?? "DIAGNOSTIC") as OperationType,
+    ),
     date,
     workPerformed: formData.get("workPerformed")?.toString().trim() ?? "",
     failureDescription: formData.get("failureDescription")?.toString().trim() || null,
     durationMinutes: durationMinutes !== null && Number.isFinite(durationMinutes) ? durationMinutes : null,
+    durationUnit: parseDurationUnit(formData.get("durationUnit")?.toString()),
     sectorMaintenance: formData.get("sectorMaintenance")?.toString().trim() || null,
     service: formData.get("service")?.toString().trim() || null,
     operation: formData.get("operation")?.toString().trim() || null,
@@ -352,7 +376,7 @@ export async function updateMaintenanceLogAction(formData: FormData): Promise<Ma
     await prisma.$transaction(async (tx) => {
       await assertLogWritable(tx, data.id);
       await assertDailyOrderWritable(tx, data.date);
-      const logType = mapOperationToLegacyType(data.operationType);
+      const logType = data.type ?? mapOperationToLegacyType(data.operationType);
       const duplicate = await findExistingIntervention(tx, {
         machineId: data.machineId,
         date: data.date,
@@ -369,11 +393,12 @@ export async function updateMaintenanceLogAction(formData: FormData): Promise<Ma
           technicianId: data.technicianId,
           date: data.date,
           operationType: data.operationType,
-          type: mapOperationToLegacyType(data.operationType),
+          type: logType,
           workflowStatus: data.workflowStatus,
           workPerformed: data.workPerformed,
           failureDescription: data.failureDescription ?? null,
           durationMinutes: data.durationMinutes ?? null,
+          durationUnit: data.durationUnit ?? DurationUnit.PER_MINUTE,
           sectorMaintenance: data.sectorMaintenance ?? null,
           service: data.service ?? null,
           operation: data.operation ?? null,

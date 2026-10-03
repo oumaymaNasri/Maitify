@@ -25,7 +25,7 @@ function taskMark(checked: boolean): string {
 
 function machineRows(detail: MaintenanceOrderDetailVm): string {
   if (detail.lines.length === 0) {
-    return `<tr><td colspan="7" class="empty-row">Aucune machine planifiée</td></tr>`;
+    return `<tr><td colspan="6" class="empty-row">Aucune machine planifiée</td></tr>`;
   }
   return detail.lines
     .map(
@@ -36,7 +36,6 @@ function machineRows(detail: MaintenanceOrderDetailVm): string {
         <td class="col-center">${taskMark(line.taskGraissage)}</td>
         <td class="col-center">${taskMark(line.taskHuile)}</td>
         <td class="col-center">${taskMark(line.taskControl)}</td>
-        <td class="col-center">${taskMark(line.taskNonConforme)}</td>
       </tr>`,
     )
     .join("");
@@ -58,7 +57,7 @@ function interventionRows(detail: MaintenanceOrderDetailVm, type: "PREVENTIVE" |
         <td class="col-machine">${esc(log.machineName)}</td>
         <td class="col-center">${esc(interventionTypeFr(log.type))}</td>
         <td>${esc(log.technicianName ?? "—")}</td>
-        <td class="col-center">${esc(formatDurationMinutes(log.durationMinutes))}</td>
+        <td class="col-center">${esc(formatDurationMinutes(log.durationMinutes, log.durationUnit))}</td>
         <td class="col-center">${esc(maintenanceWorkflowStatusFr(log.workflowStatus))}</td>
       </tr>`,
     )
@@ -337,8 +336,7 @@ export function buildMaintenanceOrderHtml(detail: MaintenanceOrderDetailVm): str
           <th class="w-task">Nettoyage</th>
           <th class="w-task">Graissage</th>
           <th class="w-task">Huile</th>
-          <th class="w-task">C</th>
-          <th class="w-task">N.C</th>
+          <th class="w-task">Contrôle</th>
         </tr>
       </thead>
       <tbody>

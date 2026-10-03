@@ -236,7 +236,7 @@ export function InterventionsDataTable({
         size: 120,
         cell: ({ row }) => (
           <span className="tabular-nums text-sm text-slate-700">
-            {formatDurationMinutes(row.original.durationMinutes)}
+            {formatDurationMinutes(row.original.durationMinutes, row.original.durationUnit)}
           </span>
         ),
       },

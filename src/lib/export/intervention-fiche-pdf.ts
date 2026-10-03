@@ -1,6 +1,9 @@
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 
+import { FailureCause, InterventionType, OperationType } from "@prisma/client";
+
 import type { InterventionDetailVm } from "@/components/interventions/intervention-types";
+import { formatDurationMinutes } from "@/lib/utils/format-date";
 import { failureCauseFr, operationTypeFr } from "@/lib/view/gmao-labels";
 import { interventionTypeFr } from "@/lib/view/labels";
 
@@ -23,9 +26,8 @@ function fmtDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
 }
 
-function fmtDuration(minutes: number | null): string {
-  if (minutes == null) return "-";
-  return `${Math.max(0, Math.round(minutes))} min`;
+function fmtDuration(minutes: number | null, unit?: InterventionDetailVm["durationUnit"]): string {
+  return formatDurationMinutes(minutes, unit);
 }
 
 const CHECKBOX_SIZE = 10;
@@ -193,7 +195,7 @@ export async function buildInterventionFichePdf(detail: InterventionDetailVm): P
   y -= 96;
 
   const threeW = fullWidth / 3;
-  const tripleH = 116;
+  const tripleH = 132;
   drawBox(page, margin, y - tripleH, fullWidth, tripleH, FILL_WHITE);
   page.drawLine({
     start: { x: margin + threeW, y },
@@ -217,9 +219,27 @@ export async function buildInterventionFichePdf(detail: InterventionDetailVm): P
   page.drawText("TYPE DE MAINTENANCE", { x: margin + threeW + 5, y: y - 15, size: 9, font: bold, color: BORDER });
   page.drawText("CAUSE DE DEFAILLANCE", { x: margin + threeW * 2 + 5, y: y - 15, size: 9, font: bold, color: BORDER });
 
-  const opLines = ["REMPLACEMENT", "DIAGNOSTIC", "AMELIORATION", "CONTROLE"] as const;
-  const typeLines = ["CORRECTIVE", "PREVENTIVE"] as const;
-  const causeLines = ["USURE_NORMALE", "DEFAUT_UTILISATEUR", "DEFAUT_PRODUIT", "AUTRE"] as const;
+  const opLines: OperationType[] = [
+    OperationType.CONTROLE,
+    OperationType.CHANGEMENT,
+    OperationType.DIAGNOSTIC,
+    OperationType.REMPLACEMENT,
+    OperationType.AMELIORATION,
+  ];
+  const typeLines: InterventionType[] = [
+    InterventionType.PREVENTIVE,
+    InterventionType.CORRECTIVE,
+    InterventionType.PREDICTIVE,
+    InterventionType.AMELIORATION,
+    InterventionType.AUTONOME,
+  ];
+  const causeLines: FailureCause[] = [
+    FailureCause.USURE_NORMALE,
+    FailureCause.DEFAUT_UTILISATEUR,
+    FailureCause.DEFAUT_PRODUIT,
+    FailureCause.ENTRETIEN_MACHINE,
+    FailureCause.AUTRE,
+  ];
 
   for (let i = 0; i < opLines.length; i += 1) {
     const v = opLines[i];
@@ -240,10 +260,10 @@ export async function buildInterventionFichePdf(detail: InterventionDetailVm): P
       detail.failureCause === v,
     );
   }
-  y -= 126;
+  y -= 142;
 
   drawBox(page, margin, y - 24, 260, 24, FILL_WHITE);
-  page.drawText(`TEMPS D'INTERVENTION: ${pdfText(fmtDuration(detail.durationMinutes))}`, {
+  page.drawText(`TEMPS D'INTERVENTION: ${pdfText(fmtDuration(detail.durationMinutes, detail.durationUnit))}`, {
     x: margin + 6,
     y: y - 15,
     size: 9.5,

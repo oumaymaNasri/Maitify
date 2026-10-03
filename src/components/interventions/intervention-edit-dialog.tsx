@@ -1,6 +1,6 @@
 "use client";
 
-import { MaintenanceWorkflowStatus, OperationType } from "@prisma/client";
+import { DurationUnit, InterventionType, MaintenanceWorkflowStatus, OperationType } from "@prisma/client";
 import { Loader2, Pencil } from "lucide-react";
 import * as React from "react";
 
@@ -19,7 +19,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { operationTypeFr } from "@/lib/view/gmao-labels";
+import {
+  DURATION_UNIT_OPTIONS,
+  FAILURE_CAUSE_OPTIONS,
+  INTERVENTION_TYPE_OPTIONS,
+  OPERATION_TYPE_OPTIONS,
+  SECTOR_MAINTENANCE_OPTIONS,
+} from "@/lib/gmao/maintenance-form-options";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 
 type InterventionEditDialogProps = {
@@ -51,11 +57,13 @@ export function InterventionEditDialog({
   const [machineId, setMachineId] = React.useState("");
   const [technicianId, setTechnicianId] = React.useState("");
   const [operationType, setOperationType] = React.useState<OperationType>(OperationType.DIAGNOSTIC);
+  const [interventionType, setInterventionType] = React.useState<InterventionType>(InterventionType.PREVENTIVE);
   const [workflowStatus, setWorkflowStatus] = React.useState<MaintenanceWorkflowStatus>(
     MaintenanceWorkflowStatus.COMPLETED,
   );
   const [date, setDate] = React.useState("");
   const [durationMinutes, setDurationMinutes] = React.useState("");
+  const [durationUnit, setDurationUnit] = React.useState<DurationUnit>(DurationUnit.PER_MINUTE);
   const [failureCause, setFailureCause] = React.useState("");
   const [sectorMaintenance, setSectorMaintenance] = React.useState("");
   const [service, setService] = React.useState("");
@@ -80,9 +88,11 @@ export function InterventionEditDialog({
       setMachineId(d.machine.id);
       setTechnicianId(d.technician?.id ?? "");
       setOperationType(d.operationType);
+      setInterventionType(d.type);
       setWorkflowStatus(d.workflowStatus);
       setDate(toDatetimeLocal(d.date));
       setDurationMinutes(d.durationMinutes != null ? String(d.durationMinutes) : "");
+      setDurationUnit(d.durationUnit ?? DurationUnit.PER_MINUTE);
       setFailureCause(d.failureCause ?? "");
       setSectorMaintenance(d.sectorMaintenance ?? "");
       setService(d.service ?? "");
@@ -107,9 +117,11 @@ export function InterventionEditDialog({
     fd.set("machineId", machineId);
     fd.set("technicianId", technicianId);
     fd.set("operationType", operationType);
+    fd.set("type", interventionType);
     fd.set("workflowStatus", workflowStatus);
     fd.set("date", date);
     fd.set("durationMinutes", durationMinutes);
+    fd.set("durationUnit", durationUnit);
     fd.set("failureCause", failureCause);
     fd.set("sectorMaintenance", sectorMaintenance);
     fd.set("service", service);
@@ -134,9 +146,11 @@ export function InterventionEditDialog({
       technicianId: technicianId || null,
       technicianName: tech?.label ?? null,
       operationType,
+      type: interventionType,
       workflowStatus,
       date: new Date(date).toISOString(),
       durationMinutes: durationMinutes.trim() ? Math.max(0, Number(durationMinutes)) : null,
+      durationUnit,
       failureDescription: failureDescription.trim() || null,
       workPerformed,
       operation: operation.trim() || null,
@@ -200,15 +214,29 @@ export function InterventionEditDialog({
               </select>
             </div>
             <div className="space-y-2">
+              <Label>Type de maintenance</Label>
+              <select
+                value={interventionType}
+                onChange={(e) => setInterventionType(e.target.value as InterventionType)}
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+              >
+                {INTERVENTION_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
               <Label>Type d&apos;opération</Label>
               <select
                 value={operationType}
                 onChange={(e) => setOperationType(e.target.value as OperationType)}
                 className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
               >
-                {Object.values(OperationType).map((op) => (
-                  <option key={op} value={op}>
-                    {operationTypeFr(op)}
+                {OPERATION_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
                   </option>
                 ))}
               </select>
@@ -232,8 +260,21 @@ export function InterventionEditDialog({
               <Input type="datetime-local" required value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Durée (min)</Label>
-              <Input type="number" min={0} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} />
+              <Label>Temps de maintenance</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input type="number" min={0} value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} />
+                <select
+                  value={durationUnit}
+                  onChange={(e) => setDurationUnit(e.target.value as DurationUnit)}
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                >
+                  {DURATION_UNIT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Cause de défaillance</Label>
@@ -243,15 +284,31 @@ export function InterventionEditDialog({
                 className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
               >
                 <option value="">—</option>
-                <option value="USURE_NORMALE">Usure normale</option>
-                <option value="DEFAUT_UTILISATEUR">Défaut utilisateur</option>
-                <option value="DEFAUT_PRODUIT">Défaut produit</option>
-                <option value="AUTRE">Autre</option>
+                {FAILURE_CAUSE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="space-y-2">
               <Label>Secteur maintenance</Label>
-              <Input value={sectorMaintenance} onChange={(e) => setSectorMaintenance(e.target.value)} />
+              <select
+                value={sectorMaintenance}
+                onChange={(e) => setSectorMaintenance(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+              >
+                <option value="">—</option>
+                {SECTOR_MAINTENANCE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+                {sectorMaintenance &&
+                !SECTOR_MAINTENANCE_OPTIONS.some((opt) => opt.value === sectorMaintenance) ? (
+                  <option value={sectorMaintenance}>{sectorMaintenance}</option>
+                ) : null}
+              </select>
             </div>
             <div className="space-y-2">
               <Label>Service</Label>

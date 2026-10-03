@@ -56,6 +56,8 @@ export function parseExcelDate(raw: string | undefined): Date | null {
 function interventionTypeFromFr(value: string | undefined): InterventionType {
   const u = foldExcelKey(value);
   if (u.includes("correct")) return InterventionType.CORRECTIVE;
+  if (u.includes("predic")) return InterventionType.PREDICTIVE;
+  if (u.includes("auton")) return InterventionType.AUTONOME;
   if (u.includes("amel")) return InterventionType.AMELIORATION;
   return InterventionType.PREVENTIVE;
 }
@@ -64,8 +66,8 @@ function normalizeSector(raw: string | undefined): string | null {
   const s = norm(raw);
   if (!s) return null;
   const f = foldExcelKey(s);
-  if (f.includes("eid") || f.includes("jour")) return "Journalière";
-  if (f.includes("poste")) return "Par Poste";
+  if (f.includes("eid") || f.includes("jour")) return "Journalier";
+  if (f.includes("poste")) return "Par poste";
   if (f.includes("prod")) return "C. Production";
   if (f.includes("hebdo")) return "Hebdomadaire";
   if (f.includes("mens")) return "Mensuelle";
@@ -96,6 +98,7 @@ function operationTypeFromFr(value: string | undefined, type: InterventionType):
   const u = foldExcelKey(value);
   if (u.includes("remplac")) return OperationType.REMPLACEMENT;
   if (u.includes("amelior")) return OperationType.AMELIORATION;
+  if (u.includes("chang")) return OperationType.CHANGEMENT;
   if (u.includes("control") || u.includes("net") || u.includes("graiss")) return OperationType.CONTROLE;
   if (type === InterventionType.PREVENTIVE) return OperationType.CONTROLE;
   return OperationType.DIAGNOSTIC;
@@ -106,6 +109,7 @@ function failureCauseFromFr(causeLie: string | undefined, cause: string | undefi
   if (u.includes("usure")) return FailureCause.USURE_NORMALE;
   if (u.includes("utilisateur") || u.includes("defaut utilis")) return FailureCause.DEFAUT_UTILISATEUR;
   if (u.includes("defaut prod") || u.includes("fabrication")) return FailureCause.DEFAUT_PRODUIT;
+  if (u.includes("entretien")) return FailureCause.ENTRETIEN_MACHINE;
   if (norm(causeLie) || norm(cause)) return FailureCause.AUTRE;
   return null;
 }
