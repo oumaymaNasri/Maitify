@@ -27,10 +27,18 @@ function parseTechnicianForm(formData: FormData) {
     email: formData.get("email") || undefined,
     phone: formData.get("phone") || undefined,
     employeeCode: formData.get("employeeCode") || undefined,
+    imageUrl: formData.get("imageUrl")?.toString() || undefined,
+    imageDataUrl: formData.get("imageDataUrl")?.toString() || undefined,
   };
 }
 
-function toTechnicianData(data: TechnicianInput) {
+function resolveStoredImageUrl(data: { imageUrl?: string; imageDataUrl?: string }): string | undefined {
+  const uploaded = data.imageDataUrl?.trim();
+  if (uploaded) return uploaded;
+  return data.imageUrl?.trim() || undefined;
+}
+
+function toTechnicianData(data: TechnicianInput, storedImage?: string) {
   return {
     firstName: data.firstName,
     lastName: data.lastName,
@@ -40,6 +48,7 @@ function toTechnicianData(data: TechnicianInput) {
     email: data.email?.trim() ? data.email.trim() : null,
     phone: data.phone?.trim() ? data.phone.trim() : null,
     employeeCode: data.employeeCode?.trim() ? data.employeeCode.trim() : null,
+    ...(storedImage !== undefined ? { imageUrl: storedImage || null } : {}),
   };
 }
 
@@ -52,7 +61,8 @@ export async function createTechnicianAction(formData: FormData): Promise<Techni
   }
 
   try {
-    const t = await prisma.technician.create({ data: toTechnicianData(parsed.data) });
+    const storedImage = resolveStoredImageUrl(parsed.data);
+    const t = await prisma.technician.create({ data: toTechnicianData(parsed.data, storedImage) });
     revalidateTechnicianPaths();
     return { ok: true, id: t.id };
   } catch (e) {
@@ -72,9 +82,10 @@ export async function updateTechnicianAction(formData: FormData): Promise<Techni
   }
 
   try {
+    const storedImage = resolveStoredImageUrl(parsed.data);
     await prisma.technician.update({
       where: { id: parsed.data.id },
-      data: toTechnicianData(parsed.data),
+      data: toTechnicianData(parsed.data, storedImage),
     });
     revalidateTechnicianPaths();
     return { ok: true, id: parsed.data.id };

@@ -17,6 +17,8 @@ type MachineImageFieldsProps = {
   alt: string;
   disabled?: boolean;
   urlError?: string;
+  existingPreviewUrl?: string | null;
+  fileLabel?: string;
 };
 
 export function MachineImageFields({
@@ -28,6 +30,8 @@ export function MachineImageFields({
   alt,
   disabled,
   urlError,
+  existingPreviewUrl,
+  fileLabel = "Remplacer l'image",
 }: MachineImageFieldsProps) {
   const fileId = `${idPrefix}-image-file`;
   const urlId = `${idPrefix}-image-url`;
@@ -43,7 +47,7 @@ export function MachineImageFields({
   }, [blobPreview]);
 
   const encoded = imageDataUrl.trim() || (imageUrl.startsWith("data:image/") ? imageUrl : "");
-  const preview = blobPreview || encoded || imageUrl.trim() || null;
+  const preview = blobPreview || encoded || existingPreviewUrl?.trim() || imageUrl.trim() || null;
   const urlIsData = imageUrl.startsWith("data:image/");
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,7 +122,7 @@ export function MachineImageFields({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={fileId}>Choisir un fichier</Label>
+        <Label htmlFor={fileId}>{fileLabel}</Label>
         <div className="flex items-center gap-2">
           <ImagePlus className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
           <Input

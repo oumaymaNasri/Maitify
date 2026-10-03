@@ -10,6 +10,8 @@ export const technicianSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
   employeeCode: z.string().optional(),
+  imageUrl: z.string().optional(),
+  imageDataUrl: z.string().optional().refine((v) => !v || v.startsWith("data:image/"), "Image invalide."),
 });
 
 export type TechnicianInput = z.infer<typeof technicianSchema>;

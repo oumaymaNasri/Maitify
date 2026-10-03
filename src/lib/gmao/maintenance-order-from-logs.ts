@@ -182,6 +182,7 @@ export async function attachLogToDailyOrder(
           taskGraissage: Boolean(input.preventiveLubrication),
           taskHuile: Boolean(input.preventiveOil),
           taskControl: Boolean(input.preventiveControl),
+          taskControle: false,
           taskNonConforme: Boolean(input.preventiveNonConforme),
         },
       });
@@ -293,6 +294,7 @@ export async function syncDailyMaintenanceOrders(db: PrismaClient): Promise<{ da
     taskGraissage: boolean;
     taskHuile: boolean;
     taskControl: boolean;
+    taskControle: boolean;
     taskNonConforme: boolean;
   }[] = [];
 
@@ -329,6 +331,7 @@ export async function syncDailyMaintenanceOrders(db: PrismaClient): Promise<{ da
         taskGraissage: Boolean(log.preventiveLubrication),
         taskHuile: Boolean(log.preventiveOil),
         taskControl: Boolean(log.preventiveControl),
+        taskControle: false,
         taskNonConforme: Boolean(log.preventiveNonConforme),
       });
     }

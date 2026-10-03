@@ -3,6 +3,7 @@
 import { CalendarClock, MapPin, Settings2 } from "lucide-react";
 import * as React from "react";
 
+import { AssignedPartsList } from "@/components/machines/assigned-parts-list";
 import { MachineQrDialog } from "@/components/machines/machine-qr-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import type { AssignedPartVm } from "@/lib/gmao/assigned-parts";
 import { machineImageApiUrl } from "@/lib/media/image-api";
 import { isUsableImageSrc } from "@/lib/media/is-usable-image-src";
 import { cn } from "@/lib/utils";
@@ -46,6 +48,7 @@ export type MachineCardVm = {
   qrCode: string | null;
   description?: string | null;
   lastInterventionAt: string | null;
+  assignedParts: AssignedPartVm[];
 };
 
 export function MachineCard({ machine, className }: { machine: MachineCardVm; className?: string }) {
@@ -111,6 +114,11 @@ export function MachineCard({ machine, className }: { machine: MachineCardVm; cl
           </span>
         </p>
 
+        <div>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Pièces affectées</p>
+          <AssignedPartsList parts={machine.assignedParts ?? []} compact />
+        </div>
+
         <div className="flex flex-wrap gap-2 pt-1">
           <MachineQrDialog machineId={machine.id} machineName={machine.name} initialQrCode={machine.qrCode} />
           <Dialog>
@@ -140,6 +148,13 @@ export function MachineCard({ machine, className }: { machine: MachineCardVm; cl
                 <div>
                   <p className="text-xs font-semibold uppercase text-muted-foreground">Dernière intervention</p>
                   <p className="mt-0.5">{formatLastIntervention(machine.lastInterventionAt)}</p>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">Pièces de rechange affectées</p>
+                  <div className="mt-1.5">
+                    <AssignedPartsList parts={machine.assignedParts ?? []} compact />
+                  </div>
                 </div>
                 <Separator />
                 <p className="text-xs text-muted-foreground">

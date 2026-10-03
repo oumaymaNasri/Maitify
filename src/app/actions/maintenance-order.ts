@@ -46,6 +46,7 @@ function parseOrderForm(formData: FormData) {
     taskGraissage: formData.get("taskGraissage") === "on" || formData.get("taskGraissage") === "true",
     taskHuile: formData.get("taskHuile") === "on" || formData.get("taskHuile") === "true",
     taskControl: formData.get("taskControl") === "on" || formData.get("taskControl") === "true",
+    taskControle: formData.get("taskControle") === "on" || formData.get("taskControle") === "true",
     taskNonConforme: formData.get("taskNonConforme") === "on" || formData.get("taskNonConforme") === "true",
   };
 }
@@ -85,6 +86,7 @@ export async function createMaintenanceOrderAction(formData: FormData): Promise<
               taskGraissage: line.taskGraissage,
               taskHuile: line.taskHuile,
               taskControl: line.taskControl,
+              taskControle: line.taskControle,
               taskNonConforme: line.taskNonConforme,
             },
             update: {
@@ -92,6 +94,7 @@ export async function createMaintenanceOrderAction(formData: FormData): Promise<
               taskGraissage: line.taskGraissage,
               taskHuile: line.taskHuile,
               taskControl: line.taskControl,
+              taskControle: line.taskControle,
               taskNonConforme: line.taskNonConforme,
             },
           });
@@ -115,6 +118,7 @@ export async function createMaintenanceOrderAction(formData: FormData): Promise<
             taskGraissage: l.taskGraissage,
             taskHuile: l.taskHuile,
             taskControl: l.taskControl,
+            taskControle: l.taskControle,
             taskNonConforme: l.taskNonConforme,
           })),
         },
@@ -178,6 +182,7 @@ export async function updateMaintenanceOrderAction(formData: FormData): Promise<
             taskGraissage: line.taskGraissage,
             taskHuile: line.taskHuile,
             taskControl: line.taskControl,
+            taskControle: line.taskControle,
             taskNonConforme: line.taskNonConforme,
           },
           update: {
@@ -185,6 +190,7 @@ export async function updateMaintenanceOrderAction(formData: FormData): Promise<
             taskGraissage: line.taskGraissage,
             taskHuile: line.taskHuile,
             taskControl: line.taskControl,
+            taskControle: line.taskControle,
             taskNonConforme: line.taskNonConforme,
           },
         });

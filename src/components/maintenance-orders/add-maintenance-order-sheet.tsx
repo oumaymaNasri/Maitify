@@ -50,12 +50,14 @@ function resetTaskState(setters: {
   setTaskGraissage: (v: boolean) => void;
   setTaskHuile: (v: boolean) => void;
   setTaskControl: (v: boolean) => void;
+  setTaskControle: (v: boolean) => void;
   setTaskNonConforme: (v: boolean) => void;
 }) {
   setters.setTaskNettoyage(false);
   setters.setTaskGraissage(false);
   setters.setTaskHuile(false);
   setters.setTaskControl(false);
+  setters.setTaskControle(false);
   setters.setTaskNonConforme(false);
 }
 
@@ -68,6 +70,7 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
   const [taskGraissage, setTaskGraissage] = React.useState(false);
   const [taskHuile, setTaskHuile] = React.useState(false);
   const [taskControl, setTaskControl] = React.useState(false);
+  const [taskControle, setTaskControle] = React.useState(false);
   const [taskNonConforme, setTaskNonConforme] = React.useState(false);
 
   const handleOpenChange = (next: boolean) => {
@@ -75,7 +78,7 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
     if (!next) {
       setError(null);
       setSelectedMachineIds(new Set());
-      resetTaskState({ setTaskNettoyage, setTaskGraissage, setTaskHuile, setTaskControl, setTaskNonConforme });
+      resetTaskState({ setTaskNettoyage, setTaskGraissage, setTaskHuile, setTaskControl, setTaskControle, setTaskNonConforme });
     }
   };
 
@@ -90,6 +93,7 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
     fd.set("taskGraissage", String(taskGraissage));
     fd.set("taskHuile", String(taskHuile));
     fd.set("taskControl", String(taskControl));
+    fd.set("taskControle", String(taskControle));
     fd.set("taskNonConforme", String(taskNonConforme));
 
     const res = await createMaintenanceOrderAction(fd);
@@ -185,6 +189,13 @@ export function AddMaintenanceOrderSheet({ machines, onCreated }: AddMaintenance
                 label="Huile"
                 checked={taskHuile}
                 onChange={setTaskHuile}
+                disabled={pending}
+              />
+              <MaintenanceTaskCheckbox
+                id="task-controle"
+                label="Contrôle"
+                checked={taskControle}
+                onChange={setTaskControle}
                 disabled={pending}
               />
               <MaintenanceTaskCheckbox

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+export function technicianImageApiUrl(technicianId: string): string {
+  return `/api/technicians/${technicianId}/image`;
+}
+
 export function partImageApiUrl(partId: string): string {
   return `/api/parts/${partId}/image`;
 }

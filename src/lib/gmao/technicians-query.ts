@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 
 import { CACHE_TAGS } from "@/lib/cache/tags";
 import { prisma } from "@/lib/db/prisma";
+import { isUsableImageSrc } from "@/lib/media/is-usable-image-src";
 
 export type TechnicianRow = {
   id: string;
@@ -14,6 +15,7 @@ export type TechnicianRow = {
   email: string | null;
   phone: string | null;
   employeeCode: string | null;
+  hasImage: boolean;
   interventionCount: number;
 };
 
@@ -30,6 +32,7 @@ export async function fetchTechnicians(): Promise<TechnicianRow[]> {
       email: true,
       phone: true,
       employeeCode: true,
+      imageUrl: true,
       _count: { select: { maintenanceLogs: true } },
     },
   });
@@ -44,6 +47,7 @@ export async function fetchTechnicians(): Promise<TechnicianRow[]> {
     email: t.email,
     phone: t.phone,
     employeeCode: t.employeeCode,
+    hasImage: isUsableImageSrc(t.imageUrl),
     interventionCount: t._count.maintenanceLogs,
   }));
 }

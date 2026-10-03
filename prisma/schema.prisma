@@ -209,6 +209,7 @@ model Technician {
   email        String?
   phone        String?
   employeeCode String?                @unique @map("employee_code")
+  imageUrl     String?                @map("image_url") @db.Text
   userId       String?                @unique
   user         User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt    DateTime               @default(now())
@@ -378,6 +379,7 @@ model MaintenanceOrderLine {
   taskGraissage      Boolean          @default(false) @map("task_graissage")
   taskHuile          Boolean          @default(false) @map("task_huile")
   taskControl        Boolean          @default(false) @map("task_control")
+  taskControle       Boolean          @default(false) @map("task_controle")
   taskNonConforme    Boolean          @default(false) @map("task_non_conforme")
   maintenanceLog     MaintenanceLog?
 

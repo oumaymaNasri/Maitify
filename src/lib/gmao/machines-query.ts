@@ -6,6 +6,8 @@ import { CACHE_TAGS } from "@/lib/cache/tags";
 import type { PaginatedResult } from "@/lib/db/pagination";
 import { clampPagination, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
+import type { AssignedPartVm } from "@/lib/gmao/assigned-parts";
+import { mergeAssignedParts } from "@/lib/gmao/assigned-parts";
 import { resolveMachineImageUrl } from "@/lib/gmao/machine-image";
 
 export const MACHINES_PAGE_SIZE = 50;
@@ -21,6 +23,17 @@ const machineListSelect = {
   maintenanceSector: true,
   galleryImageUrls: true,
   photos: { take: 8, orderBy: { sortOrder: "asc" }, select: { url: true } },
+  spareParts: {
+    take: 12,
+    orderBy: { designation: "asc" },
+    select: { id: true, designation: true, reference: true, quantity: true, minStock: true },
+  },
+  partMachines: {
+    take: 12,
+    select: {
+      part: { select: { id: true, designation: true, reference: true, quantity: true, minStock: true } },
+    },
+  },
   _count: { select: { photos: true, maintenanceLogs: true } },
 } as const;
 
@@ -35,6 +48,8 @@ function mapMachineCard(m: {
   maintenanceSector: MaintenanceFrequency;
   galleryImageUrls: string[];
   photos: { url: string }[];
+  spareParts: AssignedPartVm[];
+  partMachines: { part: AssignedPartVm }[];
   _count: { photos: number; maintenanceLogs: number };
 }): MachineCardVm {
   return {
@@ -50,6 +65,10 @@ function mapMachineCard(m: {
     galleryCount: m._count.photos,
     qrCode: m.qrCode,
     lastInterventionAt: null,
+    assignedParts: mergeAssignedParts(
+      m.spareParts,
+      m.partMachines.map((row) => row.part),
+    ).slice(0, 8),
   };
 }
 

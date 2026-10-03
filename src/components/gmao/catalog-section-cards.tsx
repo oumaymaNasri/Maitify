@@ -4,12 +4,13 @@ import { ArrowDownUp, CalendarClock, Eye, MapPin, Package, Phone, Settings2, Use
 
 import { CatalogCardsGrid } from "@/components/gmao/catalog-cards-grid";
 import { CatalogEntityCard } from "@/components/gmao/catalog-entity-card";
+import { AssignedPartsList } from "@/components/machines/assigned-parts-list";
 import type { MachineCardVm } from "@/components/machines/machine-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import type { PartInventoryRow } from "@/lib/gmao/stock-parts-query";
 import type { TechnicianRow } from "@/lib/gmao/technicians-query";
-import { machineImageApiUrl, partImageApiUrl } from "@/lib/media/image-api";
+import { technicianImageApiUrl, machineImageApiUrl, partImageApiUrl } from "@/lib/media/image-api";
 import { maintenanceFrequencyFr, technicianAvailabilityFr, technicianRoleFr, technicianSpecialtyFr } from "@/lib/view/gmao-labels";
 import { formatLastIntervention, machineAssetStatusFr, machineStatusBadgeClass } from "@/lib/view/machine-labels";
 import { technicianAvailabilityBadgeClass } from "@/lib/view/status-badges";
@@ -73,6 +74,14 @@ export function MachinesCatalogCards({
             { icon: Wrench, text: maintenanceFrequencyFr(m.maintenanceSector) },
             { icon: CalendarClock, text: formatLastIntervention(m.lastInterventionAt) },
           ]}
+          afterMeta={
+            <div className="pt-1">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Pièces affectées
+              </p>
+              <AssignedPartsList parts={m.assignedParts ?? []} compact />
+            </div>
+          }
           footer={
             <ButtonLink href={`/machines/${m.id}/historique`} size="sm" variant="outline">
               <Eye className="mr-1.5 h-3.5 w-3.5" />
@@ -107,6 +116,7 @@ export function TechniciansCatalogCards({
           key={t.id}
           title={`${t.firstName} ${t.lastName}`}
           kicker={t.employeeCode ? `Mat. ${t.employeeCode}` : t.id.slice(0, 8)}
+          imageUrl={t.hasImage ? technicianImageApiUrl(t.id) : null}
           fallbackIcon={UserRound}
           selected={selectedIds.has(t.id)}
           onToggleSelect={(checked) => onToggleSelect(t.id, checked)}

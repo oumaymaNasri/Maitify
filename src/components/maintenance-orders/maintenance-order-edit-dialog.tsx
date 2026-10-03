@@ -66,6 +66,7 @@ export function MaintenanceOrderEditDialog({
   const [taskGraissage, setTaskGraissage] = React.useState(false);
   const [taskHuile, setTaskHuile] = React.useState(false);
   const [taskControl, setTaskControl] = React.useState(false);
+  const [taskControle, setTaskControle] = React.useState(false);
   const [taskNonConforme, setTaskNonConforme] = React.useState(false);
 
   React.useEffect(() => {
@@ -91,6 +92,7 @@ export function MaintenanceOrderEditDialog({
         setTaskGraissage(source.taskGraissage);
         setTaskHuile(source.taskHuile);
         setTaskControl(source.taskControl);
+        setTaskControle(source.taskControle);
         setTaskNonConforme(source.taskNonConforme);
       }
     });
@@ -116,6 +118,7 @@ export function MaintenanceOrderEditDialog({
     fd.set("taskGraissage", String(taskGraissage));
     fd.set("taskHuile", String(taskHuile));
     fd.set("taskControl", String(taskControl));
+    fd.set("taskControle", String(taskControle));
     fd.set("taskNonConforme", String(taskNonConforme));
 
     const res = await updateMaintenanceOrderAction(fd);
@@ -193,6 +196,7 @@ export function MaintenanceOrderEditDialog({
                 <MaintenanceTaskCheckbox id="edit-nettoyage" label="Nettoyage" checked={taskNettoyage} onChange={setTaskNettoyage} disabled={pending} />
                 <MaintenanceTaskCheckbox id="edit-graissage" label="Graissage" checked={taskGraissage} onChange={setTaskGraissage} disabled={pending} />
                 <MaintenanceTaskCheckbox id="edit-huile" label="Huile" checked={taskHuile} onChange={setTaskHuile} disabled={pending} />
+                <MaintenanceTaskCheckbox id="edit-controle" label="Contrôle" checked={taskControle} onChange={setTaskControle} disabled={pending} />
                 <MaintenanceTaskCheckbox id="edit-control" label="C" hint="Conforme" checked={taskControl} onChange={setTaskControl} disabled={pending} />
                 <MaintenanceTaskCheckbox id="edit-nc" label="N.C" hint="Non conforme" checked={taskNonConforme} onChange={setTaskNonConforme} disabled={pending} />
               </div>

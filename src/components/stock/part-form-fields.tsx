@@ -4,11 +4,10 @@ import * as React from "react";
 
 import { MachineMultiSelect } from "@/components/maintenance-orders/maintenance-order-form-fields";
 import type { MachineOption } from "@/lib/gmao/stock-parts-query";
+import { compressImageFileToDataUrl } from "@/lib/media/compress-client-image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OptimizedImage } from "@/components/ui/optimized-image";
-
-const MAX_IMAGE_BYTES = 1_200_000;
 
 type PartFormFieldsProps = {
   machines: MachineOption[];
@@ -44,21 +43,22 @@ export function PartFormFields({
   imageError,
   onImageError,
 }: PartFormFieldsProps) {
-  const onImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/") || file.size > MAX_IMAGE_BYTES) {
-      onImageError?.("Image invalide ou trop volumineuse (max 1,2 Mo).");
+    if (!file.type.startsWith("image/")) {
+      onImageError?.("Fichier image invalide.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      onPreviewChange(result);
-      onImageDataUrlChange(result);
+    try {
+      const dataUrl = await compressImageFileToDataUrl(file);
+      onPreviewChange(dataUrl);
+      onImageDataUrlChange(dataUrl);
       onImageError?.(null);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      onImageError?.(err instanceof Error ? err.message : "Conversion de l'image impossible.");
+    }
   };
 
   return (
@@ -132,7 +132,7 @@ export function PartFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="part-image">Image</Label>
+        <Label htmlFor="part-image">{mode === "edit" ? "Remplacer l'image" : "Image"}</Label>
         {preview ? (
           <div className="relative h-32 w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
             <OptimizedImage src={preview} alt="" fill sizes="320px" className="object-contain p-2" />

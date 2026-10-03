@@ -190,6 +190,7 @@ export type ActiveMaintenanceOrderOption = {
     taskGraissage: boolean;
     taskHuile: boolean;
     taskControl: boolean;
+    taskControle: boolean;
     taskNonConforme: boolean;
   }[];
 };
@@ -221,6 +222,7 @@ export async function fetchActiveMaintenanceOrders(): Promise<ActiveMaintenanceO
           taskGraissage: true,
           taskHuile: true,
           taskControl: true,
+          taskControle: true,
           taskNonConforme: true,
           machine: { select: { id: true, name: true } },
         },
@@ -241,6 +243,7 @@ export async function fetchActiveMaintenanceOrders(): Promise<ActiveMaintenanceO
       taskGraissage: l.taskGraissage,
       taskHuile: l.taskHuile,
       taskControl: l.taskControl,
+      taskControle: l.taskControle,
       taskNonConforme: l.taskNonConforme,
     })),
   }));

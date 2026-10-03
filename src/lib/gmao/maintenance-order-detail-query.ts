@@ -40,6 +40,7 @@ export type MaintenanceOrderDetailVm = {
     taskGraissage: boolean;
     taskHuile: boolean;
     taskControl: boolean;
+    taskControle: boolean;
     taskNonConforme: boolean;
     completed: boolean;
     maintenanceLogId: string | null;
@@ -141,6 +142,7 @@ export async function fetchMaintenanceOrderDetail(id: string): Promise<Maintenan
       taskGraissage: l.taskGraissage,
       taskHuile: l.taskHuile,
       taskControl: l.taskControl,
+      taskControle: l.taskControle,
       taskNonConforme: l.taskNonConforme,
       completed: Boolean(l.maintenanceLog),
       maintenanceLogId: l.maintenanceLog?.id ?? null,

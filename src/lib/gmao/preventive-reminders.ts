@@ -46,12 +46,14 @@ function taskLabels(line: {
   taskGraissage: boolean;
   taskHuile: boolean;
   taskControl: boolean;
+  taskControle: boolean;
   taskNonConforme: boolean;
 }): string[] {
   const labels: string[] = [];
   if (line.taskNettoyage) labels.push("Nettoyage");
   if (line.taskGraissage) labels.push("Graissage");
   if (line.taskHuile) labels.push("Huile");
+  if (line.taskControle) labels.push("Contrôle");
   if (line.taskControl) labels.push("C");
   if (line.taskNonConforme) labels.push("N.C");
   return labels.length ? labels : ["Préventive"];

@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import * as React from "react";
 
 import { getTechnicianDetailAction } from "@/app/actions/technician";
+import { MachineImageBlock } from "@/components/machines/machine-image-block";
 import type { TechnicianDetailVm } from "@/lib/gmao/technician-detail-query";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,6 +13,7 @@ import { formatDateFrShort } from "@/lib/utils/format-date";
 import { operationTypeFr, technicianAvailabilityFr, technicianRoleFr, technicianSpecialtyFr } from "@/lib/view/gmao-labels";
 import { maintenanceWorkflowStatusFr } from "@/lib/view/machine-labels";
 import { technicianAvailabilityBadgeClass } from "@/lib/view/status-badges";
+import { technicianImageApiUrl } from "@/lib/media/image-api";
 import { cn } from "@/lib/utils";
 
 type TechnicianDetailSheetProps = {
@@ -75,6 +77,11 @@ export function TechnicianDetailSheet({
                   {technicianAvailabilityFr(detail.availability)}
                 </Badge>
               </div>
+
+              <MachineImageBlock
+                imageUrl={detail.hasImage ? technicianImageApiUrl(detail.id) : null}
+                alt={`${detail.firstName} ${detail.lastName}`}
+              />
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
                 <p className="text-xs font-semibold uppercase text-slate-500">Contact</p>

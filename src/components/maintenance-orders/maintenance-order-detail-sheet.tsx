@@ -160,13 +160,14 @@ export function MaintenanceOrderDetailSheet({
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Plan préventif (machines & tâches)</p>
                   <div className="overflow-x-auto rounded-lg border border-slate-200">
-                    <table className="w-full min-w-[520px] border-collapse text-sm">
+                    <table className="w-full min-w-[620px] border-collapse text-sm">
                       <thead>
                         <tr className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           <th className="px-3 py-2">Machine</th>
                           <th className="px-2 py-2 text-center">Nettoyage</th>
                           <th className="px-2 py-2 text-center">Graissage</th>
                           <th className="px-2 py-2 text-center">Huile</th>
+                          <th className="px-2 py-2 text-center">Contrôle</th>
                           <th className="px-2 py-2 text-center" title="Conforme">
                             C
                           </th>
@@ -186,6 +187,7 @@ export function MaintenanceOrderDetailSheet({
                             <td className="px-2 py-2 text-center">{taskMarkCell(line.taskNettoyage)}</td>
                             <td className="px-2 py-2 text-center">{taskMarkCell(line.taskGraissage)}</td>
                             <td className="px-2 py-2 text-center">{taskMarkCell(line.taskHuile)}</td>
+                            <td className="px-2 py-2 text-center">{taskMarkCell(line.taskControle)}</td>
                             <td className="px-2 py-2 text-center">{taskMarkCell(line.taskControl)}</td>
                             <td className="px-2 py-2 text-center">{taskMarkCell(line.taskNonConforme)}</td>
                             <td className="px-3 py-2 text-right">

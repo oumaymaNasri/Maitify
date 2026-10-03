@@ -4,6 +4,7 @@ import { CalendarClock, Edit2, Eye, MapPin, Settings2, Trash2 } from "lucide-rea
 import * as React from "react";
 
 import { deleteMachineAction } from "@/app/actions/machine";
+import { AssignedPartsList } from "@/components/machines/assigned-parts-list";
 import { MachineQrDialog } from "@/components/machines/machine-qr-dialog";
 import type { MachineCardVm } from "@/components/machines/machine-card";
 import { MachineFormSheet } from "@/components/machines/machine-form-sheet";
@@ -106,6 +107,11 @@ function MachinePremiumCardInner({ machine, onView, onDeleted }: MachinePremiumC
             <CalendarClock className="h-3.5 w-3.5" />
             {formatLastIntervention(machine.lastInterventionAt)}
           </p>
+
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Pièces affectées</p>
+            <AssignedPartsList parts={machine.assignedParts ?? []} compact />
+          </div>
 
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" size="sm" variant="outline" onClick={() => onView(machine)}>

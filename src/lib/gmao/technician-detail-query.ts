@@ -26,6 +26,7 @@ export type TechnicianDetailVm = {
   email: string | null;
   phone: string | null;
   employeeCode: string | null;
+  hasImage: boolean;
   interventionCount: number;
   recentInterventions: TechnicianInterventionHistoryItem[];
 };
@@ -45,6 +46,7 @@ export async function fetchTechnicianDetail(id: string): Promise<TechnicianDetai
       email: true,
       phone: true,
       employeeCode: true,
+      imageUrl: true,
       _count: { select: { maintenanceLogs: true } },
       maintenanceLogs: {
         take: HISTORY_LIMIT,
@@ -72,6 +74,7 @@ export async function fetchTechnicianDetail(id: string): Promise<TechnicianDetai
     email: row.email,
     phone: row.phone,
     employeeCode: row.employeeCode,
+    hasImage: Boolean(row.imageUrl?.trim()),
     interventionCount: row._count.maintenanceLogs,
     recentInterventions: row.maintenanceLogs.map((log) => ({
       id: log.id,

@@ -5,6 +5,7 @@ import { Loader2, Pencil } from "lucide-react";
 import * as React from "react";
 
 import { updateTechnicianAction } from "@/app/actions/technician";
+import { MachineImageFields } from "@/components/machines/machine-image-fields";
 import type { TechnicianRow } from "@/lib/gmao/technicians-query";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +30,7 @@ import {
   technicianRoleFr,
   technicianSpecialtyFr,
 } from "@/lib/view/gmao-labels";
+import { technicianImageApiUrl } from "@/lib/media/image-api";
 
 type TechnicianEditDialogProps = {
   technician: TechnicianRow | null;
@@ -50,6 +52,8 @@ export function TechnicianEditDialog({ technician, open, onOpenChange, onUpdated
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [employeeCode, setEmployeeCode] = React.useState("");
+  const [imageUrl, setImageUrl] = React.useState("");
+  const [imageDataUrl, setImageDataUrl] = React.useState("");
 
   React.useEffect(() => {
     if (!open || !technician) return;
@@ -61,6 +65,8 @@ export function TechnicianEditDialog({ technician, open, onOpenChange, onUpdated
     setEmail(technician.email ?? "");
     setPhone(technician.phone ?? "");
     setEmployeeCode(technician.employeeCode ?? "");
+    setImageUrl("");
+    setImageDataUrl("");
     setError(null);
   }, [open, technician]);
 
@@ -80,6 +86,8 @@ export function TechnicianEditDialog({ technician, open, onOpenChange, onUpdated
     fd.set("email", email);
     fd.set("phone", phone);
     fd.set("employeeCode", employeeCode);
+    if (imageDataUrl) fd.set("imageDataUrl", imageDataUrl);
+    else if (imageUrl.trim()) fd.set("imageUrl", imageUrl.trim());
 
     const res = await updateTechnicianAction(fd);
     setPending(false);
@@ -98,6 +106,7 @@ export function TechnicianEditDialog({ technician, open, onOpenChange, onUpdated
       email: email.trim() || null,
       phone: phone.trim() || null,
       employeeCode: employeeCode.trim() || null,
+      hasImage: Boolean(imageDataUrl) || technician.hasImage,
     });
     onOpenChange(false);
   };
@@ -184,6 +193,19 @@ export function TechnicianEditDialog({ technician, open, onOpenChange, onUpdated
           <div className="space-y-2">
             <Label>Matricule</Label>
             <Input value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)} disabled={pending} />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <MachineImageFields
+              idPrefix="edit-technician"
+              imageUrl={imageUrl}
+              onImageUrlChange={setImageUrl}
+              imageDataUrl={imageDataUrl}
+              onImageDataUrlChange={setImageDataUrl}
+              existingPreviewUrl={technician?.hasImage ? technicianImageApiUrl(technician.id) : null}
+              alt="Photo du technicien"
+              disabled={pending}
+              fileLabel="Remplacer la photo"
+            />
           </div>
 
           {error ? <p className="sm:col-span-2 text-sm text-rose-600">{error}</p> : null}

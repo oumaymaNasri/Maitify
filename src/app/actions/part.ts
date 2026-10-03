@@ -49,7 +49,9 @@ function parsePartForm(formData: FormData) {
 function revalidateStockPaths() {
   revalidateTag(CACHE_TAGS.parts);
   revalidateTag(CACHE_TAGS.stock);
+  revalidateTag(CACHE_TAGS.machines);
   revalidatePath("/stock");
+  revalidatePath("/machines");
 }
 
 async function syncPartMachines(tx: Prisma.TransactionClient, partId: string, machineIds: string[]) {

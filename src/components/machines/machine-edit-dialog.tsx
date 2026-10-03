@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { machineEditFormSchema, type MachineEditFormInput } from "@/lib/validations/machine";
+import { machineImageApiUrl } from "@/lib/media/image-api";
 import { maintenanceFrequencyFr } from "@/lib/view/gmao-labels";
 import { machineAssetStatusFr } from "@/lib/view/machine-labels";
 
@@ -110,6 +111,7 @@ export function MachineEditDialog({ machine, open, onOpenChange, onUpdated }: Ma
       imageUrl: imageDataUrl || values.imageUrl?.trim() || null,
       coverImageUrl: imageDataUrl || values.imageUrl?.trim() || null,
       hasCoverImage: Boolean(imageDataUrl || values.imageUrl?.trim()),
+      assignedParts: machine.assignedParts ?? [],
     });
     onOpenChange(false);
   });
@@ -234,6 +236,7 @@ export function MachineEditDialog({ machine, open, onOpenChange, onUpdated }: Ma
             onImageUrlChange={(v) => form.setValue("imageUrl", v, { shouldDirty: true })}
             imageDataUrl={imageDataUrl}
             onImageDataUrlChange={setImageDataUrl}
+            existingPreviewUrl={machine?.hasCoverImage ? machineImageApiUrl(machine.id) : null}
             alt={form.watch("name") || "Aperçu machine"}
             disabled={pending}
             urlError={form.formState.errors.imageUrl?.message}

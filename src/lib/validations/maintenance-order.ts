@@ -7,6 +7,7 @@ const orderLineSchema = z.object({
   taskGraissage: z.boolean().default(false),
   taskHuile: z.boolean().default(false),
   taskControl: z.boolean().default(false),
+  taskControle: z.boolean().default(false),
   taskNonConforme: z.boolean().default(false),
 });
 
@@ -19,6 +20,7 @@ export const maintenanceOrderSchema = z.object({
   taskGraissage: z.boolean().default(false),
   taskHuile: z.boolean().default(false),
   taskControl: z.boolean().default(false),
+  taskControle: z.boolean().default(false),
   taskNonConforme: z.boolean().default(false),
 });
 
@@ -37,6 +39,7 @@ export function buildOrderLinesFromInput(data: MaintenanceOrderInput): z.infer<t
     taskGraissage: data.taskGraissage,
     taskHuile: data.taskHuile,
     taskControl: data.taskControl,
+    taskControle: data.taskControle,
     taskNonConforme: data.taskNonConforme,
   }));
 }

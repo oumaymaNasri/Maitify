@@ -22,6 +22,7 @@ type CatalogEntityCardProps = {
   fallbackIcon: LucideIcon;
   badge?: ReactNode;
   meta: CatalogCardMeta[];
+  afterMeta?: ReactNode;
   footer?: ReactNode;
   selected?: boolean;
   onToggleSelect?: (checked: boolean) => void;
@@ -37,6 +38,7 @@ export function CatalogEntityCard({
   fallbackIcon: FallbackIcon,
   badge,
   meta,
+  afterMeta,
   footer,
   selected,
   onToggleSelect,
@@ -131,6 +133,7 @@ export function CatalogEntityCard({
             );
           })}
         </div>
+        {afterMeta}
         {footer ? <div className="flex flex-wrap gap-2 pt-1">{footer}</div> : null}
       </div>
     </article>

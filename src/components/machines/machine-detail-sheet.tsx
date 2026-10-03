@@ -4,6 +4,7 @@ import { FileText, Loader2, Wrench } from "lucide-react";
 import * as React from "react";
 
 import { getMachineDetailAction } from "@/app/actions/machine";
+import { AssignedPartsList } from "@/components/machines/assigned-parts-list";
 import { MachineImageBlock } from "@/components/machines/machine-image-block";
 import { MachineQrDialog } from "@/components/machines/machine-qr-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -149,29 +150,10 @@ export function MachineDetailSheet({
               )}
             </section>
 
-            {detail.spareParts.length > 0 ? (
-              <section>
-                <h3 className="mb-2 text-sm font-semibold text-slate-900">Pièces liées</h3>
-                <ul className="space-y-2">
-                  {detail.spareParts.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                    >
-                      <span className="text-slate-800">{p.designation}</span>
-                      <span
-                        className={cn(
-                          "tabular-nums font-medium",
-                          p.quantity <= p.minStock ? "text-rose-700" : "text-emerald-700",
-                        )}
-                      >
-                        {p.quantity} / seuil {p.minStock}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+            <section>
+              <h3 className="mb-2 text-sm font-semibold text-slate-900">Pièces de rechange affectées</h3>
+              <AssignedPartsList parts={detail.spareParts} />
+            </section>
 
             {detail.manuals.length > 0 ? (
               <section>

@@ -29,6 +29,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { machineImageApiUrl } from "@/lib/media/image-api";
 import { machineFormSchema, type MachineFormInput } from "@/lib/validations/machine";
 import { maintenanceFrequencyFr } from "@/lib/view/gmao-labels";
 import { machineAssetStatusFr } from "@/lib/view/machine-labels";
@@ -129,6 +130,7 @@ export function MachineFormSheet({
       galleryCount: machine?.galleryCount ?? 0,
       qrCode: machine?.qrCode ?? null,
       lastInterventionAt: machine?.lastInterventionAt ?? null,
+      assignedParts: machine?.assignedParts ?? [],
     };
     if (isEdit) onUpdated?.(vm);
     else onCreated?.(vm);
@@ -226,6 +228,7 @@ export function MachineFormSheet({
             }}
             alt={form.watch("name") || "Aperçu machine"}
             disabled={pending}
+            existingPreviewUrl={machine?.hasCoverImage ? machineImageApiUrl(machine.id) : null}
             urlError={form.formState.errors.imageUrl?.message}
           />
 

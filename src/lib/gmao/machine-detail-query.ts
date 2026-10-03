@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
+import { mergeAssignedParts } from "@/lib/gmao/assigned-parts";
 
 export async function fetchMachineDetail(id: string) {
-  return prisma.machine.findUnique({
+  const row = await prisma.machine.findUnique({
     where: { id },
     select: {
       id: true,
@@ -22,8 +23,12 @@ export async function fetchMachineDetail(id: string) {
       },
       spareParts: {
         orderBy: { designation: "asc" },
-        take: 20,
         select: { id: true, designation: true, quantity: true, minStock: true, reference: true },
+      },
+      partMachines: {
+        select: {
+          part: { select: { id: true, designation: true, quantity: true, minStock: true, reference: true } },
+        },
       },
       maintenanceLogs: {
         orderBy: { date: "desc" },
@@ -41,6 +46,16 @@ export async function fetchMachineDetail(id: string) {
       },
     },
   });
+  if (!row) return null;
+
+  const { partMachines, spareParts, ...rest } = row;
+  return {
+    ...rest,
+    spareParts: mergeAssignedParts(
+      spareParts,
+      partMachines.map((link) => link.part),
+    ),
+  };
 }
 
 export type MachineDetailDto = NonNullable<Awaited<ReturnType<typeof fetchMachineDetail>>>;

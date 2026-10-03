@@ -5,6 +5,7 @@ import { Loader2, Plus } from "lucide-react";
 import * as React from "react";
 
 import { createTechnicianAction } from "@/app/actions/technician";
+import { MachineImageFields } from "@/components/machines/machine-image-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +43,7 @@ type AddTechnicianSheetProps = {
     email: string | null;
     phone: string | null;
     employeeCode: string | null;
+    hasImage: boolean;
     interventionCount: number;
   }) => void;
 };
@@ -55,6 +57,8 @@ export function AddTechnicianSheet({ onCreated }: AddTechnicianSheetProps = {}) 
   const [availability, setAvailability] = React.useState<TechnicianAvailability>(
     TechnicianAvailability.DISPONIBLE,
   );
+  const [imageUrl, setImageUrl] = React.useState("");
+  const [imageDataUrl, setImageDataUrl] = React.useState("");
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -64,6 +68,8 @@ export function AddTechnicianSheet({ onCreated }: AddTechnicianSheetProps = {}) 
     fd.set("specialty", specialty);
     fd.set("role", role);
     fd.set("availability", availability);
+    if (imageDataUrl) fd.set("imageDataUrl", imageDataUrl);
+    else if (imageUrl.trim()) fd.set("imageUrl", imageUrl.trim());
     const res = await createTechnicianAction(fd);
     setPending(false);
     if (!res.ok) {
@@ -80,10 +86,13 @@ export function AddTechnicianSheet({ onCreated }: AddTechnicianSheetProps = {}) 
       email: String(fd.get("email") ?? "").trim() || null,
       phone: String(fd.get("phone") ?? "").trim() || null,
       employeeCode: String(fd.get("employeeCode") ?? "").trim() || null,
+      hasImage: Boolean(imageDataUrl || imageUrl.trim()),
       interventionCount: 0,
     });
     setOpen(false);
     e.currentTarget.reset();
+    setImageUrl("");
+    setImageDataUrl("");
   };
 
   return (
@@ -174,6 +183,16 @@ export function AddTechnicianSheet({ onCreated }: AddTechnicianSheetProps = {}) 
             <Label htmlFor="employeeCode">Matricule</Label>
             <Input id="employeeCode" name="employeeCode" disabled={pending} />
           </div>
+          <MachineImageFields
+            idPrefix="new-technician"
+            imageUrl={imageUrl}
+            onImageUrlChange={setImageUrl}
+            imageDataUrl={imageDataUrl}
+            onImageDataUrlChange={setImageDataUrl}
+            alt="Photo du technicien"
+            disabled={pending}
+            fileLabel="Photo du technicien"
+          />
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <SheetFooter className="mt-auto gap-2 sm:flex-col">
             <Button type="submit" disabled={pending} className="w-full">
