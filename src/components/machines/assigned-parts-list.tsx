@@ -38,7 +38,7 @@ export function AssignedPartsList({
               {part.reference ? <span className="mt-0.5 block truncate pl-5 text-[11px] text-slate-500">{part.reference}</span> : null}
             </span>
             <span className={cn("shrink-0 tabular-nums font-semibold", low ? "text-rose-700" : "text-emerald-700")}>
-              {part.quantity}
+              {compact ? part.quantity : `stock ${part.quantity} / seuil ${part.minStock}`}
             </span>
           </li>
         );

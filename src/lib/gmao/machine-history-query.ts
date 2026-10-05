@@ -3,6 +3,8 @@ import type { InterventionType, MachineAssetStatus, MaintenanceWorkflowStatus, P
 import type { PaginatedResult } from "@/lib/db/pagination";
 import { ALL_PAGE_SIZE, clampPagination, DEFAULT_PAGE_SIZE, paginatedMeta } from "@/lib/db/pagination";
 import { prisma } from "@/lib/db/prisma";
+import type { AssignedPartVm } from "@/lib/gmao/assigned-parts";
+import { mergeAssignedParts } from "@/lib/gmao/assigned-parts";
 import { workflowStatusForLog } from "@/lib/gmao/intervention-status";
 
 const historyLogSelect = {
@@ -27,6 +29,7 @@ export type MachineHistoryHeader = {
   code: string;
   location: string;
   assetStatus: MachineAssetStatus;
+  assignedParts: AssignedPartVm[];
 };
 
 export type MachineHistoryRow = {
@@ -77,6 +80,15 @@ export async function fetchMachineHistoryHeader(machineId: string): Promise<Mach
       location: true,
       legacyMatricule: true,
       assetStatus: true,
+      spareParts: {
+        orderBy: { designation: "asc" },
+        select: { id: true, designation: true, reference: true, quantity: true, minStock: true },
+      },
+      partMachines: {
+        select: {
+          part: { select: { id: true, designation: true, reference: true, quantity: true, minStock: true } },
+        },
+      },
     },
   });
 
@@ -88,6 +100,10 @@ export async function fetchMachineHistoryHeader(machineId: string): Promise<Mach
     code: machine.legacyMatricule != null ? `M${machine.legacyMatricule}` : machine.id.slice(0, 8),
     location: machine.location,
     assetStatus: machine.assetStatus,
+    assignedParts: mergeAssignedParts(
+      machine.spareParts,
+      machine.partMachines.map((link) => link.part),
+    ),
   };
 }
 

@@ -3,6 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { DbErrorHint } from "@/components/layout/DbError";
+import { AssignedPartsList } from "@/components/machines/assigned-parts-list";
 import { MachineHistoryExportButtons } from "@/components/machines/machine-history-export-buttons";
 import { MachineHistoryTable } from "@/components/machines/machine-history-table";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +79,11 @@ async function MachineHistoryContent({
             <MachineHistoryExportButtons header={header} rows={exportRows ?? []} />
           </div>
         </div>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Pièces de rechange affectées</h2>
+          <AssignedPartsList parts={header.assignedParts} />
+        </section>
 
         <MachineHistoryTable
           machineId={machineId}
