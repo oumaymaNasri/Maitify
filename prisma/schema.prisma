@@ -134,6 +134,66 @@ enum AlertSeverity {
   CRITICAL
 }
 
+// ——— Planning préventif (Lot 1) ———
+
+/// Fréquences du moteur de plans (distinct de MaintenanceFrequency / secteur machine).
+enum PreventiveFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum PreventiveScheduleMode {
+  FIXED
+  AUTOMATIC
+}
+
+enum SundayReschedulePolicy {
+  PREV_SATURDAY
+  NEXT_MONDAY
+  SKIP
+}
+
+enum PreventivePlanStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum MaintenanceTypeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MaintenanceOccurrenceStatus {
+  PLANNED
+  GENERATED
+  DONE
+  OVERDUE
+  SKIPPED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum SundayAdjustment {
+  NONE
+  PREV_SATURDAY
+  NEXT_MONDAY
+  SKIP
+}
+
+enum MaintenanceOrderTaskStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+enum MaintenanceOrderTaskSource {
+  MANUAL
+  PREVENTIVE_PLAN
+}
+
 // ——— Auth (optionnel, lien technicien) ———
 
 enum UserRole {
@@ -157,6 +217,10 @@ model User {
   sessions          Session[]
   waterMeasurements WaterQualityMeasurement[] @relation("WaterRecorder")
   technician        Technician?
+
+  preventivePlansCreated   PreventiveMaintenancePlan[] @relation("PreventivePlanCreatedBy")
+  preventivePlansUpdated   PreventiveMaintenancePlan[] @relation("PreventivePlanUpdatedBy")
+  preventivePlanRevisions  PreventivePlanRevision[]    @relation("PreventivePlanRevisionAuthor")
 }
 
 model Account {
@@ -215,7 +279,9 @@ model Technician {
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
 
-  maintenanceLogs MaintenanceLog[]
+  maintenanceLogs              MaintenanceLog[]
+  assignedPreventivePlans      PreventiveMaintenancePlan[] @relation("PreventivePlanAssignee")
+  assignedMaintenanceOrderTasks MaintenanceOrderTask[]     @relation("OrderTaskAssignee")
 
   @@index([specialty])
   @@index([availability])
@@ -244,6 +310,8 @@ model Machine {
   maintenanceOrderLines MaintenanceOrderLine[]
   spareParts            SparePart[]
   partMachines          PartMachine[]
+  /// Plans de maintenance préventive (plusieurs plans / machine).
+  preventivePlans       PreventiveMaintenancePlan[]
 
   @@index([assetStatus])
   @@index([location])
@@ -326,6 +394,8 @@ model MaintenanceLog {
 
   sparePartUsages SparePartUsage[]
   attachments     MaintenanceAttachment[]
+  /// Lien optionnel vers une occurrence préventive (Lot 4 opérationnel).
+  preventiveOccurrence MaintenanceOccurrence?
 
   @@index([machineId])
   @@index([technicianId])
@@ -360,8 +430,10 @@ model MaintenanceOrder {
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
-  lines MaintenanceOrderLine[]
-  logs  MaintenanceLog[]
+  lines        MaintenanceOrderLine[]
+  logs         MaintenanceLog[]
+  /// Occurrences préventives rattachées à cet OM journalier (Lot 4).
+  occurrences  MaintenanceOccurrence[]
 
   @@index([plannedDate])
   @@index([plannedDate, status])
@@ -382,11 +454,40 @@ model MaintenanceOrderLine {
   taskControle       Boolean          @default(false) @map("task_controle")
   taskNonConforme    Boolean          @default(false) @map("task_non_conforme")
   maintenanceLog     MaintenanceLog?
+  /// Tâches multi-plans sous la ligne machine (unicité ligne conservée).
+  tasks              MaintenanceOrderTask[]
 
   @@unique([maintenanceOrderId, machineId])
   @@index([machineId])
   @@index([maintenanceOrderId])
   @@map("MaintenanceOrderLine")
+}
+
+/// Tâche préventive (ou manuelle) rattachée à une ligne OM machine — prépare le multi-plans / jour.
+model MaintenanceOrderTask {
+  id                     String                     @id @default(cuid())
+  maintenanceOrderLineId String                     @map("maintenance_order_line_id")
+  maintenanceOrderLine   MaintenanceOrderLine       @relation(fields: [maintenanceOrderLineId], references: [id], onDelete: Cascade)
+  maintenanceTypeId      String?                    @map("maintenance_type_id")
+  maintenanceType        MaintenanceType?           @relation(fields: [maintenanceTypeId], references: [id], onDelete: SetNull)
+  title                  String
+  instructions           String?                    @db.Text
+  plannedTime            String?                    @map("planned_time")
+  estimatedDurationMin   Int?                       @map("estimated_duration_min")
+  assigneeTechnicianId   String?                    @map("assignee_technician_id")
+  assignee               Technician?                @relation("OrderTaskAssignee", fields: [assigneeTechnicianId], references: [id], onDelete: SetNull)
+  status                 MaintenanceOrderTaskStatus @default(OPEN)
+  source                 MaintenanceOrderTaskSource @default(MANUAL)
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+
+  occurrence MaintenanceOccurrence?
+
+  @@index([maintenanceOrderLineId])
+  @@index([maintenanceTypeId])
+  @@index([assigneeTechnicianId])
+  @@index([status])
+  @@map("MaintenanceOrderTask")
 }
 
 model MaintenanceAttachment {
@@ -517,4 +618,157 @@ model GmaoAlert {
 
   @@index([resolvedAt, createdAt])
   @@index([type, resolvedAt])
+}
+
+// =============================================================================
+// Module Planning préventif — Lot 1 (référentiel + modèle)
+// Fuseau métier : Africa/Tunis. Aucune donnée legacy migrée automatiquement.
+// =============================================================================
+
+/// Catalogue configurable des types de maintenance (distinct de InterventionType / OperationType).
+model MaintenanceType {
+  id                  String                @id @default(cuid())
+  code                String                @unique
+  label               String
+  description         String?               @db.Text
+  defaultInstructions String?               @map("default_instructions") @db.Text
+  defaultDurationMin  Int?                  @map("default_duration_min")
+  requiredSpecialty   TechnicianSpecialty?  @map("required_specialty")
+  status              MaintenanceTypeStatus @default(ACTIVE)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  plans PreventiveMaintenancePlan[]
+  tasks MaintenanceOrderTask[]
+
+  @@index([status])
+  @@index([label])
+  @@map("MaintenanceType")
+}
+
+/// Plan de maintenance préventive rattaché à une machine (plusieurs plans / machine).
+model PreventiveMaintenancePlan {
+  id                     String                   @id @default(cuid())
+  machineId              String                   @map("machine_id")
+  machine                Machine                  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  maintenanceTypeId      String                   @map("maintenance_type_id")
+  maintenanceType        MaintenanceType          @relation(fields: [maintenanceTypeId], references: [id], onDelete: Restrict)
+  title                  String
+  description            String?                  @db.Text
+  instructions           String?                  @db.Text
+  frequency              PreventiveFrequency
+  /// Nombre d'exécutions par période (ex. 2 / jour, 3 / semaine).
+  occurrencesPerPeriod   Int                      @map("occurrences_per_period")
+  scheduleMode           PreventiveScheduleMode   @map("schedule_mode")
+  includeSunday          Boolean                  @default(false) @map("include_sunday")
+  sundayPolicy           SundayReschedulePolicy   @default(NEXT_MONDAY) @map("sunday_policy")
+  startDate              DateTime                 @map("start_date") @db.Date
+  endDate                DateTime?                @map("end_date") @db.Date
+  estimatedDurationMin   Int?                     @map("estimated_duration_min")
+  assigneeTechnicianId   String?                  @map("assignee_technician_id")
+  assignee               Technician?              @relation("PreventivePlanAssignee", fields: [assigneeTechnicianId], references: [id], onDelete: SetNull)
+  status                 PreventivePlanStatus     @default(ACTIVE)
+  version                Int                      @default(1)
+  /// Fuseau de calcul des échéances (métier NutriFish).
+  timezone               String                   @default("Africa/Tunis")
+  /// Horaires par défaut (mode AUTOMATIC), format HH:mm.
+  defaultTimes           String[]                 @default([]) @map("default_times")
+  generationHorizonDays  Int                      @default(30) @map("generation_horizon_days")
+  lastGeneratedAt        DateTime?                @map("last_generated_at")
+  createdByUserId        String?                  @map("created_by_user_id")
+  createdBy              User?                    @relation("PreventivePlanCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedByUserId        String?                  @map("updated_by_user_id")
+  updatedBy              User?                    @relation("PreventivePlanUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  scheduleRules MaintenanceScheduleRule[]
+  occurrences   MaintenanceOccurrence[]
+  revisions     PreventivePlanRevision[]
+
+  @@index([machineId, status])
+  @@index([maintenanceTypeId])
+  @@index([status])
+  @@index([frequency])
+  @@index([assigneeTechnicianId])
+  @@map("PreventiveMaintenancePlan")
+}
+
+/// Créneaux / slots du mode FIXED (et paramètres de position pour la période).
+model MaintenanceScheduleRule {
+  id        String                    @id @default(cuid())
+  planId    String                    @map("plan_id")
+  plan      PreventiveMaintenancePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// Rang 0..N-1 dans la période (= occurrenceIndex).
+  sortOrder Int                       @map("sort_order")
+  /// 1 = lundi … 7 = dimanche (ISO-like).
+  weekday   Int?
+  /// Jour du mois 1..31 (MONTHLY / YEARLY).
+  monthDay  Int?                      @map("month_day")
+  /// Mois 1..12 (YEARLY).
+  month     Int?
+  /// Heure locale Africa/Tunis, format HH:mm.
+  timeLocal String                    @map("time_local")
+  createdAt DateTime                  @default(now())
+  updatedAt DateTime                  @updatedAt
+
+  @@unique([planId, sortOrder])
+  @@index([planId])
+  @@map("MaintenanceScheduleRule")
+}
+
+/// Occurrence calculée / générée — conserve date théorique et date planifiée.
+model MaintenanceOccurrence {
+  id                     String                      @id @default(cuid())
+  planId                 String                      @map("plan_id")
+  plan                   PreventiveMaintenancePlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// Version du plan au moment du calcul / génération.
+  planVersion            Int                         @map("plan_version")
+  /// Clé d'idempotence : planId|periodKey|occurrenceIndex|theoreticalDate|theoreticalTime
+  occurrenceKey          String                      @unique @map("occurrence_key")
+  /// Ex. 2026-11-15 | 2026-W46 | 2026-11 | 2026
+  periodKey              String                      @map("period_key")
+  occurrenceIndex        Int                         @map("occurrence_index")
+  theoreticalDate        DateTime                    @map("theoretical_date") @db.Date
+  theoreticalTime        String                      @map("theoretical_time")
+  /// Null si sundayPolicy = SKIP.
+  plannedDate            DateTime?                   @map("planned_date") @db.Date
+  plannedTime            String?                     @map("planned_time")
+  plannedAtUtc           DateTime?                   @map("planned_at_utc")
+  sundayAdjustment       SundayAdjustment            @default(NONE) @map("sunday_adjustment")
+  status                 MaintenanceOccurrenceStatus @default(PLANNED)
+  maintenanceOrderId     String?                     @map("maintenance_order_id")
+  maintenanceOrder       MaintenanceOrder?           @relation(fields: [maintenanceOrderId], references: [id], onDelete: SetNull)
+  maintenanceOrderTaskId String?                     @unique @map("maintenance_order_task_id")
+  maintenanceOrderTask   MaintenanceOrderTask?       @relation(fields: [maintenanceOrderTaskId], references: [id], onDelete: SetNull)
+  maintenanceLogId       String?                     @unique @map("maintenance_log_id")
+  maintenanceLog         MaintenanceLog?             @relation(fields: [maintenanceLogId], references: [id], onDelete: SetNull)
+  completedAt            DateTime?                   @map("completed_at")
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+
+  @@index([planId, plannedDate])
+  @@index([status, plannedDate])
+  @@index([maintenanceOrderId])
+  @@index([theoreticalDate])
+  @@index([periodKey])
+  @@map("MaintenanceOccurrence")
+}
+
+/// Historique versionné des modifications de plan (snapshot JSON).
+model PreventivePlanRevision {
+  id              String                    @id @default(cuid())
+  planId          String                    @map("plan_id")
+  plan            PreventiveMaintenancePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  version         Int
+  snapshot        Json
+  changeSummary   String?                   @map("change_summary") @db.Text
+  changedByUserId String?                   @map("changed_by_user_id")
+  changedBy       User?                     @relation("PreventivePlanRevisionAuthor", fields: [changedByUserId], references: [id], onDelete: SetNull)
+  changedAt       DateTime                  @default(now()) @map("changed_at")
+
+  @@unique([planId, version])
+  @@index([planId, changedAt])
+  @@index([changedByUserId])
+  @@map("PreventivePlanRevision")
 }

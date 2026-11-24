@@ -34,3 +34,17 @@ Thumbs.db
 
 # Coverage
 coverage/
+
+# Lot 3B — dumps PostgreSQL locaux
+/backups/
+
+backups/
+*.dump
+.claude/launch.json
+
+# Fichiers locaux confidentiels / generes (ne jamais publier)
+Acce.txt
+/.tmp-pbix/
+*.tsbuildinfo
+# Rapports internes (audit securite, inventaire infra) : ne pas publier sur le depot public
+/docs/

@@ -5,6 +5,7 @@ import { ArrowDownUp, CalendarClock, Eye, MapPin, Package, Phone, Settings2, Use
 import { CatalogCardsGrid } from "@/components/gmao/catalog-cards-grid";
 import { CatalogEntityCard } from "@/components/gmao/catalog-entity-card";
 import { AssignedPartsList } from "@/components/machines/assigned-parts-list";
+import { MachinePlanCompact } from "@/components/preventive-planning/machine-plan-block";
 import type { MachineCardVm } from "@/components/machines/machine-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -75,7 +76,8 @@ export function MachinesCatalogCards({
             { icon: CalendarClock, text: formatLastIntervention(m.lastInterventionAt) },
           ]}
           afterMeta={
-            <div className="pt-1">
+            <div className="space-y-2 pt-1">
+              <MachinePlanCompact machineId={m.id} summary={m.preventivePlan} />
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Pièces affectées
               </p>

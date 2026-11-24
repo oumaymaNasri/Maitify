@@ -29,6 +29,7 @@ import {
 } from "@/lib/view/machine-labels";
 import type { MachineAssetStatus, MaintenanceFrequency } from "@prisma/client";
 import { maintenanceFrequencyFr } from "@/lib/view/gmao-labels";
+import type { MachinePlanSummary } from "@/lib/preventive/machine-plan-summary";
 
 export type MachineCardVm = {
   id: string;
@@ -49,6 +50,8 @@ export type MachineCardVm = {
   description?: string | null;
   lastInterventionAt: string | null;
   assignedParts: AssignedPartVm[];
+  /** Plan(s) de maintenance préventive rattaché(s) — absent si planning indisponible. */
+  preventivePlan?: MachinePlanSummary | null;
 };
 
 export function MachineCard({ machine, className }: { machine: MachineCardVm; className?: string }) {

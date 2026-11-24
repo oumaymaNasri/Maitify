@@ -6,6 +6,7 @@ import { DbErrorHint } from "@/components/layout/DbError";
 import { AssignedPartsList } from "@/components/machines/assigned-parts-list";
 import { MachineHistoryExportButtons } from "@/components/machines/machine-history-export-buttons";
 import { MachineHistoryTable } from "@/components/machines/machine-history-table";
+import { MachinePlanSection } from "@/components/preventive-planning/machine-plan-block";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import {
   fetchMachineHistoryPage,
 } from "@/lib/gmao/machine-history-query";
 import { parsePageSize } from "@/lib/db/pagination";
+import { fetchMachinePlanSummaries } from "@/lib/preventive/machine-plan-summary";
 import { machineAssetStatusFr, machineStatusBadgeClass } from "@/lib/view/machine-labels";
 import { cn } from "@/lib/utils";
 
@@ -48,9 +50,10 @@ async function MachineHistoryContent({
     const header = await fetchMachineHistoryHeader(machineId);
     if (!header) notFound();
 
-    const [history, exportRows] = await Promise.all([
+    const [history, exportRows, planSummaries] = await Promise.all([
       fetchMachineHistoryPage(machineId, page, pageSize),
       fetchMachineHistoryExportRows(machineId).catch(() => []),
+      fetchMachinePlanSummaries([machineId]),
     ]);
 
     if (!history) notFound();
@@ -79,6 +82,8 @@ async function MachineHistoryContent({
             <MachineHistoryExportButtons header={header} rows={exportRows ?? []} />
           </div>
         </div>
+
+        <MachinePlanSection machineId={machineId} summary={planSummaries[machineId]} />
 
         <section className="rounded-xl border border-slate-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Pièces de rechange affectées</h2>

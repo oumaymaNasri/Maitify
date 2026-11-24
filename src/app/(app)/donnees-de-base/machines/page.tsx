@@ -5,6 +5,7 @@ import { MachineGridSkeleton } from "@/components/machines/machine-grid-skeleton
 import { MachinesModuleClient } from "@/components/machines/machines-module-client";
 import { getMachinesInventoryCached } from "@/lib/gmao/machines-query";
 import { parsePageSize } from "@/lib/db/pagination";
+import { fetchMachinePlanSummaries } from "@/lib/preventive/machine-plan-summary";
 
 type PageProps = {
   searchParams?: { page?: string; pageSize?: string; q?: string; status?: string; location?: string; sector?: string };
@@ -20,9 +21,11 @@ async function MachinesGrid({ searchParams }: PageProps) {
       location: searchParams?.location ?? "ALL",
       sector: searchParams?.sector ?? "ALL",
     });
+    const plansByMachine = await fetchMachinePlanSummaries(result.items.map((m) => m.id));
+    const machines = result.items.map((m) => ({ ...m, preventivePlan: plansByMachine[m.id] ?? null }));
     return (
       <MachinesModuleClient
-        machines={result.items}
+        machines={machines}
         pagination={{ page: result.page, pageCount: result.pageCount, total: result.total, pageSize: result.pageSize }}
       />
     );

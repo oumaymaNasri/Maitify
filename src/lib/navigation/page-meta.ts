@@ -12,6 +12,12 @@ const exact: Record<string, PageMeta> = {
   "/interventions": { title: "Liste de Maintenance", subtitle: "Historique maintenance" },
   "/interventions/new": { title: "Nouvelle intervention", subtitle: "Saisie terrain" },
   "/maintenance-orders": { title: "Ordres de maintenance journaliers", subtitle: "Un bon de travail par jour — préventif et correctif" },
+  "/preventive-planning": {
+    title: "Planning préventif",
+    subtitle: "Plans multi-fréquences, prévisualisation des échéances",
+  },
+  "/preventive-planning/new": { title: "Nouveau plan préventif", subtitle: "Configuration & prévisualisation" },
+
   "/technicians": { title: "Techniciens", subtitle: "Profils & spécialités" },
   "/parts": { title: "Pièces de rechange", subtitle: "Stock & seuils d'alerte" },
   "/stock": { title: "Stock & Pièces", subtitle: "Inventaire, alertes et mouvements" },
@@ -22,6 +28,12 @@ export function getPageMeta(pathname: string | null): PageMeta {
   if (!pathname) return { title: "NutriFish GMAO" };
   if (exact[pathname]) return exact[pathname];
   if (pathname.startsWith("/interventions")) return exact["/interventions"]!;
+  if (pathname.startsWith("/preventive-planning")) {
+    return exact[pathname] ?? {
+      title: "Planning préventif",
+      subtitle: "Détail du plan",
+    };
+  }
   if (pathname.startsWith("/maintenance-orders")) return exact["/maintenance-orders"]!;
   if (pathname.startsWith("/donnees-de-base")) return exact["/donnees-de-base"]!;
   if (pathname.startsWith("/machines")) return exact["/machines"]!;

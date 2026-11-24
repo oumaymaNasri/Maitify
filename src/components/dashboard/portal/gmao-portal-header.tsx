@@ -2,6 +2,7 @@
 
 import {
   CalendarCheck,
+  CalendarClock,
   ClipboardList,
   Database,
   LayoutDashboard,
@@ -32,6 +33,7 @@ const MODULES: { href: string; label: string; icon: LucideIcon; match?: (p: stri
       p.startsWith("/donnees-de-base") || p.startsWith("/machines") || p.startsWith("/technicians"),
   },
   { href: "/maintenance-orders", label: "Ordre de maintenance", icon: CalendarCheck },
+  { href: "/preventive-planning", label: "Planning préventif", icon: CalendarClock },
   { href: "/interventions", label: "Liste de Maintenance", icon: ClipboardList },
   { href: "/stock", label: "Stock & Pièces", icon: Package },
 ];

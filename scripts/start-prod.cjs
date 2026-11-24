@@ -1,6 +1,7 @@
 /**
- * Démarrage production : schéma Prisma + comptes démo + Next.js.
- * Utilisé par Railway / Render / Docker.
+ * Démarrage production : génération client Prisma + Next.js.
+ * Lot 3C : aucune modification de schéma ni seed automatique.
+ * Les migrations SQL restent une opération explicite et séparée.
  */
 const { execSync } = require("node:child_process");
 const path = require("node:path");
@@ -8,10 +9,6 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const prismaCli = path.join(root, "node_modules", "prisma", "build", "index.js");
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
-const seedUsers = path.join(root, "prisma", "seed-auth-users.ts");
-const seedMachines = path.join(root, "prisma", "seed-machines-affiche.ts");
-const seedMaintenances = path.join(root, "prisma", "seed-maintenances-excel.ts");
-const tsx = path.join(root, "node_modules", "tsx", "dist", "cli.mjs");
 
 function run(cmd) {
   execSync(cmd, { stdio: "inherit", cwd: root, shell: true, env: process.env });
@@ -22,20 +19,17 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+if (process.env.ALLOW_DB_PUSH === "1" || process.env.ALLOW_AUTO_SEED === "1") {
+  console.error(
+    "[start-prod] REFUS: ALLOW_DB_PUSH / ALLOW_AUTO_SEED ne sont plus supportés (Lot 3C). Migrations et seeds = opérations manuelles séparées.",
+  );
+  process.exit(1);
+}
+
 console.log("[start-prod] prisma generate…");
 run(`node "${prismaCli}" generate`);
 
-console.log("[start-prod] prisma db push…");
-run(`node "${prismaCli}" db push --accept-data-loss`);
-
-if (process.env.SEED_DEMO_USERS !== "0") {
-  console.log("[start-prod] seed comptes démo…");
-  run(`node "${tsx}" "${seedUsers}"`);
-  console.log("[start-prod] seed parc machines…");
-  run(`node "${tsx}" "${seedMachines}"`);
-  console.log("[start-prod] seed maintenances Excel…");
-  run(`node "${tsx}" "${seedMaintenances}"`);
-}
+console.log("[start-prod] aucun db push / seed automatique (Lot 3C).");
 
 const port = process.env.PORT || "3000";
 console.log(`[start-prod] Next.js sur 0.0.0.0:${port}`);
